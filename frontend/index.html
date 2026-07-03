@@ -995,7 +995,7 @@ async function renderApprovalQueue() {
     content.innerHTML = `<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan queue kelulusan...</span></div>`;
     try {
         const data = await api(`/api/approval-queue?page=${state.approvalPage}&per_page=20`);
-        content.innerHTML = `<div class="card"><div class="flex items-center gap-2 mb-4"><h3 class="font-semibold text-gray-800">Queue Kelulusan Data</h3><span class="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full font-medium">${data.total} menunggu</span></div>
+        content.innerHTML = `<div class="card"><div class="flex items-center justify-between mb-4"><div class="flex items-center gap-2"><h3 class="font-semibold text-gray-800">Queue Kelulusan Data</h3><span class="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full font-medium">${data.total} menunggu</span></div>${data.total>0?`<button onclick="approveAll()" class="btn btn-success text-sm">🟢 Luluskan Semua Data</button>`:''}</div>
             ${data.total===0?'<div class="text-center py-10"><svg class="w-16 h-16 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><p class="text-gray-400">Tiada data yang menunggu kelulusan</p></div>':
             `<div class="overflow-x-auto"><table><thead><tr><th>No. KP</th><th>Nama</th><th>PDM</th><th>Lokaliti</th><th>Didaftar Oleh</th><th>Tarikh</th><th>Tindakan</th></tr></thead>
             <tbody>${data.data.map(p=>`<tr><td class="font-mono text-sm">${p.no_kp||'-'}</td><td class="font-medium">${p.nama_penuh||'-'}</td><td>${p.dm||'-'}</td><td class="text-sm">${p.lokaliti||'-'}</td><td class="text-sm">${p.sumber_pdm||'-'}</td><td class="text-sm">${p.dicipta_pada?new Date(p.dicipta_pada).toLocaleDateString('ms-MY'):'-'}</td>
@@ -1012,6 +1012,15 @@ async function rejectRecord(id) {
     if (!confirm('Tolak dan padamkan rekod ini?')) return;
     try { await api(`/api/approval-queue/${id}/tolak`, { method:'DELETE' }); showToast('Rekod ditolak dan dipadamkan'); renderApprovalQueue(); updateApprovalBadge(); }
     catch (err) { showToast(err.message,'error'); }
+}
+async function approveAll() {
+    if (!confirm('Luluskan semua data yang menunggu kelulusan? Tindakan ini tidak boleh dibatalkan.')) return;
+    try {
+        const result = await api('/api/pengundi/approve-all', { method:'POST' });
+        showToast(result.message, 'success');
+        renderApprovalQueue();
+        updateApprovalBadge();
+    } catch (err) { showToast(err.message,'error'); }
 }
 async function updateApprovalBadge() {
     try { const data = await api('/api/approval-queue?per_page=1'); const badge = document.getElementById('approvalBadge'); if (badge) { if (data.total>0) { badge.textContent=data.total; badge.classList.remove('hidden'); } else badge.classList.add('hidden'); } } catch(e) {}

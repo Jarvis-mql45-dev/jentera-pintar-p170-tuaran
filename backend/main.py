@@ -772,6 +772,33 @@ def reject_record(request: Request, pengundi_id: int, user=Depends(get_current_u
     return {"message": "Rekod berjaya ditolak dan dipadamkan"}
 
 
+# ===== APPROVE ALL PENDING (Admin sahaja) =====
+@app.post("/api/pengundi/approve-all")
+def approve_all_pending(request: Request, user=Depends(get_current_user)):
+    check_peranan(user, ["Admin"])
+
+    db = get_db()
+    cursor = db.cursor()
+
+    # Count pending records
+    cursor.execute("SELECT COUNT(*) FROM pengundi WHERE status_rekod = 'Menunggu_Kelulusan'")
+    count = cursor.fetchone()[0]
+
+    if count == 0:
+        db.close()
+        return {"message": "Tiada rekod yang menunggu kelulusan", "jumlah": 0}
+
+    # Bulk approve all pending
+    cursor.execute("UPDATE pengundi SET status_rekod = 'Sah' WHERE status_rekod = 'Menunggu_Kelulusan'")
+    db.commit()
+    db.close()
+
+    log_activity(request, user, "Luluskan Semua",
+                 f"{count} rekod diluluskan secara pukal")
+
+    return {"message": f"{count} rekod berjaya diluluskan", "jumlah": count}
+
+
 # ===== ENDPOINT AUDIT LOGS (Admin sahaja) =====
 @app.get("/api/audit-logs")
 def get_audit_logs(
