@@ -1,9 +1,9 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
   "name": "jentera-pintar-n05-matunggong",
   "version": 2,
+  "rootDirectory": "frontend",
+  "outputDirectory": ".",
   "buildCommand": "",
-  "outputDirectory": "frontend",
   "installCommand": "",
   "framework": null,
   "rewrites": [
@@ -16,6 +16,8 @@
       "destination": "/index.html"
     }
   ],
+  "trailingSlash": false,
+  "cleanUrls": true,
   "headers": [
     {
       "source": "/(.*)",
@@ -39,7 +41,7 @@
       ]
     },
     {
-      "source": "/assets/(.*)",
+      "source": "/icons/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
@@ -47,11 +49,5 @@
         }
       ]
     }
-  ],
-  "404": {
-    "source": "/(.*)",
-    "destination": "/index.html"
-  },
-  "cleanUrls": true,
-  "trailingSlash": false
+  ]
 }
