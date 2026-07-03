@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JenteraPintar N05 Matunggong</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e3a8a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {'50': '#eff6ff','100': '#dbeafe','200': '#bfdbfe','300': '#93c5fd','400': '#60a5fa','500': '#3b82f6','600': '#2563eb','700': '#1d4ed8','800': '#1e40af','900': '#1e3a8a'}
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; min-height: 100vh; }
+        .sidebar { width: 260px; transition: transform 0.3s; position: relative; display: flex; flex-direction: column; height: 100vh; }
+        .sidebar-menu { flex: 1; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; }
+        .sidebar-menu::-webkit-scrollbar { display: none; }
+        .sidebar-header, .sidebar-footer { flex-shrink: 0; }
+        body.no-scroll { overflow: hidden; }
+        @media (min-width: 769px) { .sidebar { position: relative !important; height: 100vh !important; transform: none !important; } }
+        @media (max-width: 768px) { .sidebar { position: fixed; z-index: 50; height: 100vh; } .sidebar.closed { transform: translateX(-260px); } .sidebar.open { transform: translateX(0); } }
+        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: box-shadow 0.2s; }
+        .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .btn { padding: 8px 16px; border-radius: 8px; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s; }
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-success { background: #16a34a; color: white; }
+        .btn-success:hover { background: #15803d; }
+        .btn-danger { background: #dc2626; color: white; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn-warning:hover { background: #d97706; }
+        .btn-outline { background: white; border: 1px solid #d1d5db; color: #374151; }
+        .btn-outline:hover { background: #f3f4f6; }
+        input, select { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; outline: none; width: 100%; }
+        input:focus, select:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8fafc; padding: 12px 8px; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 10px 8px; border-bottom: 1px solid #f1f5f9; }
+        tr:hover { background: #f8fafc; }
+        .badge { padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .badge-putih { background: #dcfce7; color: #166534; }
+        .badge-hitam { background: #fce7f3; color: #9d174d; }
+        .badge-atas { background: #fef9c3; color: #854d0e; }
+        .badge-tiada { background: #f1f5f9; color: #475569; }
+        .badge-sah { background: #dcfce7; color: #166534; }
+        .badge-menunggu { background: #fef9c3; color: #854d0e; }
+        .badge-meninggal { background: #fee2e2; color: #991b1b; }
+        .badge-hidup { background: #dcfce7; color: #166534; }
+        .stat-card { padding: 16px; border-radius: 12px; color: white; }
+        .loading-spinner { border: 3px solid #f3f3f3; border-top: 3px solid #2563eb; border-radius: 50%; width: 24px; height: 24px; animation: spin 0.8s linear infinite; display: inline-block; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .hidden { display: none !important; }
+        .toast { position: fixed; bottom: 20px; right: 20px; z-index: 100; padding: 12px 24px; border-radius: 8px; color: white; font-weight: 500; animation: slideIn 0.3s; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast-success { background: #16a34a; }
+        .toast-error { background: #dc2626; }
+        .pagination { display: flex; gap: 4px; align-items: center; justify-content: center; margin-top: 16px; }
+        .pagination button { padding: 6px 12px; border: 1px solid #d1d5db; border-radius: 6px; background: white; cursor: pointer; }
+        .pagination button.active { background: #2563eb; color: white; border-color: #2563eb; }
+        .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+<div id="app" class="flex min-h-screen">
+    <nav id="sidebar" class="sidebar closed fixed md:static h-full bg-white shadow-lg z-50"></nav>
+    <div class="flex-1 p-4 md:p-6">
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-3">
+                <button id="menuToggle" class="md:hidden p-2 rounded-lg hover:bg-gray-100">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
+                <h1 id="pageTitle" class="text-xl md:text-2xl font-bold text-gray-800">Dashboard Utama</h1>
+            </div>
+            <div id="userInfo" class="flex items-center gap-3"></div>
+        </div>
+        <div id="contentArea"></div>
+    </div>
+</div>
+<div id="toast" class="toast hidden"></div>
+
+<script>
+// ============================================================
+// STATE MANAGEMENT
+// ============================================================
+const state = {
+    token: localStorage.getItem('token') || null,
+    user: JSON.parse(localStorage.getItem('user') || 'null'),
+    currentPage: 'dashboard',
+    dashboardDm: '',
+    pengundiSearch: '',
+    pengundiDm: '',
+    pengundiPage: 1,
+    approvalPage: 1,
+    pengundiData: null,
+    dashboardData: null,
+    pdmList: [],
+    chart: null,
+    surveyPage: 'list',
+    surveyEditId: null,
+    surveyQuestions: [],
+};
+
+// ============================================================
+// API HELPER
+// ============================================================
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:8000'
+    : `http://${window.location.hostname}:8000`;
+
+async function api(path, options = {}) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
+    try {
+        const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Ralat berlaku');
+        return data;
+    } catch (err) {
+        if (err.message.includes('Failed to fetch')) {
+            showToast('Gagal menyambung ke pelayan. Pastikan backend sedang berjalan.', 'error');
+        }
+        throw err;
+    }
+}
+
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = `toast toast-${type}`;
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 3000);
+}
+
+async function handleLogin(username, password) {
+    try {
+        const data = await api('/api/login', { method: 'POST', body: JSON.stringify({ username, kata_laluan: password }) });
+        state.token = data.access_token;
+        state.user = data.user;
+        localStorage.setItem('token', data.access_token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        renderApp();
+        showToast(`Selamat datang, ${data.user.nama_penuh}!`);
+    } catch (err) { showToast(err.message, 'error'); }
+}
+
+function handleLogout() {
+    state.token = null; state.user = null;
+    localStorage.removeItem('token'); localStorage.removeItem('user');
+    renderApp();
+}
+
+function requiresAuth() { return !!(state.token && state.user); }
+
+function checkAdmin() { return state.user?.peranan === 'Admin'; }
+
+// ============================================================
+// RENDER FUNCTIONS
+// ============================================================
+
+function renderLoginPage() {
+    document.getElementById('pageTitle').textContent = 'Log Masuk';
+    document.getElementById('sidebar').classList.add('hidden');
+    document.getElementById('userInfo').innerHTML = '';
+    document.getElementById('contentArea').innerHTML = `
+        <div class="flex items-center justify-center min-h-[70vh]">
+            <div class="card w-full max-w-md p-8">
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-800">JenteraPintar N05 Matunggong</h2>
+                    <p class="text-sm text-gray-500 mt-1">Portal Operasi Jentera</p>
+                </div>
+                <div class="space-y-4">
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Nama Pengguna</label><input type="text" id="loginUsername" placeholder="Masukkan nama pengguna" value="admin"></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Kata Laluan</label><input type="password" id="loginPassword" placeholder="Masukkan kata laluan" value="admin123"></div>
+                    <button onclick="handleLogin(document.getElementById('loginUsername').value, document.getElementById('loginPassword').value)" class="btn btn-primary w-full py-3 text-lg">Log Masuk</button>
+                </div>
+                <div class="mt-4 p-3 bg-blue-50 rounded-lg text-xs text-blue-700">
+                    <p class="font-medium mb-1">📝 Akaun Demo:</p>
+                    <p><b>admin</b> / admin123 (Admin) · <b>petugas</b> / petugas123 (Petugas Padang) · <b>pemerhati</b> / pemerhati123 (Pemerhati)</p>
+                </div>
+                <!-- Login Footer -->
+                <div class="mt-6 text-center">
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        © 2026 N05 Matunggong. Hak Cipta Terpelihara.<br>
+                        Powered by Jarvis_KM | contact: jarvis_mql45dev@proton.me | Telegram: <a href="https://t.me/Jarvis_KM" target="_blank" class="text-xs text-slate-500 hover:text-blue-500 transition">@Jarvis_KM</a>
+                    </p>
+                </div>
+            </div>
+        </div>`;
+}
+
+function renderSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const peranan = state.user?.peranan || '';
+    sidebar.classList.remove('hidden');
+    sidebar.innerHTML = `
+        <div class="sidebar-header p-4 border-b">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center"><span class="text-white font-bold">DUN</span></div>
+                <div><h3 class="font-bold text-gray-800 text-sm">JenteraPintar N05</h3><p class="text-xs text-gray-500">Portal Operasi Jentera</p></div>
+            </div>
+        </div>
+        <div class="sidebar-menu p-3">
+            <div class="text-xs text-gray-400 uppercase font-semibold mb-2 px-3">Menu Utama</div>
+            <button onclick="navigate('dashboard')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='dashboard'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg> Dashboard
+            </button>
+            <button onclick="navigate('pengundi')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='pengundi'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg> Senarai Pengundi
+            </button>
+            ${peranan==='Admin' ? `
+            <button onclick="navigate('approval')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='approval'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Kelulusan Data
+                <span id="approvalBadge" class="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full hidden">0</span>
+            </button>` : ''}
+            ${peranan==='Admin' ? `
+            <div class="text-xs text-gray-400 uppercase font-semibold mb-2 mt-4 px-3">Pentadbiran</div>
+            <button onclick="navigate('audit')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='audit'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg> Log Aktiviti
+            </button>
+            <button onclick="navigate('users')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='users'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/></svg> Pengurusan Pengguna
+            </button>
+            <button onclick="navigate('import')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='import'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg> Import Data
+            </button>
+            <!-- Staff KPI - Petunjuk Prestasi Utama (Akan Datang) -->
+            <button onclick="navigate('kpi')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='kpi'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg> Petunjuk Prestasi Utama (PPU)
+                <span class="ml-auto bg-amber-400 text-amber-900 text-xs px-1.5 py-0.5 rounded-full">Akan Datang</span>
+            </button>
+            <div class="text-xs text-gray-400 uppercase font-semibold mb-2 mt-2 px-3">Borang Soal Selidik</div>
+            <button onclick="navigate('survey')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='survey'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg> Senarai Soal Selidik
+            </button>
+            <button onclick="navigate('survey-create')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='survey-create'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> Cipta Soal Selidik
+            </button>
+            <div class="text-xs text-gray-400 uppercase font-semibold mb-2 mt-2 px-3">INFO PARTI</div>
+            <button onclick="navigate('berita')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='berita'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg> Berita & Amanat
+                <span class="ml-auto bg-amber-400 text-amber-900 text-xs px-1.5 py-0.5 rounded-full">Akan Datang</span>
+            </button>
+            <button onclick="navigate('kalendar')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='kalendar'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> Kalendar Aktiviti
+                <span class="ml-auto bg-amber-400 text-amber-900 text-xs px-1.5 py-0.5 rounded-full">Akan Datang</span>
+            </button>
+            <div class="text-xs text-gray-400 uppercase font-semibold mb-2 mt-2 px-3">SOKONGAN & MAKLUM BALAS</div>
+            <button onclick="navigate('aduan')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='aduan'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg> Aduan Pengguna
+                <span class="ml-auto bg-amber-400 text-amber-900 text-xs px-1.5 py-0.5 rounded-full">Akan Datang</span>
+            </button>
+            <button onclick="navigate('cadangan')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='cadangan'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg> Cadangan Pengguna
+                <span class="ml-auto bg-amber-400 text-amber-900 text-xs px-1.5 py-0.5 rounded-full">Akan Datang</span>
+            </button>
+            ` : ''}
+        </div>
+        <div class="sidebar-footer border-t p-3">
+            <div class="flex items-center gap-3 px-3 py-2">
+                <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm font-bold text-gray-600">${state.user?.nama_penuh?.charAt(0) || 'U'}</div>
+                <div class="flex-1 min-w-0"><p class="text-sm font-medium text-gray-800 truncate">${state.user?.nama_penuh || ''}</p><p class="text-xs text-gray-500">${state.user?.peranan || ''}</p></div>
+                <button onclick="handleLogout()" class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-red-500" title="Log Keluar">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></button>
+            </div>
+            <!-- Sidebar Copyright Footer -->
+            <div class="px-3 py-2 border-t border-gray-100 mt-1">
+                <p class="text-xs text-slate-500 text-center leading-relaxed">
+                    © 2026 N05 Matunggong. Hak Cipta Terpelihara.<br>
+                    Powered by Jarvis_KM | contact: jarvis_mql45dev@proton.me | Telegram: <a href="https://t.me/Jarvis_KM" target="_blank" class="text-xs text-slate-500 hover:text-blue-500 transition">@Jarvis_KM</a>
+                </p>
+            </div>
+        </div>`;
+}
+
+function navigate(page) {
+    if (!requiresAuth()) { renderLoginPage(); return; }
+    state.currentPage = page;
+    renderSidebar();
+    document.getElementById('pageTitle').textContent = 
+        page==='dashboard'?'Dashboard Utama':page==='pengundi'?'Senarai Pengundi':
+        page==='approval'?'Kelulusan Data':page==='audit'?'Log Aktiviti':
+        page==='users'?'Pengurusan Pengguna':page==='import'?'Import Data Excel':
+        page==='survey'?'Senarai Soal Selidik':page==='survey-create'?'Cipta Soal Selidik':
+        page==='survey-view'?'Borang Soal Selidik':'Dashboard Utama';
+    document.getElementById('sidebar').classList.remove('open');
+    if (window.innerWidth < 768) {
+        document.getElementById('sidebar').classList.add('closed');
+        document.body.classList.remove('no-scroll');
+    } else {
+        document.getElementById('sidebar').classList.remove('closed');
+    }
+    
+    if (page==='dashboard') renderDashboard();
+    else if (page==='pengundi') renderPengundi();
+    else if (page==='approval') renderApprovalQueue();
+    else if (page==='audit') renderAuditLogs();
+    else if (page==='users') renderUserManagement();
+    else if (page==='import') renderImportData();
+    else if (page==='survey') renderSurveyList();
+    else if (page==='survey-create') renderCreateSurvey();
+    else if (page==='survey-view') renderSurveyView();
+    else renderComingSoon(page);
+}
+
+// ========= SURVEY FUNCTIONS =========
+
+async function renderSurveyList() {
+    const content = document.getElementById('contentArea');
+    content.innerHTML = '<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan senarai...</span></div>';
+    try {
+        const surveys = await api('/api/surveys');
+        const hasSurveys = surveys && surveys.length > 0;
+        content.innerHTML = `
+            <div class="card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-semibold text-gray-800">Senarai Soal Selidik</h3>
+                    <button onclick="navigate('survey-create')" class="btn btn-primary text-sm">+ Cipta Baru</button>
+                </div>
+                ${!hasSurveys ? '<div class="text-center py-10 text-gray-400">Tiada soal selidik yet. Klik "Cipta Baru" untuk mulakan.</div>' : `
+                <div class="overflow-x-auto">
+                    <table>
+                        <thead><tr><th>Tajuk</th><th>Penerangan</th><th>Respons</th><th>Dicipta</th><th>Tindakan</th></tr></thead>
+                        <tbody>${surveys.map(s => {
+                            const qs = typeof s.questions === 'string' ? JSON.parse(s.questions) : (s.questions || []);
+                            const qCount = Array.isArray(qs) ? qs.length : 0;
+                            return `<tr>
+                                <td class="font-medium">${s.title}</td>
+                                <td class="text-sm text-gray-500 max-w-xs truncate">${s.description || '-'}</td>
+                                <td><span class="badge badge-sah">${s.response_count || 0} respons</span></td>
+                                <td class="text-sm">${s.created_at ? new Date(s.created_at).toLocaleDateString('ms-MY') : '-'}</td>
+                                <td>
+                                    <div class="flex gap-2">
+                                        <button onclick="viewSurvey(${s.id})" class="btn btn-primary text-xs py-1 px-2">Lihat</button>
+                                        <button onclick="viewSurveyResponses(${s.id})" class="btn btn-outline text-xs py-1 px-2">Respons</button>
+                                        <button onclick="copySurveyLink(${s.id})" class="btn btn-warning text-xs py-1 px-2">Salin Pautan</button>
+                                        <button onclick="deleteSurvey(${s.id})" class="btn btn-danger text-xs py-1 px-2">Padam</button>
+                                    </div>
+                                </td>
+                            </tr>`;
+                        }).join('')}</tbody>
+                    </table>
+                </div>`}
+            </div>`;
+    } catch (err) {
+        content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`;
+    }
+}
+
+function viewSurvey(id) {
+    state.surveyEditId = id;
+    navigate('survey-view');
+}
+
+async function viewSurveyResponses(id) {
+    const content = document.getElementById('contentArea');
+    content.innerHTML = '<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan respons...</span></div>';
+    try {
+        const survey = await api(`/api/surveys/${id}`);
+        const responses = await api(`/api/surveys/${id}/responses`);
+        const qs = typeof survey.questions === 'string' ? JSON.parse(survey.questions) : (survey.questions || []);
+        content.innerHTML = `
+            <div class="card">
+                <div class="flex items-center justify-between mb-4">
+                    <div><h3 class="font-semibold text-gray-800">Respons: ${survey.title}</h3><p class="text-sm text-gray-500">${responses.length} respons diterima</p></div>
+                    <button onclick="navigate('survey')" class="btn btn-outline text-sm">← Kembali</button>
+                </div>
+                ${responses.length === 0 ? '<div class="text-center py-10 text-gray-400">Belum ada respons.</div>' : 
+                responses.map((r, ri) => {
+                    const ans = typeof r.answers === 'string' ? JSON.parse(r.answers) : (r.answers || {});
+                    return `<div class="mb-4 p-4 bg-gray-50 rounded-lg">
+                        <p class="text-xs text-gray-400 mb-2">Respons #${ri+1} · ${r.submitted_at ? new Date(r.submitted_at).toLocaleString('ms-MY') : '-'}</p>
+                        ${Array.isArray(qs) ? qs.map(q => `
+                            <div class="mb-2"><p class="text-sm font-medium text-gray-700">${q.question}</p>
+                            <p class="text-sm text-gray-600 ml-2">${ans[q.id] || ans[q.id] === 0 ? (Array.isArray(ans[q.id]) ? ans[q.id].join(', ') : ans[q.id]) : '<span class="text-gray-400">Tiada jawapan</span>'}</p></div>
+                        `).join('') : ''}
+                    </div>`;
+                }).join('')}
+            </div>`;
+    } catch (err) {
+        content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`;
+    }
+}
+
+function copySurveyLink(id) {
+    const link = `${window.location.origin}/survey/view/${id}`;
+    navigator.clipboard.writeText(link).then(() => {
+        showToast('Pautan borang disalin!');
+    }).catch(() => {
+        // Fallback for non-HTTPS
+        const textarea = document.createElement('textarea');
+        textarea.value = link;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showToast('Pautan borang disalin!');
+    });
+}
+
+async function deleteSurvey(id) {
+    if (!confirm('Padamkan soal selidik ini? Semua respons juga akan dipadamkan.')) return;
+    try {
+        await api(`/api/surveys/${id}`, { method: 'DELETE' });
+        showToast('Soal selidik dipadamkan');
+        renderSurveyList();
+    } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ========= CREATE SURVEY =========
+let surveyDraftQuestions = [];
+let surveyCreateMode = 'manual';
+let questionIdCounter = 1;
+
+function renderCreateSurvey() {
+    const content = document.getElementById('contentArea');
+    surveyDraftQuestions = [];
+    surveyCreateMode = 'manual';
+    content.innerHTML = `
+        <div class="grid grid-cols-1 gap-6">
+            <div class="card">
+                <h3 class="font-semibold text-gray-800 mb-4">Cipta Soal Selidik Baru</h3>
+                <div class="mb-4"><label class="block text-sm font-medium mb-1">Tajuk</label><input id="surveyTitle" placeholder="Masukkan tajuk soal selidik" class="w-full"></div>
+                <div class="mb-4"><label class="block text-sm font-medium mb-1">Penerangan</label><textarea id="surveyDesc" rows="2" placeholder="Penerangan ringkas" class="w-full border border-gray-300 rounded-lg p-2"></textarea></div>
+                
+                <!-- Mode Toggle -->
+                <div class="flex gap-4 mb-6">
+                    <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="surveyMode" value="manual" checked onchange="toggleSurveyMode('manual')" class="w-4 h-4"> <span class="text-sm">Manual</span></label>
+                    <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="surveyMode" value="ai" onchange="toggleSurveyMode('ai')" class="w-4 h-4"> <span class="text-sm">Jana dengan AI</span></label>
+                </div>
+
+                <!-- AI Section -->
+                <div id="aiSection" class="hidden mb-4">
+                    <label class="block text-sm font-medium mb-1">Topik Tinjauan</label>
+                    <div class="flex gap-2">
+                        <input id="aiPrompt" placeholder="Contoh: Isu air di Matunggong" class="flex-1">
+                        <button onclick="generateWithAI()" class="btn btn-primary">Jana dengan AI</button>
+                    </div>
+                </div>
+
+                <!-- Questions List -->
+                <div id="questionsContainer" class="space-y-4 mb-4">
+                    <p class="text-sm text-gray-400 text-center py-4">Belum ada soalan. Tambah soalan secara manual atau guna AI.</p>
+                </div>
+
+                <!-- Add Question Button (Manual) -->
+                <div id="manualAddSection" class="flex gap-2 mb-4">
+                    <button onclick="addQuestion('short_text')" class="btn btn-outline text-sm">+ Teks Pendek</button>
+                    <button onclick="addQuestion('multiple_choice')" class="btn btn-outline text-sm">+ Pilihan Tunggal</button>
+                    <button onclick="addQuestion('checkboxes')" class="btn btn-outline text-sm">+ Pilihan Pelbagai</button>
+                </div>
+
+                <button onclick="publishSurvey()" class="btn btn-success w-full">Terbitkan Soal Selidik</button>
+            </div>
+        </div>`;
+}
+
+function toggleSurveyMode(mode) {
+    surveyCreateMode = mode;
+    document.getElementById('aiSection').classList.toggle('hidden', mode !== 'ai');
+}
+
+async function generateWithAI() {
+    const prompt = document.getElementById('aiPrompt').value.trim();
+    if (!prompt) { showToast('Sila masukkan topik tinjauan', 'error'); return; }
+    try {
+        const result = await api('/api/surveys/generate', { method: 'POST', body: JSON.stringify({ prompt }) });
+        document.getElementById('surveyTitle').value = result.title;
+        document.getElementById('surveyDesc').value = result.description;
+        surveyDraftQuestions = result.questions.map((q, i) => ({ ...q, id: `q${i+1}` }));
+        renderSurveyQuestions();
+        showToast('Soalan berjaya dijana!');
+    } catch (err) { showToast(err.message, 'error'); }
+}
+
+function addQuestion(type) {
+    const qId = `q${questionIdCounter++}`;
+    const q = { id: qId, type: type, question: '', required: true, options: type !== 'short_text' ? [''] : undefined };
+    surveyDraftQuestions.push(q);
+    renderSurveyQuestions();
+}
+
+function removeQuestion(id) {
+    surveyDraftQuestions = surveyDraftQuestions.filter(q => q.id !== id);
+    renderSurveyQuestions();
+}
+
+function updateQuestion(id, field, value) {
+    const q = surveyDraftQuestions.find(q => q.id === id);
+    if (q) q[field] = value;
+}
+
+function addOption(qId) {
+    const q = surveyDraftQuestions.find(q => q.id === qId);
+    if (q && q.options) q.options.push('');
+    renderSurveyQuestions();
+}
+
+function removeOption(qId, oi) {
+    const q = surveyDraftQuestions.find(q => q.id === qId);
+    if (q && q.options) q.options.splice(oi, 1);
+    renderSurveyQuestions();
+}
+
+function renderSurveyQuestions() {
+    const container = document.getElementById('questionsContainer');
+    if (!container) return;
+    if (surveyDraftQuestions.length === 0) {
+        container.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">Belum ada soalan.</p>';
+        return;
+    }
+    container.innerHTML = surveyDraftQuestions.map((q, qi) => `
+        <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div class="flex items-start justify-between mb-2">
+                <span class="text-xs font-medium text-gray-500 bg-gray-200 px-2 py-0.5 rounded">Soalan ${qi+1} · ${q.type==='short_text'?'Teks Pendek':q.type==='multiple_choice'?'Pilihan Tunggal':'Pilihan Pelbagai'}</span>
+                <button onclick="removeQuestion('${q.id}')" class="text-red-500 hover:text-red-700 text-sm">✕</button>
+            </div>
+            <input value="${q.question}" onchange="updateQuestion('${q.id}','question',this.value)" placeholder="Taip soalan anda..." class="w-full mb-2">
+            <label class="flex items-center gap-2 text-sm text-gray-600 mb-2"><input type="checkbox" ${q.required?'checked':''} onchange="updateQuestion('${q.id}','required',this.checked)"> Wajib diisi</label>
+            ${q.options ? q.options.map((opt, oi) => `
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="text-sm text-gray-400">${oi+1}.</span>
+                    <input value="${opt}" onchange="surveyDraftQuestions.find(q=>q.id==='${q.id}').options[${oi}]=this.value" placeholder="Pilihan ${oi+1}" class="flex-1 text-sm">
+                    <button onclick="removeOption('${q.id}',${oi})" class="text-red-400 hover:text-red-600 text-xs">✕</button>
+                </div>
+            `).join('') : ''}
+            ${q.options ? `<button onclick="addOption('${q.id}')" class="text-blue-600 text-sm mt-1">+ Tambah Pilihan</button>` : ''}
+        </div>
+    `).join('');
+}
+
+async function publishSurvey() {
+    const title = document.getElementById('surveyTitle').value.trim();
+    if (!title) { showToast('Sila masukkan tajuk', 'error'); return; }
+    if (surveyDraftQuestions.length === 0) { showToast('Sila tambah sekurang-kurangnya satu soalan', 'error'); return; }
+    
+    // Clean up empty options
+    const cleanQuestions = surveyDraftQuestions.map(q => {
+        if (q.options) q.options = q.options.filter(o => o.trim() !== '');
+        return q;
+    });
+
+    try {
+        const result = await api('/api/surveys', {
+            method: 'POST',
+            body: JSON.stringify({
+                title: title,
+                description: document.getElementById('surveyDesc').value.trim(),
+                questions: JSON.stringify(cleanQuestions)
+            })
+        });
+        showToast('Soal selidik berjaya diterbitkan!');
+        state.surveyEditId = result.id;
+        navigate('survey-view');
+    } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ========= SURVEY VIEW (Google Form Style - Public) =========
+function renderSurveyFormHTML(survey, sid) {
+    const qs = Array.isArray(survey.questions) ? survey.questions : [];
+    let formHtml = qs.map((q, qi) => {
+        const req = q.required ? 'required' : '';
+        const qId = `ans_${q.id}`;
+        if (q.type === 'short_text') {
+            return `<div class="mb-6"><label class="block font-medium text-gray-800 mb-1">${qi+1}. ${q.question} ${q.required?'<span class="text-red-500">*</span>':''}</label><input id="${qId}" type="text" ${req} class="w-full border border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="Taip jawapan anda..."></div>`;
+        } else if (q.type === 'multiple_choice') {
+            return `<div class="mb-6"><p class="font-medium text-gray-800 mb-2">${qi+1}. ${q.question} ${q.required?'<span class="text-red-500">*</span>':''}</p>
+                ${(q.options||[]).map((opt,oi) => `<label class="flex items-center gap-3 p-3 mb-1 bg-gray-50 rounded-lg cursor-pointer hover:bg-blue-50"><input type="radio" name="${qId}" value="${opt}" ${req} class="w-4 h-4 text-blue-600"><span class="text-sm text-gray-700">${opt}</span></label>`).join('')}</div>`;
+        } else if (q.type === 'checkboxes') {
+            return `<div class="mb-6"><p class="font-medium text-gray-800 mb-2">${qi+1}. ${q.question} ${q.required?'<span class="text-red-500">*</span>':''}</p>
+                ${(q.options||[]).map((opt,oi) => `<label class="flex items-center gap-3 p-3 mb-1 bg-gray-50 rounded-lg cursor-pointer hover:bg-blue-50"><input type="checkbox" name="${qId}" value="${opt}" class="w-4 h-4 text-blue-600"><span class="text-sm text-gray-700">${opt}</span></label>`).join('')}</div>`;
+        }
+        return '';
+    }).join('');
+
+    return `
+        <div class="max-w-2xl mx-auto">
+            <div class="card mb-4" style="border-top: 8px solid #1e40af;">
+                <h2 class="text-xl font-bold text-gray-800 mb-2">${survey.title}</h2>
+                <p class="text-sm text-gray-500 mb-4">${survey.description || 'Sila lengkapkan borang di bawah.'}</p>
+                <p class="text-xs text-gray-400">Soalan bertanda <span class="text-red-500">*</span> wajib diisi.</p>
+            </div>
+            <div class="card mb-4">
+                <form id="surveyForm" onsubmit="submitSurveyForm(event, ${sid})">
+                    ${formHtml}
+                    <div class="mt-6 pt-4 border-t">
+                        <button type="submit" class="btn btn-primary w-full py-3 text-lg">Hantar</button>
+                    </div>
+                </form>
+            </div>
+        </div>`;
+}
+
+async function renderSurveyView() {
+    const content = document.getElementById('contentArea');
+    content.innerHTML = '<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan borang...</span></div>';
+    try {
+        const sid = state.surveyEditId;
+        if (!sid) { content.innerHTML = '<div class="card text-center py-10"><p class="text-red-500">ID borang tidak sah</p></div>'; return; }
+        
+        // Try to get survey from cache if available
+        const cachedSurvey = localStorage.getItem(`survey_${sid}`);
+        let survey;
+        
+        if (isOnline()) {
+            survey = await api(`/api/surveys/${sid}`);
+            // Cache the survey data for offline use
+            localStorage.setItem(`survey_${sid}`, JSON.stringify(survey));
+        } else if (cachedSurvey) {
+            survey = JSON.parse(cachedSurvey);
+        } else {
+            content.innerHTML = `
+                <div class="max-w-2xl mx-auto">
+                    <div class="card text-center py-10">
+                        <svg class="w-16 h-16 mx-auto text-amber-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                        <p class="text-gray-500">Anda sedang luar talian dan borang ini belum pernah dimuatkan sebelum ini.</p>
+                        <p class="text-sm text-gray-400 mt-2">Sila dapatkan sambungan internet untuk memuatkan borang.</p>
+                    </div>
+                </div>`;
+            return;
+        }
+        
+        content.innerHTML = renderSurveyFormHTML(survey, sid);
+    } catch (err) {
+        // Try cached version as fallback
+        const sid = state.surveyEditId;
+        if (sid) {
+            const cachedSurvey = localStorage.getItem(`survey_${sid}`);
+            if (cachedSurvey) {
+                content.innerHTML = renderSurveyFormHTML(JSON.parse(cachedSurvey), sid);
+                showToast('Memuatkan borang dari cache luar talian. Respons akan disimpan tempatan.', 'success');
+                return;
+            }
+        }
+        content.innerHTML = `
+            <div class="max-w-2xl mx-auto">
+                <div class="card text-center py-10">
+                    <svg class="w-16 h-16 mx-auto text-red-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <p class="text-gray-500">Gagal memuatkan borang. Sila semak sambungan internet.</p>
+                    <button onclick="renderSurveyView()" class="btn btn-primary mt-4">Cuba Semula</button>
+                </div>
+            </div>`;
+    }
+}
+
+// ========= OFFLINE SYNC ENGINE =========
+function isOnline() {
+    return navigator.onLine;
+}
+
+function savePendingSurvey(surveyId, answers) {
+    const pending = JSON.parse(localStorage.getItem('pending_surveys') || '[]');
+    pending.push({
+        survey_id: surveyId,
+        answers: JSON.stringify(answers),
+        respondent_info: '',
+        saved_at: new Date().toISOString()
+    });
+    localStorage.setItem('pending_surveys', JSON.stringify(pending));
+}
+
+async function syncPendingSurveys() {
+    if (!isOnline()) return;
+    const pending = JSON.parse(localStorage.getItem('pending_surveys') || '[]');
+    if (pending.length === 0) return;
+
+    const remaining = [];
+    let synced = 0;
+
+    for (const item of pending) {
+        try {
+            await api('/api/surveys/submit', {
+                method: 'POST',
+                body: JSON.stringify({
+                    survey_id: item.survey_id,
+                    answers: item.answers,
+                    respondent_info: item.respondent_info || ''
+                })
+            });
+            synced++;
+        } catch (e) {
+            remaining.push(item);
+        }
+    }
+
+    if (remaining.length > 0) {
+        localStorage.setItem('pending_surveys', JSON.stringify(remaining));
+    } else {
+        localStorage.removeItem('pending_surveys');
+    }
+
+    if (synced > 0) {
+        showToast(`${synced} respons luar talian berjaya dihantar secara automatik!`);
+    }
+}
+
+// Auto-sync when coming back online
+window.addEventListener('online', () => {
+    console.log('[Sync] Talian kembali — menyelaraskan data...');
+    syncPendingSurveys();
+});
+
+async function submitSurveyForm(event, surveyId) {
+    event.preventDefault();
+    const form = document.getElementById('surveyForm');
+    const inputs = form.querySelectorAll('input, textarea, select');
+    
+    // Group by question id
+    const qElements = {};
+    inputs.forEach(inp => {
+        const name = inp.name || inp.id;
+        if (name && name.startsWith('ans_')) {
+            const qId = name.replace('ans_', '');
+            if (inp.type === 'radio' || inp.type === 'checkbox') {
+                if (inp.checked) {
+                    if (!qElements[qId]) qElements[qId] = [];
+                    qElements[qId].push(inp.value);
+                }
+            } else {
+                qElements[qId] = inp.value;
+            }
+        }
+    });
+
+    // Check required
+    const allRequired = form.querySelectorAll('[required]');
+    for (let inp of allRequired) {
+        const name = inp.name || inp.id;
+        if (name && name.startsWith('ans_')) {
+            const qId = name.replace('ans_', '');
+            const val = qElements[qId];
+            if (!val || (Array.isArray(val) && val.length === 0) || (typeof val === 'string' && !val.trim())) {
+                showToast('Sila lengkapkan semua soalan wajib', 'error');
+                return;
+            }
+        }
+    }
+
+    // Check online status
+    if (isOnline()) {
+        try {
+            await api('/api/surveys/submit', {
+                method: 'POST',
+                body: JSON.stringify({ survey_id: surveyId, answers: JSON.stringify(qElements), respondent_info: '' })
+            });
+            showToast('Respons berjaya dihantar! Terima kasih.');
+            document.getElementById('surveyForm').innerHTML = `
+                <div class="text-center py-8">
+                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-green-700">Terima Kasih!</h3>
+                    <p class="text-gray-600 mt-2">Respons anda telah direkodkan.</p>
+                </div>`;
+        } catch (err) {
+            // If fetch fails (e.g. backend down), fallback to offline save
+            savePendingSurvey(surveyId, qElements);
+            showToast('Sistem luar talian. Data telah disimpan dalam peranti dan akan dihantar bila talian pulih.', 'success');
+            document.getElementById('surveyForm').innerHTML = `
+                <div class="text-center py-8">
+                    <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-amber-700">Disimpan Luar Talian</h3>
+                    <p class="text-gray-600 mt-2">Data anda telah disimpan dengan selamat dalam peranti ini. Akan dihantar secara automatik apabila talian internet kembali.</p>
+                </div>`;
+        }
+    } else {
+        // Offline: save to localStorage
+        savePendingSurvey(surveyId, qElements);
+        showToast('Sistem luar talian. Data telah disimpan dalam peranti dan akan dihantar bila talian pulih.', 'success');
+        document.getElementById('surveyForm').innerHTML = `
+            <div class="text-center py-8">
+                <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                </div>
+                <h3 class="text-lg font-bold text-amber-700">Disimpan Luar Talian</h3>
+                <p class="text-gray-600 mt-2">Data anda telah disimpan dengan selamat dalam peranti ini. Akan dihantar secara automatik apabila talian internet kembali.</p>
+            </div>`;
+    }
+}
+
+// ========= DASHBOARD =========
+async function renderDashboard() {
+    const content = document.getElementById('contentArea');
+    content.innerHTML = `<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan dashboard...</span></div>`;
+    try {
+        const dm = state.dashboardDm;
+        const data = await api(`/api/dashboard${dm ? `?dm=${dm}` : ''}`);
+        state.dashboardData = data;
+        if (!state.pdmList.length) state.pdmList = await api('/api/pdm');
+        const { jumlah_pengundi, sokongan, jantina, fizikal, lokaliti_teratas } = data;
+        const totalSokongan = Object.values(sokongan).reduce((a, b) => a + b, 0);
+        const putih = sokongan['Putih'] || 0, hitam = sokongan['Hitam'] || 0, atasPagar = sokongan['Atas Pagar'] || 0, takKenal = sokongan['Tidak Kenal'] || 0, tiada = sokongan['Tiada'] || 0;
+
+        content.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="card"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-500">Jumlah Pengundi</p><p class="text-2xl font-bold text-gray-800">${jumlah_pengundi.toLocaleString()}</p></div><div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div></div><div class="mt-2 flex items-center gap-1 text-xs text-gray-500"><span class="text-green-600 font-medium">✓ ${fizikal?.Hidup || 0} Hidup</span><span>·</span><span class="text-red-600">✗ ${fizikal?.['Meninggal Dunia'] || 0} Meninggal</span></div></div>
+                <div class="card"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-500">Putih</p><p class="text-2xl font-bold text-green-700">${putih.toLocaleString()}</p></div><div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg></div></div></div>
+                <div class="card"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-500">Hitam</p><p class="text-2xl font-bold text-red-700">${hitam.toLocaleString()}</p></div><div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></div></div></div>
+                <div class="card"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-500">Atas Pagar</p><p class="text-2xl font-bold text-yellow-700">${atasPagar.toLocaleString()}</p></div><div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div></div></div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 flex flex-col gap-6">
+                    <div class="card"><div class="flex items-center justify-between mb-4"><h3 class="font-semibold text-gray-800">Status Sokongan</h3><select id="dmFilter" onchange="state.dashboardDm=this.value; renderDashboard()" class="w-auto text-sm"><option value="">Semua PDM</option>${state.pdmList.map(p => `<option value="${p}" ${state.dashboardDm===p?'selected':''}>${p}</option>`).join('')}</select></div>
+                        <div class="flex flex-col md:flex-row items-center gap-6"><div class="w-full md:w-64 h-64"><canvas id="sokonganChart"></canvas></div>
+                            <div class="flex-1 w-full"><table><thead><tr><th class="pl-0">Status</th><th>Jumlah</th><th>Peratusan</th></tr></thead>
+                            <tbody><tr><td class="pl-0"><span class="badge badge-putih">Putih</span></td><td>${putih.toLocaleString()}</td><td>${totalSokongan?((putih/totalSokongan)*100).toFixed(1):0}%</td></tr>
+                            <tr><td class="pl-0"><span class="badge badge-atas">Atas Pagar</span></td><td>${atasPagar.toLocaleString()}</td><td>${totalSokongan?((atasPagar/totalSokongan)*100).toFixed(1):0}%</td></tr>
+                            <tr><td class="pl-0"><span class="badge badge-hitam">Hitam</span></td><td>${hitam.toLocaleString()}</td><td>${totalSokongan?((hitam/totalSokongan)*100).toFixed(1):0}%</td></tr>
+                            <tr><td class="pl-0"><span class="badge badge-tiada">Tidak Dikenal Pasti</span></td><td>${tiada.toLocaleString()}</td><td>${totalSokongan?((tiada/totalSokongan)*100).toFixed(1):0}%</td></tr></tbody></table></div></div>
+                    </div>
+                    <div class="card"><div class="flex items-center justify-between mb-4"><h3 class="font-semibold text-gray-800">Status Sokongan × Klasifikasi Umur</h3></div>
+                        <div class="relative w-full h-[350px]"><canvas id="stackedBarChart"></canvas></div>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-4">
+                    <div class="card"><h3 class="font-semibold text-gray-800 mb-3">Pengagihan Jantina</h3>
+                        ${jantina?Object.entries(jantina).map(([k,v])=>`<div class="flex items-center justify-between mb-2"><span class="text-sm text-gray-600">${k==='L'?'Lelaki':k==='P'?'Perempuan':k}</span><span class="text-sm font-semibold">${v.toLocaleString()} (${((v/jumlah_pengundi)*100).toFixed(1)}%)</span></div>`).join(''):'<p class="text-sm text-gray-400">Tiada data</p>'}
+                        <div class="mt-4 pt-3 border-t"><div class="text-sm text-gray-500">Purata Umur: <span class="font-semibold text-gray-800">${data.purata_umur||'?'} tahun</span></div></div>
+                    </div>
+                    <div class="card"><h3 class="font-semibold text-gray-800 mb-3">Klasifikasi Umur</h3>
+                        <div class="space-y-3">${(['Belia','Dewasa','Warga Emas']).map(k=>{const info=(data.klasifikasi_umur&&data.klasifikasi_umur[k])||{jumlah:0,lelaki:0,perempuan:0};const pct=jumlah_pengundi>0?((info.jumlah/jumlah_pengundi)*100).toFixed(1):0;const icon=k==='Belia'?'🧑':k==='Dewasa'?'👨':'👴';return `<div class="flex items-center justify-between p-2 rounded-lg ${k==='Belia'?'bg-blue-50':k==='Dewasa'?'bg-green-50':'bg-amber-50'}"><div><span class="text-lg mr-1">${icon}</span><span class="text-sm font-medium text-gray-700">${k}</span></div><div class="text-right"><div class="text-sm font-bold">${info.jumlah.toLocaleString()} (${pct}%)</div><div class="text-xs text-gray-400">👨 ${info.lelaki} · 👩 ${info.perempuan}</div></div></div>`;}).join('')}
+                        ${data.klasifikasi_umur&&data.klasifikasi_umur['Tidak Diketahui']?`<div class="flex items-center justify-between p-2 rounded-lg bg-gray-50"><div><span class="text-sm text-gray-500">Tidak Diketahui</span></div><div class="text-sm font-bold text-gray-500">${data.klasifikasi_umur['Tidak Diketahui'].jumlah}</div></div>`:''}</div>
+                    </div>
+                    <div class="card"><h3 class="font-semibold text-gray-800 mb-3">Lokaliti Teratas</h3>
+                        ${lokaliti_teratas?.slice(0,5).map(l=>`<div class="flex items-center justify-between mb-2"><span class="text-sm text-gray-600">${l.nama||'Tiada'}</span><span class="text-sm font-semibold">${l.jumlah.toLocaleString()}</span></div>`).join('')||'<p class="text-sm text-gray-400">Tiada data</p>'}
+                    </div>
+                </div>
+            </div>
+
+            `;
+        
+        setTimeout(() => {
+            const ctx = document.getElementById('sokonganChart');
+            if (ctx) {
+                if (state.chart) state.chart.destroy();
+                state.chart = new Chart(ctx, { type:'pie', data:{ labels:['Putih','Atas Pagar','Hitam','Tidak Dikenal Pasti'], datasets:[{ data:[putih,atasPagar,hitam,tiada], backgroundColor:['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth:2, borderColor:'#fff' }] }, options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{ display:false } } } });
+            }
+            const ctx3 = document.getElementById('stackedBarChart');
+            if (ctx3) {
+                const su = data.sokongan_ikut_umur || {};
+                const umurLabels = ['Belia','Dewasa','Warga Emas','Tidak Diketahui'];
+                const sokonganSet = new Set();
+                Object.values(su).forEach(inner => { Object.keys(inner).forEach(k => sokonganSet.add(k)); });
+                const sokonganLabels = Array.from(sokonganSet);
+                const sokonganDisplayLabels = sokonganLabels.map(l => l==='Tiada'?'Tidak Dikenal Pasti':l);
+                const sokonganWarnaMap = { 'Putih':'#22c55e', 'Atas Pagar':'#eab308', 'Hitam':'#ef4444' };
+                const defaultColours = ['#94a3b8','#818cf8','#f472b6','#34d399','#fbbf24','#a78bfa'];
+                new Chart(ctx3, { type:'bar', data:{ labels:umurLabels, datasets:sokonganLabels.map((label,i)=>({ label:sokonganDisplayLabels[i], data:umurLabels.map(k=>(su[k]&&su[k][label])||0), backgroundColor:sokonganWarnaMap[label]||defaultColours[i%defaultColours.length], borderRadius:4, stack:'stack1' })) }, options:{ responsive:true, maintainAspectRatio:false, interaction:{ mode:'nearest', axis:'xy', intersect:false }, scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, grid:{ color:'#f1f5f9' } } }, plugins:{ legend:{ position:'top', labels:{ boxWidth:12, padding:12 } }, tooltip:{ enabled:true, mode:'nearest', axis:'xy', intersect:false, callbacks:{ label:function(context){ return (context.dataset.label||'')+': '+(context.parsed.y||0); } } } } } });
+            }
+        }, 100);
+    } catch (err) {
+        content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`;
+    }
+}
+
+// ========= PENGUNDI LIST =========
+async function renderPengundi() {
+    const content = document.getElementById('contentArea');
+    content.innerHTML = `<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan data pengundi...</span></div>`;
+    try {
+        if (!state.pdmList.length) state.pdmList = await api('/api/pdm');
+        const params = new URLSearchParams({ page: state.pengundiPage, per_page: '20' });
+        if (state.pengundiSearch) params.append('search', state.pengundiSearch);
+        if (state.pengundiDm) params.append('dm', state.pengundiDm);
+        const data = await api(`/api/pengundi?${params}`);
+        state.pengundiData = data;
+        content.innerHTML = `
+            <div class="card">
+                <div class="flex flex-col md:flex-row gap-3 mb-4">
+                    <div class="flex-1"><input type="text" id="searchInput" placeholder="Cari No. KP atau Nama..." value="${state.pengundiSearch}" onkeyup="if(event.key==='Enter'){ state.pengundiSearch=this.value; state.pengundiPage=1; renderPengundi(); }" class="w-full"></div>
+                    <select id="dmSelect" onchange="state.pengundiDm=this.value; state.pengundiPage=1; renderPengundi()" class="w-full md:w-48"><option value="">Semua PDM</option>${state.pdmList.map(p=>`<option value="${p}" ${state.pengundiDm===p?'selected':''}>${p}</option>`).join('')}</select>
+                    <button onclick="state.pengundiSearch=document.getElementById('searchInput').value; state.pengundiPage=1; renderPengundi()" class="btn btn-primary">Cari</button>
+                    ${['Admin','Petugas Padang'].includes(state.user?.peranan)?`<button onclick="showTambahPengundi()" class="btn btn-success">+ Tambah Baru</button>`:''}
+                </div>
+                <div class="overflow-x-auto">
+                    <table><thead><tr><th>No. KP</th><th>Nama Penuh</th><th>J</th><th>PDM</th><th>Lokaliti</th><th>Sokongan</th><th>Status</th>${['Admin','Petugas Padang'].includes(state.user?.peranan)?'<th>Tindakan</th>':''}</tr></thead>
+                    <tbody>${data.data.length===0?'<tr><td colspan="8" class="text-center py-8 text-gray-400">Tiada data pengundi</td></tr>':data.data.map(p=>`
+                        <tr><td class="text-sm font-mono">${p.no_kp||'-'}</td><td class="font-medium">${p.nama_penuh||'-'}</td><td class="text-center">${p.jantina||'-'}</td><td class="text-sm">${p.dm||'-'}</td><td class="text-sm">${p.lokaliti||'-'}</td>
+                        <td><span class="badge ${p.status_sokongan==='Putih'?'badge-putih':p.status_sokongan==='Hitam'?'badge-hitam':p.status_sokongan==='Atas Pagar'?'badge-atas':'badge-tiada'}">${p.status_sokongan||'Tiada'}</span></td>
+                        <td><span class="badge ${p.status_rekod==='Sah'?'badge-sah':'badge-menunggu'}">${p.status_rekod||'-'}</span></td>
+                        ${['Admin','Petugas Padang'].includes(state.user?.peranan)?`<td><button onclick="editPengundi(${p.id})" class="text-blue-600 hover:text-blue-800 text-sm mr-2">Edit</button>${state.user?.peranan==='Admin'?`<button onclick="confirmDelete(${p.id},'${p.nama_penuh?.replace(/'/g,"\\'")||''}')" class="text-red-600 hover:text-red-800 text-sm">Padam</button>`:''}</td>`:''}</tr>
+                    `).join('')}</tbody></table>
+                </div>
+                ${data.total_pages>1?`<div class="pagination"><button onclick="if(state.pengundiPage>1){state.pengundiPage--;renderPengundi()}" ${state.pengundiPage<=1?'disabled':''}>«</button>${Array.from({length:Math.min(5,data.total_pages)},(_,i)=>{let start=Math.max(1,state.pengundiPage-2);let end=Math.min(data.total_pages,start+4);if(end-start<4)start=Math.max(1,end-4);const pageNum=start+i;if(pageNum>data.total_pages)return '';return `<button onclick="state.pengundiPage=${pageNum};renderPengundi()" class="${state.pengundiPage===pageNum?'active':''}">${pageNum}</button>`;}).join('')}<button onclick="if(state.pengundiPage<${data.total_pages}){state.pengundiPage++;renderPengundi()}" ${state.pengundiPage>=data.total_pages?'disabled':''}>»</button><span class="text-sm text-gray-500 ml-2">${data.total} rekod</span></div>`:`<div class="text-center text-sm text-gray-400 mt-4">${data.total} rekod</div>`}
+            </div>`;
+    } catch (err) {
+        content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`;
+    }
+}
+
+function showTambahPengundi() { /* Add voter modal - simplified */
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.innerHTML = `<div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4"><h3 class="text-lg font-bold mb-4">Tambah Pengundi Baru</h3>
+        <div class="space-y-3">
+            <div><label class="block text-sm font-medium mb-1">No. KP *</label><input id="fNoKp" required></div>
+            <div><label class="block text-sm font-medium mb-1">Nama Penuh *</label><input id="fNama" required></div>
+            <div class="grid grid-cols-2 gap-3"><div><label class="block text-sm font-medium mb-1">Jantina</label><select id="fJantina"><option value="">Pilih</option><option value="L">Lelaki</option><option value="P">Perempuan</option></select></div><div><label class="block text-sm font-medium mb-1">Tahun Lahir</label><input id="fLahir" type="number"></div></div>
+            <div><label class="block text-sm font-medium mb-1">PDM *</label><select id="fDm" required><option value="">Pilih PDM</option>${state.pdmList.map(p=>`<option value="${p}">${p}</option>`).join('')}</select></div>
+            <div><label class="block text-sm font-medium mb-1">Lokaliti</label><input id="fLokaliti"></div>
+            <div><label class="block text-sm font-medium mb-1">No. Telefon</label><input id="fTelefon"></div>
+            <div><label class="block text-sm font-medium mb-1">Status Sokongan</label><select id="fSokongan"><option value="">Pilih</option><option value="Putih">Putih</option><option value="Atas Pagar">Atas Pagar</option><option value="Hitam">Hitam</option><option value="Tidak Kenal">Tidak Kenal</option></select></div>
+        </div>
+        <div class="flex gap-3 mt-6 justify-end"><button onclick="this.closest('.fixed').remove()" class="btn btn-outline">Batal</button><button onclick="submitPengundi()" class="btn btn-primary">Simpan</button></div></div>`;
+    document.body.appendChild(modal);
+}
+
+async function submitPengundi() {
+    const no_kp = document.getElementById('fNoKp').value.trim();
+    const nama = document.getElementById('fNama').value.trim();
+    const dm = document.getElementById('fDm').value;
+    if (!no_kp || !nama || !dm) { showToast('Sila isi ruangan bertanda *', 'error'); return; }
+    try {
+        await api('/api/pengundi', { method:'POST', body:JSON.stringify({ no_kp, nama_penuh:nama, jantina:document.getElementById('fJantina').value||null, tahun_lahir:document.getElementById('fLahir').value?parseInt(document.getElementById('fLahir').value):null, dm, lokaliti:document.getElementById('fLokaliti').value||null, no_telefon:document.getElementById('fTelefon').value||null, status_sokongan:document.getElementById('fSokongan').value||null }) });
+        document.querySelector('.fixed')?.remove();
+        showToast('Pengundi berjaya didaftarkan!');
+        renderPengundi();
+    } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function editPengundi(id) {
+    try {
+        const p = await api(`/api/pengundi/${id}`);
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        modal.innerHTML = `<div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4"><h3 class="text-lg font-bold mb-4">Edit Pengundi</h3>
+            <div class="space-y-3">
+                <div><label class="block text-sm font-medium mb-1">No. KP</label><input id="eNoKp" value="${p.no_kp||''}" readonly class="bg-gray-100 cursor-not-allowed"></div>
+                <div><label class="block text-sm font-medium mb-1">Nama Penuh</label><input id="eNama" value="${p.nama_penuh||''}"></div>
+                <div class="grid grid-cols-2 gap-3"><div><label class="block text-sm font-medium mb-1">Jantina</label><select id="eJantina"><option value="">Pilih</option><option value="L" ${p.jantina==='L'?'selected':''}>Lelaki</option><option value="P" ${p.jantina==='P'?'selected':''}>Perempuan</option></select></div><div><label class="block text-sm font-medium mb-1">Tahun Lahir</label><input id="eLahir" type="number" value="${p.tahun_lahir||''}"></div></div>
+                <div><label class="block text-sm font-medium mb-1">PDM</label><select id="eDm"><option value="">Pilih PDM</option>${state.pdmList.map(dm=>`<option value="${dm}" ${p.dm===dm?'selected':''}>${dm}</option>`).join('')}</select></div>
+                <div><label class="block text-sm font-medium mb-1">Lokaliti</label><input id="eLokaliti" value="${p.lokaliti||''}"></div>
+                <div><label class="block text-sm font-medium mb-1">No. Telefon</label><input id="eTelefon" value="${p.no_telefon||''}"></div>
+                <div><label class="block text-sm font-medium mb-1">Status Sokongan</label><select id="eSokongan"><option value="">Pilih</option><option value="Putih" ${p.status_sokongan==='Putih'?'selected':''}>Putih</option><option value="Atas Pagar" ${p.status_sokongan==='Atas Pagar'?'selected':''}>Atas Pagar</option><option value="Hitam" ${p.status_sokongan==='Hitam'?'selected':''}>Hitam</option><option value="Tidak Kenal" ${p.status_sokongan==='Tidak Kenal'?'selected':''}>Tidak Kenal</option></select></div>
+                <div><label class="block text-sm font-medium mb-1">Status Fizikal</label><select id="eFizikal"><option value="Hidup" ${p.status_fizikal==='Hidup'?'selected':''}>Hidup</option><option value="Meninggal Dunia" ${p.status_fizikal==='Meninggal Dunia'?'selected':''}>Meninggal Dunia</option></select></div>
+            </div>
+            <div class="flex gap-3 mt-6 justify-end"><button onclick="this.closest('.fixed').remove()" class="btn btn-outline">Batal</button><button onclick="submitEditPengundi(${id})" class="btn btn-primary">Simpan Perubahan</button></div></div>`;
+        document.body.appendChild(modal);
+    } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function submitEditPengundi(id) {
+    const data = {};
+    const nama = document.getElementById('eNama').value.trim();
+    const jantina = document.getElementById('eJantina').value;
+    const lahir = document.getElementById('eLahir').value;
+    const dm = document.getElementById('eDm').value;
+    const lokaliti = document.getElementById('eLokaliti').value.trim();
+    const telefon = document.getElementById('eTelefon').value.trim();
+    const sokongan = document.getElementById('eSokongan').value;
+    const fizikal = document.getElementById('eFizikal').value;
+    if (nama) data.nama_penuh = nama;
+    if (jantina) data.jantina = jantina;
+    if (lahir) data.tahun_lahir = parseInt(lahir);
+    if (dm) data.dm = dm;
+    if (lokaliti) data.lokaliti = lokaliti;
+    if (telefon) data.no_telefon = telefon;
+    if (sokongan) data.status_sokongan = sokongan;
+    if (fizikal) data.status_fizikal = fizikal;
+    if (Object.keys(data).length === 0) { showToast('Tiada perubahan', 'error'); return; }
+    try {
+        await api(`/api/pengundi/${id}`, { method:'PUT', body:JSON.stringify(data) });
+        document.querySelector('.fixed')?.remove();
+        showToast('Pengundi berjaya dikemaskini!');
+        renderPengundi();
+    } catch (err) { showToast(err.message, 'error'); }
+}
+
+function confirmDelete(id, nama) {
+    if (!confirm(`Padamkan rekod ${nama}?`)) return;
+    api(`/api/pengundi/${id}`, { method:'DELETE' }).then(()=>{ showToast('Rekod dipadamkan'); renderPengundi(); }).catch(err=>showToast(err.message,'error'));
+}
+
+// ========= APPROVAL QUEUE =========
+async function renderApprovalQueue() {
+    const content = document.getElementById('contentArea');
+    content.innerHTML = `<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan queue kelulusan...</span></div>`;
+    try {
+        const data = await api(`/api/approval-queue?page=${state.approvalPage}&per_page=20`);
+        content.innerHTML = `<div class="card"><div class="flex items-center gap-2 mb-4"><h3 class="font-semibold text-gray-800">Queue Kelulusan Data</h3><span class="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full font-medium">${data.total} menunggu</span></div>
+            ${data.total===0?'<div class="text-center py-10"><svg class="w-16 h-16 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><p class="text-gray-400">Tiada data yang menunggu kelulusan</p></div>':
+            `<div class="overflow-x-auto"><table><thead><tr><th>No. KP</th><th>Nama</th><th>PDM</th><th>Lokaliti</th><th>Didaftar Oleh</th><th>Tarikh</th><th>Tindakan</th></tr></thead>
+            <tbody>${data.data.map(p=>`<tr><td class="font-mono text-sm">${p.no_kp||'-'}</td><td class="font-medium">${p.nama_penuh||'-'}</td><td>${p.dm||'-'}</td><td class="text-sm">${p.lokaliti||'-'}</td><td class="text-sm">${p.sumber_pdm||'-'}</td><td class="text-sm">${p.dicipta_pada?new Date(p.dicipta_pada).toLocaleDateString('ms-MY'):'-'}</td>
+            <td><div class="flex gap-2"><button onclick="approveRecord(${p.id})" class="btn btn-success btn-sm text-xs">Lulus</button><button onclick="rejectRecord(${p.id})" class="btn btn-danger btn-sm text-xs">Tolak</button></div></td></tr>`).join('')}</tbody></table></div>
+            ${data.total_pages>1?`<div class="pagination"><button onclick="if(state.approvalPage>1){state.approvalPage--;renderApprovalQueue()}" ${state.approvalPage<=1?'disabled':''}>«</button><span class="text-sm text-gray-500">Halaman ${data.page} / ${data.total_pages}</span><button onclick="if(state.approvalPage<${data.total_pages}){state.approvalPage++;renderApprovalQueue()}" ${state.approvalPage>=data.total_pages?'disabled':''}>»</button></div>`:''}`}</div>`;
+    } catch (err) { content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`; }
+}
+
+async function approveRecord(id) {
+    try { await api(`/api/approval-queue/${id}/lulus`, { method:'POST' }); showToast('Rekod berjaya diluluskan!'); renderApprovalQueue(); updateApprovalBadge(); }
+    catch (err) { showToast(err.message,'error'); }
+}
+async function rejectRecord(id) {
+    if (!confirm('Tolak dan padamkan rekod ini?')) return;
+    try { await api(`/api/approval-queue/${id}/tolak`, { method:'DELETE' }); showToast('Rekod ditolak dan dipadamkan'); renderApprovalQueue(); updateApprovalBadge(); }
+    catch (err) { showToast(err.message,'error'); }
+}
+async function updateApprovalBadge() {
+    try { const data = await api('/api/approval-queue?per_page=1'); const badge = document.getElementById('approvalBadge'); if (badge) { if (data.total>0) { badge.textContent=data.total; badge.classList.remove('hidden'); } else badge.classList.add('hidden'); } } catch(e) {}
+}
+
+// ========= AUDIT LOGS =========
+let auditPage = 1;
+async function renderAuditLogs() {
+    const content = document.getElementById('contentArea');
+    content.innerHTML = `<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan log aktiviti...</span></div>`;
+    try {
+        const params = new URLSearchParams({ page: auditPage, per_page:'25' });
+        const data = await api(`/api/audit-logs?${params}`);
+        content.innerHTML = `<div class="card"><div class="flex items-center gap-2 mb-4"><h3 class="font-semibold text-gray-800">Log Aktiviti Sistem</h3><span class="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full font-medium">${data.total} rekod</span></div>
+        <div class="mb-4"><input type="text" id="auditSearch" placeholder="Cari dalam log..." onkeyup="if(event.key==='Enter'){ auditPage=1; renderAuditLogs(); }" class="w-full"></div>
+        <div class="overflow-x-auto"><table><thead><tr><th>Masa</th><th>Pengguna</th><th>Peranan</th><th>Tindakan</th><th>Penerangan</th><th>No. KP</th><th>IP</th></tr></thead>
+        <tbody>${data.data.length===0?'<tr><td colspan="7" class="text-center py-8 text-gray-400">Tiada log aktiviti</td></tr>':data.data.map(log=>`
+            <tr><td class="text-xs whitespace-nowrap">${new Date(log.dicipta_pada).toLocaleString('ms-MY')}</td><td class="text-sm font-medium">${log.username}</td><td><span class="badge ${log.peranan==='Admin'?'badge-putih':log.peranan==='Petugas Padang'?'badge-atas':'badge-tiada'} text-xs">${log.peranan}</span></td>
+            <td class="text-sm">${log.tindakan}</td><td class="text-xs max-w-xs truncate" title="${log.penerangan}">${log.penerangan}</td><td class="text-xs font-mono">${log.no_kp_terlibat||'-'}</td><td class="text-xs text-gray-400">${log.ip_address||'-'}</td></tr>
+        `).join('')}</tbody></table></div>
+        ${data.total_pages>1?`<div class="pagination"><button onclick="if(auditPage>1){auditPage--;renderAuditLogs()}" ${auditPage<=1?'disabled':''}>«</button><span class="text-sm text-gray-500">Halaman ${data.page} / ${data.total_pages}</span><button onclick="if(auditPage<${data.total_pages}){auditPage++;renderAuditLogs()}" ${auditPage>=data.total_pages?'disabled':''}>»</button></div>`:''}</div>`;
+    } catch (err) { content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`; }
+}
+
+// ========= USER MANAGEMENT =========
+async function renderUserManagement() {
+    const content = document.getElementById('contentArea');
+    content.innerHTML = `<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan data pengguna...</span></div>`;
+    try {
+        const users = await api('/api/users');
+        content.innerHTML = `<div class="card"><div class="flex items-center justify-between mb-4"><h3 class="font-semibold text-gray-800">Senarai Pengguna Sistem</h3><button onclick="showTambahPengguna()" class="btn btn-primary text-sm">+ Pengguna Baru</button></div>
+        <div class="overflow-x-auto"><table><thead><tr><th>ID</th><th>Nama Pengguna</th><th>Nama Penuh</th><th>Peranan</th><th>PDM</th><th>Aktif</th><th>Dicipta</th></tr></thead>
+        <tbody>${users.map(u=>`<tr><td class="text-sm">${u.id}</td><td class="font-medium">${u.username}</td><td>${u.nama_penuh||'-'}</td><td><span class="badge ${u.peranan==='Admin'?'badge-putih':u.peranan==='Petugas Padang'?'badge-atas':'badge-tiada'}">${u.peranan}</span></td><td class="text-sm">${u.dm||'Semua'}</td><td>${u.aktif?'<span class="text-green-600 font-medium">Aktif</span>':'<span class="text-red-600">Tidak Aktif</span>'}</td><td class="text-sm">${u.dicipta_pada?new Date(u.dicipta_pada).toLocaleDateString('ms-MY'):'-'}</td></tr>`).join('')}</tbody></table></div></div>`;
+    } catch (err) { content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`; }
+}
+
+function showTambahPengguna() {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.innerHTML = `<div class="bg-white rounded-xl p-6 w-full max-w-md mx-4"><h3 class="text-lg font-bold mb-4">Tambah Pengguna Baru</h3>
+        <div class="space-y-3"><div><label class="block text-sm font-medium mb-1">Nama Pengguna *</label><input id="uUsername" required></div>
+        <div><label class="block text-sm font-medium mb-1">Nama Penuh *</label><input id="uNama" required></div>
+        <div><label class="block text-sm font-medium mb-1">Kata Laluan *</label><input id="uPass" type="password" required></div>
+        <div><label class="block text-sm font-medium mb-1">Peranan</label><select id="uPeranan"><option value="Pemerhati">Pemerhati</option><option value="Petugas Padang">Petugas Padang</option><option value="Admin">Admin</option></select></div>
+        <div><label class="block text-sm font-medium mb-1">PDM</label><select id="uDm"><option value="">Semua PDM</option>${state.pdmList.map(p=>`<option value="${p}">${p}</option>`).join('')}</select></div></div>
+        <div class="flex gap-3 mt-6 justify-end"><button onclick="this.closest('.fixed').remove()" class="btn btn-outline">Batal</button><button onclick="submitPengguna()" class="btn btn-primary">Simpan</button></div></div>`;
+    document.body.appendChild(modal);
+}
+
+async function submitPengguna() {
+    const username = document.getElementById('uUsername').value.trim();
+    const nama = document.getElementById('uNama').value.trim();
+    const pass = document.getElementById('uPass').value;
+    if (!username || !nama || !pass) { showToast('Sila isi ruangan bertanda *', 'error'); return; }
+    try {
+        await api('/api/users', { method:'POST', body:JSON.stringify({ username, nama_penuh:nama, kata_laluan:pass, peranan:document.getElementById('uPeranan').value, dm:document.getElementById('uDm').value||null }) });
+        document.querySelector('.fixed')?.remove();
+        showToast('Pengguna berjaya dicipta!');
+        renderUserManagement();
+    } catch (err) { showToast(err.message,'error'); }
+}
+
+// ========= IMPORT DATA =========
+let importFile = null;
+function renderImportData() {
+    document.getElementById('pageTitle').textContent = 'Import Data Excel';
+    const content = document.getElementById('contentArea');
+    importFile = null;
+    content.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card"><div class="flex items-center gap-3 mb-4"><div class="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center"><svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div><div><h3 class="font-semibold text-gray-800">Muat Turun Templat</h3><p class="text-xs text-gray-500">Dapatkan fail Excel kosong</p></div></div>
+        <button onclick="downloadTemplate()" class="btn btn-success w-full">📥 Muat Turun Templat Excel</button>
+        <div class="mt-3 text-xs text-gray-400">Lajur wajib: NO KP, NAMA PENUH, JANTINA, TAHUN LAHIR, DM, LOKALITI</div></div>
+        <div class="card"><div class="flex items-center gap-3 mb-4"><div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center"><svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg></div><div><h3 class="font-semibold text-gray-800">Muat Naik Fail Excel</h3><p class="text-xs text-gray-500">Seret dan lepas atau klik</p></div></div>
+        <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition" onclick="document.getElementById('fileInput').click()" ondragover="event.preventDefault();this.classList.add('border-blue-500','bg-blue-50')" ondragleave="this.classList.remove('border-blue-500','bg-blue-50')" ondrop="event.preventDefault();this.classList.remove('border-blue-500','bg-blue-50');handleFileDrop(event)">
+        <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+        <p class="text-sm text-gray-500" id="dropText">Klik atau seret fail ke sini</p><p class="text-xs text-gray-400 mt-1">Format: .xlsx</p></div>
+        <input type="file" id="fileInput" accept=".xlsx,.xls" class="hidden" onchange="handleFileSelect(event)">
+        <div id="fileInfo" class="hidden mt-3 p-3 bg-blue-50 rounded-lg flex items-center gap-3"><svg class="w-6 h-6 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <div class="flex-1 min-w-0"><p id="fileName" class="text-sm font-medium text-gray-700 truncate"></p><p id="fileSize" class="text-xs text-gray-500"></p></div>
+        <button onclick="clearFile()" class="text-gray-400 hover:text-red-500"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button></div>
+        <button id="importBtn" onclick="submitImport()" class="btn btn-primary w-full mt-4" disabled>📤 Import Data</button></div></div>
+        <div id="importResult" class="hidden mt-6"></div>`;
+}
+
+function downloadTemplate() {
+    const token = state.token;
+    fetch(`${API_BASE}/api/pengundi/template`, { headers: { 'Authorization': `Bearer ${token}` } })
+    .then(res => { if (!res.ok) throw new Error('Gagal muat turun'); return res.blob(); })
+    .then(blob => { const url = window.URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'TEMPLAT_IMPORT_PENGUNDI.xlsx'; document.body.appendChild(a); a.click(); document.body.removeChild(a); window.URL.revokeObjectURL(url); showToast('Templat berjaya dimuat turun!'); })
+    .catch(err => showToast(err.message, 'error'));
+}
+function handleFileSelect(event) { const file = event.target.files[0]; if (file) setImportFile(file); }
+function handleFileDrop(event) { const file = event.dataTransfer.files[0]; if (file) setImportFile(file); }
+function setImportFile(file) {
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) { showToast('Sila pilih fail Excel', 'error'); return; }
+    importFile = file;
+    document.getElementById('fileInfo').classList.remove('hidden');
+    document.getElementById('fileName').textContent = file.name;
+    document.getElementById('fileSize').textContent = (file.size/1024).toFixed(1)+' KB';
+    document.getElementById('importBtn').disabled = false;
+    document.getElementById('dropText').textContent = 'Fail dipilih';
+}
+function clearFile() {
+    importFile = null; document.getElementById('fileInput').value = '';
+    document.getElementById('fileInfo').classList.add('hidden');
+    document.getElementById('importBtn').disabled = true;
+    document.getElementById('dropText').textContent = 'Klik atau seret fail ke sini';
+}
+
+async function submitImport() {
+    if (!importFile) { showToast('Sila pilih fail terlebih dahulu', 'error'); return; }
+    const btn = document.getElementById('importBtn');
+    btn.disabled = true; btn.innerHTML = '<div class="loading-spinner"></div><span class="ml-2">Memproses...</span>';
+    const resultDiv = document.getElementById('importResult');
+    resultDiv.classList.remove('hidden');
+    resultDiv.innerHTML = '<div class="card text-center py-8"><div class="loading-spinner mx-auto mb-3"></div><p class="text-gray-600">Sedang memproses...</p></div>';
+    try {
+        const formData = new FormData();
+        formData.append('file', importFile);
+        const res = await fetch(`${API_BASE}/api/pengundi/import-excel`, { method:'POST', headers:{ 'Authorization':`Bearer ${state.token}` }, body:formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Ralat berlaku');
+        resultDiv.innerHTML = `<div class="card"><div class="text-center mb-4"><div class="w-16 h-16 ${data.berjaya>0?'bg-green-100':'bg-red-100'} rounded-full flex items-center justify-center mx-auto mb-3"><svg class="w-8 h-8 ${data.berjaya>0?'text-green-600':'text-red-600'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">${data.berjaya>0?'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>':'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'}</svg></div>
+        <h3 class="text-lg font-bold ${data.berjaya>0?'text-green-700':'text-red-700'}">${data.berjaya>0?'✅ Import Berjaya!':'❌ Import Gagal'}</h3></div>
+        <div class="grid grid-cols-3 gap-4 text-center"><div class="p-3 bg-green-50 rounded-lg"><p class="text-2xl font-bold text-green-700">${data.berjaya}</p><p class="text-xs text-green-600">Berjaya</p></div><div class="p-3 bg-red-50 rounded-lg"><p class="text-2xl font-bold text-red-700">${data.gagal}</p><p class="text-xs text-red-600">Gagal</p></div><div class="p-3 bg-blue-50 rounded-lg"><p class="text-2xl font-bold text-blue-700">${data.jumlah}</p><p class="text-xs text-blue-600">Jumlah</p></div></div>
+        <div class="mt-4 p-3 bg-amber-50 rounded-lg text-sm text-amber-700"><span>Data perlu diluluskan di <b>Kelulusan Data</b>.</span></div>
+        <div class="flex gap-3 mt-4 justify-center"><button onclick="navigate('import')" class="btn btn-outline">Import Lagi</button><button onclick="navigate('approval')" class="btn btn-primary">Ke Kelulusan Data</button></div></div>`;
+        showToast(`${data.berjaya} rekod berjaya diimport!`);
+    } catch (err) {
+        resultDiv.innerHTML = `<div class="card text-center py-8"><div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3"><svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+        <h3 class="text-lg font-bold text-red-700">Ralat</h3><p class="text-sm text-gray-600 mt-2">${err.message}</p><button onclick="navigate('import')" class="btn btn-outline mt-4">Cuba Lagi</button></div>`;
+        showToast(err.message,'error');
+    }
+    btn.disabled = false; btn.innerHTML = '📤 Import Data'; clearFile();
+}
+
+// ========= COMING SOON PAGE (Placeholder) =========
+function renderComingSoon(page) {
+    const titles = {
+        'kpi': 'Petunjuk Prestasi Utama (PPU)',
+        'berita': 'Berita & Amanat',
+        'kalendar': 'Kalendar Aktiviti',
+        'aduan': 'Aduan Pengguna',
+        'cadangan': 'Cadangan Pengguna',
+        'survey-view': 'Borang Soal Selidik'
+    };
+    const icons = {
+        'kpi': '<svg class="w-16 h-16 mx-auto text-amber-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>',
+        'berita': '<svg class="w-16 h-16 mx-auto text-amber-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg>',
+        'kalendar': '<svg class="w-16 h-16 mx-auto text-amber-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>',
+        'default': '<svg class="w-16 h-16 mx-auto text-amber-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>'
+    };
+    const content = document.getElementById('contentArea');
+    content.innerHTML = `
+        <div class="max-w-2xl mx-auto">
+            <div class="card text-center py-12">
+                ${icons[page] || icons['default']}
+                <h2 class="text-xl font-bold text-gray-800 mb-2">${titles[page] || 'Ciri Akan Datang'}</h2>
+                <div class="inline-block bg-amber-100 text-amber-800 text-sm font-semibold px-3 py-1 rounded-full mb-4">Akan Datang</div>
+                <p class="text-gray-500 max-w-md mx-auto">Ciri ini sedang dalam pembangunan dan akan dilancarkan dalam fasa akan datang. Sila nantikan!</p>
+                <button onclick="navigate('dashboard')" class="btn btn-primary mt-6">← Kembali ke Dashboard</button>
+            </div>
+        </div>`;
+}
+
+// ============================================================
+// MAIN APP RENDER
+// ============================================================
+function renderApp() {
+    if (!requiresAuth()) { renderLoginPage(); return; }
+    renderSidebar();
+    if (window.innerWidth < 768) document.getElementById('sidebar').classList.add('closed');
+    else document.getElementById('sidebar').classList.remove('closed');
+    document.getElementById('userInfo').innerHTML = `<span class="hidden md:block text-sm text-gray-600">${state.user?.nama_penuh}</span><span class="badge ${state.user?.peranan==='Admin'?'badge-putih':state.user?.peranan==='Petugas Padang'?'badge-atas':'badge-tiada'}">${state.user?.peranan}</span>
+        <button onclick="handleLogout()" class="btn btn-danger text-sm flex items-center gap-1.5 px-3 py-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg> Log Keluar</button>`;
+    navigate(state.currentPage);
+    if (state.user?.peranan==='Admin') updateApprovalBadge();
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.toggle('closed'); sidebar.classList.toggle('open');
+    if (window.innerWidth < 768) {
+        if (sidebar.classList.contains('open')) {
+            document.body.classList.add('no-scroll');
+        } else {
+            document.body.classList.remove('no-scroll');
+        }
+    }
+}
+
+document.getElementById('menuToggle')?.addEventListener('click', toggleSidebar);
+renderApp();
+setInterval(() => { if (state.user?.peranan==='Admin' && state.token) updateApprovalBadge(); }, 30000);
+document.addEventListener('click', (e) => {
+    const sidebar = document.getElementById('sidebar');
+    if (window.innerWidth < 768 && !sidebar.contains(e.target) && !e.target.closest('#menuToggle')) {
+        sidebar.classList.remove('open'); sidebar.classList.add('closed');
+        document.body.classList.remove('no-scroll');
+    }
+});
+</script>
+
+<!-- PWA Service Worker Registration -->
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+            .then(reg => console.log('PWA Service Worker registered!', reg))
+            .catch(err => console.log('PWA Registration failed: ', err));
+    });
+}
+</script>
+</body>
+</html>
