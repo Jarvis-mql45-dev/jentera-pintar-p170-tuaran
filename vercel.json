@@ -1,53 +1,8 @@
 {
-  "name": "jentera-pintar-n05-matunggong",
-  "version": 2,
-  "rootDirectory": "frontend",
-  "outputDirectory": ".",
-  "buildCommand": "",
-  "installCommand": "",
-  "framework": null,
   "rewrites": [
     {
       "source": "/api/(.*)",
       "destination": "https://jenterapintar-backend.onrender.com/api/$1"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ],
-  "trailingSlash": false,
-  "cleanUrls": true,
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "X-XSS-Protection",
-          "value": "1; mode=block"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
-        }
-      ]
-    },
-    {
-      "source": "/icons/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
     }
   ]
 }
