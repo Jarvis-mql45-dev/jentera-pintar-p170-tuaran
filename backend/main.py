@@ -106,6 +106,7 @@ def log_activity(request: Request, user: dict, tindakan: str, penerangan: str, n
 @app.on_event("startup")
 def startup():
     init_db()
+    
     # Seed admin user if not exists
     db = get_db()
     cursor = db.cursor()
@@ -125,6 +126,21 @@ def startup():
         )
         db.commit()
         print("✅ Pengguna lalai telah dicipta: admin/admin123, petugas/petugas123, pemerhati/pemerhati123")
+    
+    # Seed sample pengundi data if database empty
+    cursor.execute("SELECT COUNT(*) FROM pengundi")
+    pengundi_count = cursor.fetchone()[0]
+    if pengundi_count == 0:
+        print("📦 Database pengundi kosong - memasukkan data sample...")
+        try:
+            from seed_data import seed_database
+            seed_database()
+            print("✅ Data sample pengundi berjaya dimasukkan!")
+        except Exception as e:
+            print(f"⚠️ Gagal seed data: {e}")
+    else:
+        print(f"✅ Database pengundi sudah mempunyai {pengundi_count} rekod")
+    
     db.close()
 
 
