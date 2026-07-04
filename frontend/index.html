@@ -856,23 +856,30 @@ async function renderDashboard() {
             `;
         
         setTimeout(() => {
-            const ctx = document.getElementById('sokonganChart');
-            if (ctx) {
-                if (state.chart) state.chart.destroy();
-                state.chart = new Chart(ctx, { type:'pie', data:{ labels:['Putih','Atas Pagar','Hitam',labelLain], datasets:[{ data:[putih,atasPagar,hitam,totalLain], backgroundColor:['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth:2, borderColor:'#fff' }] }, options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{ display:false } } } });
-            }
-            const ctx3 = document.getElementById('stackedBarChart');
-            if (ctx3) {
-                const su = data.sokongan_ikut_umur || {};
-                const umurLabels = ['Belia','Dewasa','Warga Emas','Tidak Diketahui'];
-                const sokonganSet = new Set();
-                Object.values(su).forEach(inner => { Object.keys(inner).forEach(k => sokonganSet.add(k)); });
-                const sokonganLabels = Array.from(sokonganSet);
-                const sokonganDisplayLabels = sokonganLabels.map(l => l==='Tiada'?'Tidak Dikenal Pasti':l);
-                const sokonganWarnaMap = { 'Putih':'#22c55e', 'Atas Pagar':'#eab308', 'Hitam':'#ef4444' };
-                const defaultColours = ['#94a3b8','#818cf8','#f472b6','#34d399','#fbbf24','#a78bfa'];
-                new Chart(ctx3, { type:'bar', data:{ labels:umurLabels, datasets:sokonganLabels.map((label,i)=>({ label:sokonganDisplayLabels[i], data:umurLabels.map(k=>(su[k]&&su[k][label])||0), backgroundColor:sokonganWarnaMap[label]||defaultColours[i%defaultColours.length], borderRadius:4, stack:'stack1' })) }, options:{ responsive:true, maintainAspectRatio:false, interaction:{ mode:'nearest', axis:'xy', intersect:false }, scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, grid:{ color:'#f1f5f9' } } }, plugins:{ legend:{ position:'top', labels:{ boxWidth:12, padding:12 } }, tooltip:{ enabled:true, mode:'nearest', axis:'xy', intersect:false, callbacks:{ label:function(context){ return (context.dataset.label||'')+': '+(context.parsed.y||0); } } } } } });
-            }
+            // Pie Chart - with try/catch so stacked bar still works if this fails
+            try {
+                const ctx = document.getElementById('sokonganChart');
+                if (ctx) {
+                    if (state.chart) state.chart.destroy();
+                    state.chart = new Chart(ctx, { type:'pie', data:{ labels:['Putih','Atas Pagar','Hitam',labelLain], datasets:[{ data:[putih,atasPagar,hitam,totalLain], backgroundColor:['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth:2, borderColor:'#fff' }] }, options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{ display:false } } } });
+                }
+            } catch (e) { console.error('Pie chart error:', e); }
+            
+            // Stacked Bar Chart - with try/catch
+            try {
+                const ctx3 = document.getElementById('stackedBarChart');
+                if (ctx3) {
+                    const su = data.sokongan_ikut_umur || {};
+                    const umurLabels = ['Belia','Dewasa','Warga Emas','Tidak Diketahui'];
+                    const sokonganSet = new Set();
+                    Object.values(su).forEach(inner => { Object.keys(inner).forEach(k => sokonganSet.add(k)); });
+                    const sokonganLabels = Array.from(sokonganSet);
+                    const sokonganDisplayLabels = sokonganLabels.map(l => l==='Tiada'?'Tidak Dikenal Pasti':l);
+                    const sokonganWarnaMap = { 'Putih':'#22c55e', 'Atas Pagar':'#eab308', 'Hitam':'#ef4444' };
+                    const defaultColours = ['#94a3b8','#818cf8','#f472b6','#34d399','#fbbf24','#a78bfa'];
+                    new Chart(ctx3, { type:'bar', data:{ labels:umurLabels, datasets:sokonganLabels.map((label,i)=>({ label:sokonganDisplayLabels[i], data:umurLabels.map(k=>(su[k]&&su[k][label])||0), backgroundColor:sokonganWarnaMap[label]||defaultColours[i%defaultColours.length], borderRadius:4, stack:'stack1' })) }, options:{ responsive:true, maintainAspectRatio:false, interaction:{ mode:'nearest', axis:'xy', intersect:false }, scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, grid:{ color:'#f1f5f9' } } }, plugins:{ legend:{ position:'top', labels:{ boxWidth:12, padding:12 } }, tooltip:{ enabled:true, mode:'nearest', axis:'xy', intersect:false, callbacks:{ label:function(context){ return (context.dataset.label||'')+': '+(context.parsed.y||0); } } } } } });
+                }
+            } catch (e) { console.error('Stacked bar chart error:', e); }
         }, 100);
     } catch (err) {
         content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`;
