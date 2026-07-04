@@ -679,6 +679,36 @@ def update_pengundi(request: Request, pengundi_id: int, data: PengundiUpdate, us
     return {"message": "Pengundi berjaya dikemaskini", "fields_updated": list(update_fields.keys())}
 
 
+# ===== DELETE PENGUNDI (Admin sahaja) - untuk padam terus rekod =====
+@app.delete("/api/pengundi/{pengundi_id}")
+def delete_pengundi(request: Request, pengundi_id: int, user=Depends(get_current_user)):
+    check_peranan(user, ["Admin"])
+
+    db = get_db()
+    cursor = db.cursor()
+
+    # Get data before delete
+    cursor.execute("SELECT no_kp, nama_penuh, dm FROM pengundi WHERE id = ?", (pengundi_id,))
+    p = cursor.fetchone()
+    if not p:
+        db.close()
+        raise HTTPException(status_code=404, detail="Rekod tidak ditemui")
+
+    no_kp = p["no_kp"]
+    nama = p["nama_penuh"]
+    dm = p["dm"]
+
+    cursor.execute("DELETE FROM pengundi WHERE id = ?", (pengundi_id,))
+    db.commit()
+    db.close()
+
+    log_activity(request, user, "Padam Pengundi",
+                 f"Padam pengundi ID {pengundi_id}: {nama} (KP: {no_kp}, DM: {dm})",
+                 no_kp_terlibat=no_kp)
+
+    return {"message": f"Rekod {nama} berjaya dipadamkan"}
+
+
 # ===== ENDPOINT APPROVAL QUEUE (Admin sahaja) =====
 @app.get("/api/approval-queue")
 def get_approval_queue(request: Request, page: int = 1, per_page: int = 50, user=Depends(get_current_user)):
