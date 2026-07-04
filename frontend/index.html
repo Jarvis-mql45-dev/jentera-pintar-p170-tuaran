@@ -887,21 +887,123 @@ async function renderDashboard() {
 }
 
 // ========= PENGUNDI LIST =========
+let filterOptions = null;
+let selectedFilters = { pdm: [], lokaliti: [], sokongan: [] };
+let activeFilterDropdown = null;
+
+function toggleFilterDropdown(type) {
+    const existing = document.getElementById('filterDropdown');
+    if (existing) existing.remove();
+    if (activeFilterDropdown === type) { activeFilterDropdown = null; return; }
+    activeFilterDropdown = type;
+    
+    const btn = document.getElementById(`filterBtn${type.charAt(0).toUpperCase() + type.slice(1)}`);
+    if (!btn) return;
+    
+    const rect = btn.getBoundingClientRect();
+    const items = filterOptions ? filterOptions[type === 'pdm' ? 'pdm' : type === 'lokaliti' ? 'lokaliti' : 'sokongan'] : [];
+    
+    const dropdown = document.createElement('div');
+    dropdown.id = 'filterDropdown';
+    dropdown.className = 'fixed z-50 bg-white border border-gray-200 rounded-xl shadow-xl p-3 max-h-60 overflow-y-auto';
+    dropdown.style.minWidth = '200px';
+    dropdown.style.top = (rect.bottom + 5) + 'px';
+    dropdown.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
+    
+    const selected = selectedFilters[type] || [];
+    
+    dropdown.innerHTML = `
+        <div class="flex items-center justify-between mb-2 border-b pb-2">
+            <span class="text-sm font-semibold text-gray-700">${type === 'pdm' ? 'PDM' : type === 'lokaliti' ? 'Lokaliti' : 'Sokongan'}</span>
+            <button onclick="event.stopPropagation(); selectedFilters['${type}'] = []; toggleFilterDropdown('${type}'); applyFilters();" class="text-xs text-blue-600 hover:text-blue-800">Kosongkan</button>
+        </div>
+        ${items.length === 0 ? '<p class="text-sm text-gray-400 text-center py-2">Tiada pilihan</p>' :
+        items.map(item => {
+            const checked = selected.includes(item) ? 'checked' : '';
+            return `<label class="flex items-center gap-2 py-1.5 px-1 hover:bg-gray-50 rounded cursor-pointer">
+                <input type="checkbox" value="${item}" ${checked} onchange="toggleFilterItem('${type}','${item.replace(/'/g,"\\'")}',this.checked)" class="w-4 h-4 text-blue-600">
+                <span class="text-sm text-gray-700">${item}</span>
+            </label>`;
+        }).join('')}
+        <div class="mt-2 pt-2 border-t">
+            <button onclick="toggleFilterDropdown('${type}')" class="btn btn-primary text-xs w-full py-1.5">Tutup</button>
+        </div>`;
+    
+    document.body.appendChild(dropdown);
+    
+    // Close on outside click
+    setTimeout(() => {
+        document.addEventListener('click', closeFilterDropdown, { once: true });
+    }, 10);
+}
+
+function closeFilterDropdown(e) {
+    const dd = document.getElementById('filterDropdown');
+    if (dd && !dd.contains(e.target)) {
+        dd.remove();
+        activeFilterDropdown = null;
+    } else {
+        document.addEventListener('click', closeFilterDropdown, { once: true });
+    }
+}
+
+function toggleFilterItem(type, value, checked) {
+    if (!selectedFilters[type]) selectedFilters[type] = [];
+    if (checked) {
+        if (!selectedFilters[type].includes(value)) selectedFilters[type].push(value);
+    } else {
+        selectedFilters[type] = selectedFilters[type].filter(v => v !== value);
+    }
+}
+
+function applyFilters() {
+    state.pengundiPage = 1;
+    renderPengundi();
+}
+
 async function renderPengundi() {
     const content = document.getElementById('contentArea');
     content.innerHTML = `<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan data pengundi...</span></div>`;
     try {
-        if (!state.pdmList.length) state.pdmList = await api('/api/pdm');
+        // Load filter options if not loaded
+        if (!filterOptions) {
+            filterOptions = await api('/api/pengundi/filter-options');
+            // Also load pdm list for other uses
+            if (!state.pdmList.length) state.pdmList = filterOptions.pdm;
+        }
+        if (!state.pdmList.length && !filterOptions) state.pdmList = await api('/api/pdm');
+        
+        // Build params
         const params = new URLSearchParams({ page: state.pengundiPage, per_page: '20' });
         if (state.pengundiSearch) params.append('search', state.pengundiSearch);
-        if (state.pengundiDm) params.append('dm', state.pengundiDm);
+        
+        // Add multi-select filters
+        (selectedFilters.pdm || []).forEach(v => params.append('dm[]', v));
+        (selectedFilters.lokaliti || []).forEach(v => params.append('lokaliti[]', v));
+        (selectedFilters.sokongan || []).forEach(v => params.append('sokongan[]', v));
+        
         const data = await api(`/api/pengundi?${params}`);
         state.pengundiData = data;
+        
+        // Build filter labels for display
+        const totalFilters = (selectedFilters.pdm?.length||0) + (selectedFilters.lokaliti?.length||0) + (selectedFilters.sokongan?.length||0);
+        
         content.innerHTML = `
             <div class="card">
-                <div class="flex flex-col md:flex-row gap-3 mb-4">
+                <div class="flex flex-col md:flex-row gap-2 mb-4">
                     <div class="flex-1"><input type="text" id="searchInput" placeholder="Cari No. KP atau Nama..." value="${state.pengundiSearch}" onkeyup="if(event.key==='Enter'){ state.pengundiSearch=this.value; state.pengundiPage=1; renderPengundi(); }" class="w-full"></div>
-                    <select id="dmSelect" onchange="state.pengundiDm=this.value; state.pengundiPage=1; renderPengundi()" class="w-full md:w-48"><option value="">Semua PDM</option>${state.pdmList.map(p=>`<option value="${p}" ${state.pengundiDm===p?'selected':''}>${p}</option>`).join('')}</select>
+                    <div class="flex gap-2 flex-wrap">
+                        <button id="filterBtnPdm" onclick="toggleFilterDropdown('pdm')" class="btn btn-outline text-sm flex items-center gap-1.5">
+                            PDM ${selectedFilters.pdm?.length ? `<span class="bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">${selectedFilters.pdm.length}</span>` : '▾'}
+                        </button>
+                        <button id="filterBtnLokaliti" onclick="toggleFilterDropdown('lokaliti')" class="btn btn-outline text-sm flex items-center gap-1.5">
+                            Lokaliti ${selectedFilters.lokaliti?.length ? `<span class="bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">${selectedFilters.lokaliti.length}</span>` : '▾'}
+                        </button>
+                        <button id="filterBtnSokongan" onclick="toggleFilterDropdown('sokongan')" class="btn btn-outline text-sm flex items-center gap-1.5">
+                            Sokongan ${selectedFilters.sokongan?.length ? `<span class="bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">${selectedFilters.sokongan.length}</span>` : '▾'}
+                        </button>
+                        ${totalFilters > 0 ? `<button onclick="selectedFilters={pdm:[],lokaliti:[],sokongan:[]}; applyFilters()" class="btn btn-danger text-xs">✕ Kosongkan</button>` : ''}
+                    </div>
                     <button onclick="state.pengundiSearch=document.getElementById('searchInput').value; state.pengundiPage=1; renderPengundi()" class="btn btn-primary">Cari</button>
                     ${['Admin','Petugas Padang'].includes(state.user?.peranan)?`<button onclick="showTambahPengundi()" class="btn btn-success">+ Tambah Baru</button>`:''}
                 </div>

@@ -314,15 +314,16 @@ def get_dashboard(request: Request, dm: Optional[str] = None, user=Depends(get_c
         raise HTTPException(status_code=500, detail=error_detail)
 
 
-# Senarai pengundi dengan carian dan tapisan
+# Senarai pengundi dengan carian dan tapisan pelbagai (multi-select)
 @app.get("/api/pengundi")
 def get_pengundi(
     request: Request,
     page: int = 1,
     per_page: int = 50,
     search: Optional[str] = None,
-    dm: Optional[str] = None,
-    status_sokongan: Optional[str] = None,
+    dm: Optional[str] = Query(None, alias="dm[]"),
+    lokaliti: Optional[str] = Query(None, alias="lokaliti[]"),
+    sokongan: Optional[str] = Query(None, alias="sokongan[]"),
     status_rekod: Optional[str] = None,
     user=Depends(get_current_user)
 ):
@@ -336,13 +337,41 @@ def get_pengundi(
         where_parts.append("(no_kp LIKE ? OR nama_penuh LIKE ?)")
         params.extend([f"%{search}%", f"%{search}%"])
 
+    # Multi-select dm filter
+    dm_list = []
     if dm:
-        where_parts.append("dm = ?")
-        params.append(dm)
+        if isinstance(dm, str):
+            dm_list = [d.strip() for d in dm.split(',') if d.strip()]
+        elif isinstance(dm, list):
+            dm_list = [d.strip() for d in dm if d.strip()]
+    if dm_list:
+        placeholders = ', '.join(['?'] * len(dm_list))
+        where_parts.append(f"dm IN ({placeholders})")
+        params.extend(dm_list)
 
-    if status_sokongan:
-        where_parts.append("status_sokongan = ?")
-        params.append(status_sokongan)
+    # Multi-select lokaliti filter
+    lokaliti_list = []
+    if lokaliti:
+        if isinstance(lokaliti, str):
+            lokaliti_list = [l.strip() for l in lokaliti.split(',') if l.strip()]
+        elif isinstance(lokaliti, list):
+            lokaliti_list = [l.strip() for l in lokaliti if l.strip()]
+    if lokaliti_list:
+        placeholders = ', '.join(['?'] * len(lokaliti_list))
+        where_parts.append(f"lokaliti IN ({placeholders})")
+        params.extend(lokaliti_list)
+
+    # Multi-select sokongan filter
+    sokongan_list = []
+    if sokongan:
+        if isinstance(sokongan, str):
+            sokongan_list = [s.strip() for s in sokongan.split(',') if s.strip()]
+        elif isinstance(sokongan, list):
+            sokongan_list = [s.strip() for s in sokongan if s.strip()]
+    if sokongan_list:
+        placeholders = ', '.join(['?'] * len(sokongan_list))
+        where_parts.append(f"status_sokongan IN ({placeholders})")
+        params.extend(sokongan_list)
 
     if status_rekod:
         where_parts.append("status_rekod = ?")
@@ -369,11 +398,14 @@ def get_pengundi(
     pengundi = [dict(row) for row in cursor.fetchall()]
     db.close()
 
-    # Log aktiviti: carian atau senarai dilawati
+    # Log aktiviti
+    dm_str = ','.join(dm_list) if dm_list else 'Semua'
+    lokaliti_str = ','.join(lokaliti_list) if lokaliti_list else 'Semua'
+    sokongan_str = ','.join(sokongan_list) if sokongan_list else 'Semua'
     if search:
         log_activity(request, user, "Carian Pengundi", f"Carian: '{search}' (P: {total} keputusan)", no_kp_terlibat=search)
     else:
-        log_activity(request, user, "Lihat Senarai Pengundi", f"Senarai pengundi (dm: {dm or 'Semua'}, ms: {page})")
+        log_activity(request, user, "Lihat Senarai Pengundi", f"Filter: dm={dm_str}, lokaliti={lokaliti_str}, sokongan={sokongan_str}")
 
     return {
         "data": pengundi,
@@ -381,6 +413,25 @@ def get_pengundi(
         "page": page,
         "per_page": per_page,
         "total_pages": max(1, (total + per_page - 1) // per_page)
+    }
+
+
+# Endpoint untuk dapatkan senarai pilihan filter
+@app.get("/api/pengundi/filter-options")
+def get_filter_options(user=Depends(get_current_user)):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT DISTINCT dm FROM pengundi WHERE dm IS NOT NULL AND dm != '' ORDER BY dm")
+    pdm_list = [r[0] for r in cursor.fetchall()]
+    cursor.execute("SELECT DISTINCT lokaliti FROM pengundi WHERE lokaliti IS NOT NULL AND lokaliti != '' ORDER BY lokaliti")
+    lokaliti_list = [r[0] for r in cursor.fetchall()]
+    cursor.execute("SELECT DISTINCT status_sokongan FROM pengundi WHERE status_sokongan IS NOT NULL AND status_sokongan != '' ORDER BY status_sokongan")
+    sokongan_list = [r[0] for r in cursor.fetchall()]
+    db.close()
+    return {
+        "pdm": pdm_list,
+        "lokaliti": lokaliti_list,
+        "sokongan": sokongan_list
     }
 
 
