@@ -1098,6 +1098,25 @@ def delete_survey(request: Request, survey_id: int, user=Depends(get_current_use
     return {"message": "Survey dipadamkan"}
 
 
+# ===== DIAGNOSTIC DASHBOARD TEST =====
+@app.get("/api/dashboard-test")
+def dashboard_test(user=Depends(get_current_user)):
+    """Test endpoint untuk diagnosis dashboard."""
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SELECT COUNT(*) FROM pengundi WHERE status_fizikal = 'Hidup' AND status_rekod = 'Sah'")
+        count = cursor.fetchone()[0]
+        cursor.execute("SELECT jantina, COUNT(*) FROM pengundi WHERE status_fizikal = 'Hidup' AND status_rekod = 'Sah' GROUP BY jantina")
+        jantina = {r[0] or 'Unknown': r[1] for r in cursor.fetchall()}
+        cursor.execute("SELECT status_sokongan, COUNT(*) FROM pengundi WHERE status_fizikal = 'Hidup' AND status_rekod = 'Sah' GROUP BY status_sokongan")
+        sokongan = {r[0] or 'Tiada': r[1] for r in cursor.fetchall()}
+        db.close()
+        return {"success": True, "count": count, "jantina": jantina, "sokongan": sokongan, "msg": "Dashboard test OK"}
+    except Exception as e:
+        return {"success": False, "error": str(e), "error_type": type(e).__name__}
+
+
 # ===== ROOT =====
 @app.get("/")
 def root():
