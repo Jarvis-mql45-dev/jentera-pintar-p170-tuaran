@@ -291,7 +291,8 @@ def get_dashboard(request: Request, dm: Optional[str] = None, user=Depends(get_c
         SELECT AVG({THN_SEMASA} - tahun_lahir) as purata_umur
         FROM pengundi {where} AND tahun_lahir IS NOT NULL
     """, params)
-    purata_umur = round(cursor.fetchone()[0], 1) if cursor else 0
+    row = cursor.fetchone()
+    purata_umur = round(row[0], 1) if row and row[0] is not None else 0
 
     # Sokongan mengikut klasifikasi umur - untuk stacked bar chart
     status_list = ['Putih', 'Atas Pagar', 'Hitam', 'Tidak Kenal', None]
