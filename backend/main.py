@@ -322,8 +322,11 @@ def get_dashboard(request: Request, dm: Optional[str] = None, user=Depends(get_c
 
     db.close()
 
-    # Log aktiviti: dashboard dilawati
-    log_activity(request, user, "Lihat Dashboard", f"Dashboard dilawati (filter: {dm or 'Semua PDM'})")
+    # Log aktiviti: dashboard dilawati (jangan crash jika log gagal)
+    try:
+        log_activity(request, user, "Lihat Dashboard", f"Dashboard dilawati (filter: {dm or 'Semua PDM'})")
+    except Exception:
+        pass  # Abaikan error log - dashboard tetap berfungsi
 
     return {
         "jumlah_pengundi": jumlah_pengundi,
