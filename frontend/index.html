@@ -805,7 +805,17 @@ async function renderDashboard() {
         if (!state.pdmList.length) state.pdmList = await api('/api/pdm');
         const { jumlah_pengundi, sokongan, jantina, fizikal, lokaliti_teratas } = data;
         const totalSokongan = Object.values(sokongan).reduce((a, b) => a + b, 0);
-        const putih = sokongan['Putih'] || 0, hitam = sokongan['Hitam'] || 0, atasPagar = sokongan['Atas Pagar'] || 0, takKenal = sokongan['Tidak Kenal'] || 0, tiada = sokongan['Tiada'] || 0;
+        // Baca semua status sokongan secara dynamic (termasuk 'Belum Dikenal Pasti')
+        const putih = sokongan['Putih'] || 0;
+        const hitam = sokongan['Hitam'] || 0;
+        const atasPagar = sokongan['Atas Pagar'] || 0;
+        // Ambil semua baki kategori yang tidak termasuk Putih/Hitam/Atas Pagar
+        const kategoriLain = Object.entries(sokongan)
+            .filter(([k]) => !['Putih','Hitam','Atas Pagar'].includes(k))
+            .reduce((acc, [k, v]) => { acc[k] = v; return acc; }, {});
+        const totalLain = Object.values(kategoriLain).reduce((a, b) => a + b, 0);
+        // Paparkan label pertama dari kategori lain atau 'Tiada' jika kosong
+        const labelLain = Object.keys(kategoriLain)[0] || 'Tiada';
 
         content.innerHTML = `
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -822,7 +832,7 @@ async function renderDashboard() {
                             <tbody><tr><td class="pl-0"><span class="badge badge-putih">Putih</span></td><td>${putih.toLocaleString()}</td><td>${totalSokongan?((putih/totalSokongan)*100).toFixed(1):0}%</td></tr>
                             <tr><td class="pl-0"><span class="badge badge-atas">Atas Pagar</span></td><td>${atasPagar.toLocaleString()}</td><td>${totalSokongan?((atasPagar/totalSokongan)*100).toFixed(1):0}%</td></tr>
                             <tr><td class="pl-0"><span class="badge badge-hitam">Hitam</span></td><td>${hitam.toLocaleString()}</td><td>${totalSokongan?((hitam/totalSokongan)*100).toFixed(1):0}%</td></tr>
-                            <tr><td class="pl-0"><span class="badge badge-tiada">Tidak Dikenal Pasti</span></td><td>${tiada.toLocaleString()}</td><td>${totalSokongan?((tiada/totalSokongan)*100).toFixed(1):0}%</td></tr></tbody></table></div></div>
+                            <tr><td class="pl-0"><span class="badge badge-tiada">${labelLain}</span></td><td>${totalLain.toLocaleString()}</td><td>${totalSokongan?((totalLain/totalSokongan)*100).toFixed(1):0}%</td></tr></tbody></table></div></div>
                     </div>
                     <div class="card"><div class="flex items-center justify-between mb-4"><h3 class="font-semibold text-gray-800">Status Sokongan × Klasifikasi Umur</h3></div>
                         <div class="relative w-full h-[350px]"><canvas id="stackedBarChart"></canvas></div>
@@ -849,7 +859,7 @@ async function renderDashboard() {
             const ctx = document.getElementById('sokonganChart');
             if (ctx) {
                 if (state.chart) state.chart.destroy();
-                state.chart = new Chart(ctx, { type:'pie', data:{ labels:['Putih','Atas Pagar','Hitam','Tidak Dikenal Pasti'], datasets:[{ data:[putih,atasPagar,hitam,tiada], backgroundColor:['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth:2, borderColor:'#fff' }] }, options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{ display:false } } } });
+                state.chart = new Chart(ctx, { type:'pie', data:{ labels:['Putih','Atas Pagar','Hitam',labelLain], datasets:[{ data:[putih,atasPagar,hitam,totalLain], backgroundColor:['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth:2, borderColor:'#fff' }] }, options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{ display:false } } } });
             }
             const ctx3 = document.getElementById('stackedBarChart');
             if (ctx3) {
