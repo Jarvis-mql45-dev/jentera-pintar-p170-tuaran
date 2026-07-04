@@ -107,25 +107,29 @@ def log_activity(request: Request, user: dict, tindakan: str, penerangan: str, n
 def startup():
     init_db()
     
-    # Seed admin user if not exists
+    # Seed default users individually if they don't exist
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT COUNT(*) FROM users")
-    if cursor.fetchone()[0] == 0:
-        cursor.execute(
-            "INSERT INTO users (username, nama_penuh, kata_laluan, peranan, dm, aktif, dicipta_pada) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            ("admin", "Admin Sistem", hash_kata_laluan("admin123"), "Admin", None, 1, datetime.now().isoformat())
-        )
-        cursor.execute(
-            "INSERT INTO users (username, nama_penuh, kata_laluan, peranan, dm, aktif, dicipta_pada) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            ("petugas", "Petugas Padang", hash_kata_laluan("petugas123"), "Petugas Padang", None, 1, datetime.now().isoformat())
-        )
-        cursor.execute(
-            "INSERT INTO users (username, nama_penuh, kata_laluan, peranan, dm, aktif, dicipta_pada) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            ("pemerhati", "Pemerhati", hash_kata_laluan("pemerhati123"), "Pemerhati", None, 1, datetime.now().isoformat())
-        )
+    default_users = [
+        ("admin", "Admin Sistem", hash_kata_laluan("admin123"), "Admin"),
+        ("petugas", "Petugas Padang", hash_kata_laluan("petugas123"), "Petugas Padang"),
+        ("pemerhati", "Pemerhati", hash_kata_laluan("pemerhati123"), "Pemerhati"),
+    ]
+    now = datetime.now().isoformat()
+    seeded = 0
+    for username, nama_penuh, kata_laluan, peranan in default_users:
+        cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+        if not cursor.fetchone():
+            cursor.execute(
+                "INSERT INTO users (username, nama_penuh, kata_laluan, peranan, dm, aktif, dicipta_pada) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (username, nama_penuh, kata_laluan, peranan, None, 1, now)
+            )
+            seeded += 1
+    if seeded > 0:
         db.commit()
-        print("✅ Pengguna lalai telah dicipta: admin/admin123, petugas/petugas123, pemerhati/pemerhati123")
+        print(f"✅ {seeded} pengguna lalai telah dicipta")
+    else:
+        print("✅ Semua pengguna lalai sudah wujud")
     
     # Seed sample pengundi data if database empty
     cursor.execute("SELECT COUNT(*) FROM pengundi")
