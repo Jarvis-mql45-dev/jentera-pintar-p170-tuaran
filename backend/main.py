@@ -198,148 +198,120 @@ def get_pdm_list(user=Depends(get_current_user)):
 # Dashboard stats
 @app.get("/api/dashboard")
 def get_dashboard(request: Request, dm: Optional[str] = None, user=Depends(get_current_user)):
-    db = get_db()
-    cursor = db.cursor()
-
-    where = "WHERE status_fizikal = 'Hidup' AND status_rekod = 'Sah'"
-    params = []
-    if dm:
-        where += " AND dm = ?"
-        params.append(dm)
-
-    # Jumlah pengundi
-    cursor.execute(f"SELECT COUNT(*) FROM pengundi {where}", params)
-    jumlah_pengundi = cursor.fetchone()[0]
-
-    # Status sokongan
-    cursor.execute(f"""
-        SELECT status_sokongan, COUNT(*) as jumlah
-        FROM pengundi {where}
-        GROUP BY status_sokongan
-        ORDER BY jumlah DESC
-    """, params)
-    sokongan = {}
-    for row in cursor.fetchall():
-        key = row["status_sokongan"] or "Tiada"
-        sokongan[key] = row["jumlah"]
-
-    # Jantina
-    cursor.execute(f"""
-        SELECT jantina, COUNT(*) as jumlah
-        FROM pengundi {where}
-        GROUP BY jantina
-    """, params)
-    jantina = {}
-    for row in cursor.fetchall():
-        key = row["jantina"] or "Tidak Diketahui"
-        jantina[key] = row["jumlah"]
-
-    # Status fizikal
-    cursor.execute(f"""
-        SELECT status_fizikal, COUNT(*) as jumlah
-        FROM pengundi {where}
-        GROUP BY status_fizikal
-    """, params)
-    fizikal = {}
-    for row in cursor.fetchall():
-        key = row["status_fizikal"] or "Hidup"
-        fizikal[key] = row["jumlah"]
-
-    # Pengundi mengikut lokaliti
-    cursor.execute(f"""
-        SELECT lokaliti, COUNT(*) as jumlah
-        FROM pengundi {where}
-        GROUP BY lokaliti
-        ORDER BY jumlah DESC
-        LIMIT 10
-    """, params)
-    lokaliti = [{"nama": row["lokaliti"], "jumlah": row["jumlah"]} for row in cursor.fetchall()]
-
-    # Klasifikasi Umur (tahun semasa 2026)
-    THN_SEMASA = 2026
-    cursor.execute(f"""
-        SELECT 
-            CASE 
-                WHEN (tahun_lahir IS NULL) THEN 'Tidak Diketahui'
-                WHEN ({THN_SEMASA} - tahun_lahir) BETWEEN 18 AND 30 THEN 'Belia'
-                WHEN ({THN_SEMASA} - tahun_lahir) BETWEEN 31 AND 59 THEN 'Dewasa'
-                WHEN ({THN_SEMASA} - tahun_lahir) >= 60 THEN 'Warga Emas'
-                ELSE 'Lain-lain'
-            END as klasifikasi,
-            COUNT(*) as jumlah,
-            SUM(CASE WHEN jantina = 'L' THEN 1 ELSE 0 END) as lelaki,
-            SUM(CASE WHEN jantina = 'P' THEN 1 ELSE 0 END) as perempuan
-        FROM pengundi {where}
-        GROUP BY klasifikasi
-        ORDER BY 
-            CASE klasifikasi
-                WHEN 'Belia' THEN 1
-                WHEN 'Dewasa' THEN 2
-                WHEN 'Warga Emas' THEN 3
-                WHEN 'Tidak Diketahui' THEN 4
-                ELSE 5
-            END
-    """, params)
-    klasifikasi_umur = {}
-    for row in cursor.fetchall():
-        klasifikasi_umur[row["klasifikasi"]] = {
-            "jumlah": row["jumlah"],
-            "lelaki": row["lelaki"],
-            "perempuan": row["perempuan"]
-        }
-
-    # Umur purata
-    cursor.execute(f"""
-        SELECT AVG({THN_SEMASA} - tahun_lahir) as purata_umur
-        FROM pengundi {where} AND tahun_lahir IS NOT NULL
-    """, params)
-    row = cursor.fetchone()
-    purata_umur = round(row[0], 1) if row and row[0] is not None else 0
-
-    # Sokongan mengikut klasifikasi umur - untuk stacked bar chart
-    status_list = ['Putih', 'Atas Pagar', 'Hitam', 'Tidak Kenal', None]
-    cursor.execute(f"""
-        SELECT 
-            CASE 
-                WHEN (tahun_lahir IS NULL) THEN 'Tidak Diketahui'
-                WHEN ({THN_SEMASA} - tahun_lahir) BETWEEN 18 AND 30 THEN 'Belia'
-                WHEN ({THN_SEMASA} - tahun_lahir) BETWEEN 31 AND 59 THEN 'Dewasa'
-                WHEN ({THN_SEMASA} - tahun_lahir) >= 60 THEN 'Warga Emas'
-                ELSE 'Lain-lain'
-            END as klasifikasi,
-            COALESCE(status_sokongan, 'Tiada') as sokongan,
-            COUNT(*) as jumlah
-        FROM pengundi {where}
-        GROUP BY klasifikasi, sokongan
-        ORDER BY klasifikasi, sokongan
-    """, params)
-    sokongan_ikut_umur = {}
-    for row in cursor.fetchall():
-        k = row["klasifikasi"]
-        s = row["sokongan"]
-        j = row["jumlah"]
-        if k not in sokongan_ikut_umur:
-            sokongan_ikut_umur[k] = {}
-        sokongan_ikut_umur[k][s] = j
-
-    db.close()
-
-    # Log aktiviti: dashboard dilawati (jangan crash jika log gagal)
     try:
-        log_activity(request, user, "Lihat Dashboard", f"Dashboard dilawati (filter: {dm or 'Semua PDM'})")
-    except Exception:
-        pass  # Abaikan error log - dashboard tetap berfungsi
+        db = get_db()
+        cursor = db.cursor()
 
-    return {
-        "jumlah_pengundi": jumlah_pengundi,
-        "sokongan": sokongan,
-        "jantina": jantina,
-        "fizikal": fizikal,
-        "lokaliti_teratas": lokaliti,
-        "klasifikasi_umur": klasifikasi_umur,
-        "purata_umur": purata_umur,
-        "sokongan_ikut_umur": sokongan_ikut_umur
-    }
+        where = "WHERE status_fizikal = 'Hidup' AND status_rekod = 'Sah'"
+        params = []
+        if dm:
+            where += " AND dm = ?"
+            params.append(dm)
+        
+        THN_SEMASA = 2026
+
+        # Jumlah pengundi
+        cursor.execute(f"SELECT COUNT(*) FROM pengundi {where}", params)
+        jumlah_pengundi = cursor.fetchone()[0]
+
+        # Status sokongan
+        cursor.execute(f"SELECT status_sokongan, COUNT(*) as jumlah FROM pengundi {where} GROUP BY status_sokongan ORDER BY jumlah DESC", params)
+        sokongan = {}
+        for row in cursor.fetchall():
+            key = row["status_sokongan"] or "Tiada"
+            sokongan[key] = row["jumlah"]
+
+        # Jantina
+        cursor.execute(f"SELECT jantina, COUNT(*) as jumlah FROM pengundi {where} GROUP BY jantina", params)
+        jantina = {}
+        for row in cursor.fetchall():
+            key = row["jantina"] or "Tidak Diketahui"
+            jantina[key] = row["jumlah"]
+
+        # Status fizikal
+        cursor.execute(f"SELECT status_fizikal, COUNT(*) as jumlah FROM pengundi {where} GROUP BY status_fizikal", params)
+        fizikal = {}
+        for row in cursor.fetchall():
+            key = row["status_fizikal"] or "Hidup"
+            fizikal[key] = row["jumlah"]
+
+        # Pengundi mengikut lokaliti
+        cursor.execute(f"SELECT lokaliti, COUNT(*) as jumlah FROM pengundi {where} GROUP BY lokaliti ORDER BY jumlah DESC LIMIT 10", params)
+        lokaliti_data = []
+        for row in cursor.fetchall():
+            lokaliti_data.append({"nama": row["lokaliti"] or "Tiada", "jumlah": row["jumlah"]})
+
+        # Klasifikasi Umur
+        cursor.execute(f"""
+            SELECT 
+                CASE 
+                    WHEN (tahun_lahir IS NULL) THEN 'Tidak Diketahui'
+                    WHEN ({THN_SEMASA} - tahun_lahir) BETWEEN 18 AND 30 THEN 'Belia'
+                    WHEN ({THN_SEMASA} - tahun_lahir) BETWEEN 31 AND 59 THEN 'Dewasa'
+                    WHEN ({THN_SEMASA} - tahun_lahir) >= 60 THEN 'Warga Emas'
+                    ELSE 'Lain-lain'
+                END as klasifikasi,
+                COUNT(*) as jumlah,
+                SUM(CASE WHEN jantina = 'L' THEN 1 ELSE 0 END) as lelaki,
+                SUM(CASE WHEN jantina = 'P' THEN 1 ELSE 0 END) as perempuan
+            FROM pengundi {where}
+            GROUP BY klasifikasi
+        """, params)
+        klasifikasi_umur = {}
+        for row in cursor.fetchall():
+            klasifikasi_umur[row["klasifikasi"]] = {
+                "jumlah": row["jumlah"],
+                "lelaki": row["lelaki"],
+                "perempuan": row["perempuan"]
+            }
+
+        # Umur purata
+        cursor.execute(f"SELECT AVG({THN_SEMASA} - tahun_lahir) FROM pengundi {where} AND tahun_lahir IS NOT NULL", params)
+        row = cursor.fetchone()
+        purata_umur = round(row[0], 1) if row and row[0] is not None else 0
+
+        # Sokongan mengikut klasifikasi umur
+        cursor.execute(f"""
+            SELECT 
+                CASE 
+                    WHEN (tahun_lahir IS NULL) THEN 'Tidak Diketahui'
+                    WHEN ({THN_SEMASA} - tahun_lahir) BETWEEN 18 AND 30 THEN 'Belia'
+                    WHEN ({THN_SEMASA} - tahun_lahir) BETWEEN 31 AND 59 THEN 'Dewasa'
+                    WHEN ({THN_SEMASA} - tahun_lahir) >= 60 THEN 'Warga Emas'
+                    ELSE 'Lain-lain'
+                END as klasifikasi,
+                COALESCE(status_sokongan, 'Tiada') as sokongan,
+                COUNT(*) as jumlah
+            FROM pengundi {where}
+            GROUP BY klasifikasi, sokongan
+            ORDER BY klasifikasi, sokongan
+        """, params)
+        sokongan_ikut_umur = {}
+        for row in cursor.fetchall():
+            k = row["klasifikasi"]
+            s = row["sokongan"]
+            j = row["jumlah"]
+            if k not in sokongan_ikut_umur:
+                sokongan_ikut_umur[k] = {}
+            sokongan_ikut_umur[k][s] = j
+
+        db.close()
+
+        return {
+            "jumlah_pengundi": jumlah_pengundi,
+            "sokongan": sokongan,
+            "jantina": jantina,
+            "fizikal": fizikal,
+            "lokaliti_teratas": lokaliti_data,
+            "klasifikasi_umur": klasifikasi_umur,
+            "purata_umur": purata_umur,
+            "sokongan_ikut_umur": sokongan_ikut_umur
+        }
+    except Exception as e:
+        import traceback
+        error_detail = f"{type(e).__name__}: {str(e)}"
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=error_detail)
 
 
 # Senarai pengundi dengan carian dan tapisan
