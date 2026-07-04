@@ -231,7 +231,8 @@ def get_dashboard(request: Request, dm: Optional[str] = None, user=Depends(get_c
     """, params)
     jantina = {}
     for row in cursor.fetchall():
-        jantina[row["jantina"]] = row["jumlah"]
+        key = row["jantina"] or "Tidak Diketahui"
+        jantina[key] = row["jumlah"]
 
     # Status fizikal
     cursor.execute(f"""
@@ -241,7 +242,8 @@ def get_dashboard(request: Request, dm: Optional[str] = None, user=Depends(get_c
     """, params)
     fizikal = {}
     for row in cursor.fetchall():
-        fizikal[row["status_fizikal"] or "Hidup"] = row["jumlah"]
+        key = row["status_fizikal"] or "Hidup"
+        fizikal[key] = row["jumlah"]
 
     # Pengundi mengikut lokaliti
     cursor.execute(f"""
