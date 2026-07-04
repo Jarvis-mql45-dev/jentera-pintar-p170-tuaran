@@ -23,11 +23,16 @@ class Settings:
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_HOURS: int = int(os.environ.get("JENTERA_TOKEN_EXPIRE_HOURS", "24"))
 
-    # === DATABASE ===
+    # === DATABASE (SQLite - default) ===
     DB_PATH: str = os.environ.get(
         "JENTERA_DB_PATH",
         os.path.join(os.path.dirname(os.path.dirname(__file__)), 'pengundi.db')
     )
+
+    # === DATABASE (PostgreSQL via DATABASE_URL) ===
+    # Jika environment variable DATABASE_URL diset, sistem akan guna PostgreSQL.
+    # Format: postgresql://user:password@host:port/dbname
+    DATABASE_URL: Optional[str] = os.environ.get("DATABASE_URL")
 
     # === CORS ===
     # Dalam production, set JENTERA_ALLOWED_ORIGINS ke domain tertentu

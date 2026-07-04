@@ -20,6 +20,7 @@ pydantic==2.9.2
 pandas==2.2.3
 openpyxl==3.1.5
 
-# === DATABASE (SQLite - default) ===
-# Note: Using SQLite by default. Switch to PostgreSQL if needed:
-# pip install psycopg2-binary sqlalchemy
+# === DATABASE (SQLite - default / PostgreSQL via DATABASE_URL) ===
+# By default, sistem guna SQLite tempatan.
+# Jika env var DATABASE_URL diset, sistem akan guna PostgreSQL.
+psycopg2-binary==2.9.9
