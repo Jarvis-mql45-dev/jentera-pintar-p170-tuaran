@@ -844,7 +844,7 @@ async function renderDashboard() {
                         <div class="mt-4 pt-3 border-t"><div class="text-sm text-gray-500">Purata Umur: <span class="font-semibold text-gray-800">${data.purata_umur||'?'} tahun</span></div></div>
                     </div>
                     <div class="card"><h3 class="font-semibold text-gray-800 mb-3">Klasifikasi Umur</h3>
-                        <div class="space-y-3">${(['Belia','Dewasa','Warga Emas']).map(k=>{const info=(data.klasifikasi_umur&&data.klasifikasi_umur[k])||{jumlah:0,lelaki:0,perempuan:0};const pct=jumlah_pengundi>0?((info.jumlah/jumlah_pengundi)*100).toFixed(1):0;const icon=k==='Belia'?'🧑':k==='Dewasa'?'👨':'👴';return `<div class="flex items-center justify-between p-2 rounded-lg ${k==='Belia'?'bg-blue-50':k==='Dewasa'?'bg-green-50':'bg-amber-50'}"><div><span class="text-lg mr-1">${icon}</span><span class="text-sm font-medium text-gray-700">${k}</span></div><div class="text-right"><div class="text-sm font-bold">${info.jumlah.toLocaleString()} (${pct}%)</div><div class="text-xs text-gray-400">👨 ${info.lelaki} · 👩 ${info.perempuan}</div></div></div>`;}).join('')}
+                        <div class="space-y-3">${[['Belia','🧑','bg-blue-50',' (18-30 thn)'],['Dewasa','👨','bg-green-50',' (31-59 thn)'],['Warga Emas','👴','bg-amber-50',' (60+ thn)']].map(([k,icon,bg,suffix])=>{const info=(data.klasifikasi_umur&&data.klasifikasi_umur[k])||{jumlah:0,lelaki:0,perempuan:0};const pct=jumlah_pengundi>0?((info.jumlah/jumlah_pengundi)*100).toFixed(1):0;return `<div class="flex items-center justify-between p-2 rounded-lg ${bg}"><div><span class="text-lg mr-1">${icon}</span><span class="text-sm font-medium text-gray-700">${k}${suffix}</span></div><div class="text-right"><div class="text-sm font-bold">${info.jumlah.toLocaleString()} (${pct}%)</div><div class="text-xs text-gray-400">👨 ${info.lelaki} · 👩 ${info.perempuan}</div></div></div>`;}).join('')}
                         ${data.klasifikasi_umur&&data.klasifikasi_umur['Tidak Diketahui']?`<div class="flex items-center justify-between p-2 rounded-lg bg-gray-50"><div><span class="text-sm text-gray-500">Tidak Diketahui</span></div><div class="text-sm font-bold text-gray-500">${data.klasifikasi_umur['Tidak Diketahui'].jumlah}</div></div>`:''}</div>
                     </div>
                     <div class="card"><h3 class="font-semibold text-gray-800 mb-3">Lokaliti Teratas</h3>
@@ -870,7 +870,7 @@ async function renderDashboard() {
                 const ctx3 = document.getElementById('stackedBarChart');
                 if (ctx3) {
                     const su = data.sokongan_ikut_umur || {};
-                    const umurLabels = ['Belia','Dewasa','Warga Emas','Tidak Diketahui'];
+                    const umurLabels = ['Belia (18-30 thn)','Dewasa (31-59 thn)','Warga Emas (60+ thn)','Tidak Diketahui'];
                     const sokonganSet = new Set();
                     Object.values(su).forEach(inner => { Object.keys(inner).forEach(k => sokonganSet.add(k)); });
                     const sokonganLabels = Array.from(sokonganSet);
