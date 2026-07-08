@@ -1,8 +1,18 @@
 {
-  "rewrites": [
+  "builds": [
     {
-      "source": "/api/(.*)",
-      "destination": "https://jenterapintar-backend.onrender.com/api/$1"
+      "src": "frontend/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "https://jenterapintar-backend.onrender.com/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/$1"
     }
   ]
 }
