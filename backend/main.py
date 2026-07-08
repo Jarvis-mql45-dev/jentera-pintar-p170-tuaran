@@ -5,12 +5,12 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-from database import get_db, init_db
-from auth import (
+from backend.database import get_db, init_db
+from backend.auth import (
     hash_kata_laluan, sahkan_kata_laluan, create_access_token,
     get_current_user, get_pengguna_dari_db
 )
-from config import settings
+from backend.config import settings
 import sqlite3
 import pandas as pd
 import openpyxl
@@ -137,7 +137,7 @@ def startup():
     if pengundi_count == 0:
         print("📦 Database pengundi kosong - memasukkan data sample...")
         try:
-            from seed_data import seed_database
+            from backend.seed_data import seed_database
             seed_database()
             print("✅ Data sample pengundi berjaya dimasukkan!")
         except Exception as e:

@@ -1,6 +1,10 @@
 {
   "builds": [
     {
+      "src": "api/**",
+      "use": "@vercel/python"
+    },
+    {
       "src": "frontend/**",
       "use": "@vercel/static"
     }
@@ -8,11 +12,12 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "https://jenterapintar-backend.onrender.com/api/$1"
+      "dest": "/api/$1"
     },
     {
       "src": "/(.*)",
       "dest": "/frontend/$1"
     }
-  ]
+  ],
+  "excludeFiles": "DUN*/**"
 }
