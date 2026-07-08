@@ -21,7 +21,7 @@ import random
 from datetime import datetime
 import os
 
-app = FastAPI(title="Sistem Pengurusan Pengundi DUN N05 Matunggong")
+app = FastAPI(title="Sistem Pengurusan Pengundi Parlimen P170 Tuaran")
 
 # CORS - guna config (production: only allowed origins, dev: semua)
 app.add_middleware(
@@ -1148,7 +1148,7 @@ def dashboard_test(user=Depends(get_current_user)):
 @app.get("/")
 def root():
     return {
-        "app": "Sistem Pengurusan Pengundi DUN N05 Matunggong",
+        "app": "Sistem Pengurusan Pengundi Parlimen P170 Tuaran",
         "versi": "1.1.0",
         "status": "beroperasi",
         "fitur_baru": "Audit Trail (PDPA), Edit Pengundi"

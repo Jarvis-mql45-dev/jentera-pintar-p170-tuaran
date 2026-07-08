@@ -1,7 +1,7 @@
 {
     "name": "JenteraPintar",
     "short_name": "JenteraPintar",
-    "description": "Sistem Pengurusan Pengundi DUN N05 Matunggong",
+    "description": "Sistem Pengurusan Pengundi Parlimen P170 Tuaran",
     "start_url": "/",
     "scope": "/",
     "display": "standalone",
