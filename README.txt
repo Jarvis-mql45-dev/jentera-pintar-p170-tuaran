@@ -143,6 +143,81 @@ Sistem ini menyediakan:
   Commit: 7cbe56a
 
 
+5. PELAN PEMBANGUNAN MENYELURUH (OVERALL DEVELOPMENT PLAN)
+================================================================================
+
+  --------------------------------------------------------------------
+  FASA 1: INFRASTRUKTUR TERAS & KONFIGURASI KAWASAN (SELESAI ✅)
+  --------------------------------------------------------------------
+
+  a) Penyediaan Serverless
+     Migrasi sepenuhnya backend Python FastAPI dari pelayan Render ke
+     Vercel Serverless Functions (@vercel/python) untuk memotong kos
+     pelayan.
+
+  b) Integrasi Database
+     Menghubungkan sistem FastAPI secara terus dengan pangkalan data
+     Supabase PostgreSQL.
+
+  c) Pembersihan & Migrasi Data
+     Memadam struktur data lama DUN N05 Matunggung dan menyuntik masuk
+     keseluruhan 88,709 data pengundi rasmi P170 Tuaran mengikut
+     4 pecahan DUN (N12 Sulaman, N13 Pantai Dalit, N14 Tamparuli,
+     N15 Kiulu).
+
+  d) Penjenamaan Visual & Teks
+     Mengemas kini teks antaramuka kepada "JenteraPintar P170 Tuaran"
+     dan mengubah suai komponen ikon log masuk mengikut warna identiti
+     korporat UPKO (Hijau Laut, Emas, Kilat Merah, Gear Perak).
+
+  e) Pembaikan Bug Kritis
+     Menyelesaikan ralat 404 Routing pada Vercel dan membetulkan isu
+     ralat laluan ModuleNotFoundError pada skrip Python Serverless.
+
+
+  --------------------------------------------------------------------
+  FASA 2: FUNGSI PENGURUSAN & DASHBOARD VISUAL (SEDANG BERJALAN ⏳)
+  --------------------------------------------------------------------
+
+  a) Dashboard Statistik Dinamik
+     Membina komponen kad ringkasan (summary cards) dan carta visual
+     pada frontend untuk memaparkan jumlah pengundi semasa secara
+     langsung (real-time) mengikut pecahan 4 DUN dari Supabase.
+
+  b) Modul Carian Pengundi
+     Mengaktifkan fungsi bar carian berprestasi tinggi pada frontend
+     untuk membolehkan petugas mencari maklumat pengundi menggunakan
+     No. Kad Pengenalan atau Nama.
+
+  c) Sistem Log Masuk Petugas Padang
+     Menetapkan tahap capaian keselamatan (role-based access) untuk
+     memastikan petugas jentera kampung hanya boleh melihat dan
+     menguruskan data di bawah Pusat Daerah Mengundi (PDM) mereka
+     sahaja.
+
+
+  --------------------------------------------------------------------
+  FASA 3: MODUL LAPANGAN & PENGOPTIMUMAN PWA (AKAN DATANG 🚀)
+  --------------------------------------------------------------------
+
+  a) Kemas Kini Status Pengundi
+     Membina borang interaktif ringkas untuk petugas padang mengemas
+     kini kecenderungan politik pengundi (Sokong / Blacklist /
+     Atas Pagar / Luar Kawasan) terus ke database semasa lawatan
+     rumah ke rumah.
+
+  b) Sokongan Mod Luar Talian (Offline Caching)
+     Mengoptimumkan fail service-worker.js PWA bagi membolehkan
+     sistem menyimpan data carian asas secara setempat di dalam
+     telefon petugas sekiranya kawasan kampung tersebut mengalami
+     gangguan liputan internet.
+
+  c) Eksport Laporan Jentera
+     Menyediakan fungsi satu klik untuk Ketua Jentera memuat turun
+     laporan statistik status sokongan semasa dalam format .csv atau
+     .pdf bagi tujuan mesyuarat strategi.
+
+
 ================================================================================
   © 2026 JenteraPintar P170 Tuaran. Hak cipta terpelihara.
 ================================================================================
