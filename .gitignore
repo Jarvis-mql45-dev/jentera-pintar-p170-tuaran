@@ -1,0 +1,35 @@
+# === Fail Persekitaran (mengandungi password/kunci) ===
+.env
+.env.local
+
+# === Database SQLite tempatan ===
+*.db
+*.db.bak
+*.sqlite
+
+# === Cache Python ===
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# === Cache Node (jika ada) ===
+node_modules/
+package-lock.json
+
+# === Logs ===
+*.log
+backend_log.txt
+
+# === OS Generated ===
+.DS_Store
+Thumbs.db
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo

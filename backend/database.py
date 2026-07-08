@@ -8,6 +8,7 @@ Menyokong DUA mod:
 Semua kod aplikasi TIDAK perlu diubah — antara muka cursor dikekalkan.
 """
 import os
+from datetime import datetime
 from config import settings
 from typing import Optional
 
@@ -167,7 +168,153 @@ def init_db():
     db = get_db()
     cursor = db.cursor()
 
-    # Jadual users (RBAC)
+    # =============================================================================
+    # URUTAN PENTING: Cipta jadual HIERARKI DAHULU sebelum pengundi (FK reference)
+    # =============================================================================
+
+    # 1. parlimen (hierarki tertinggi)
+    if USE_POSTGRES:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS parlimen (
+                id SERIAL PRIMARY KEY,
+                kod VARCHAR(10) UNIQUE NOT NULL,
+                nama TEXT NOT NULL,
+                keterangan TEXT,
+                dicipta_pada TEXT
+            )
+        """)
+    else:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS parlimen (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                kod TEXT UNIQUE NOT NULL,
+                nama TEXT NOT NULL,
+                keterangan TEXT,
+                dicipta_pada TEXT
+            )
+        """)
+
+    # 2. dun (FK → parlimen)
+    if USE_POSTGRES:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS dun (
+                id SERIAL PRIMARY KEY,
+                parlimen_id INTEGER NOT NULL REFERENCES parlimen(id),
+                kod VARCHAR(10) UNIQUE NOT NULL,
+                nama TEXT NOT NULL,
+                keterangan TEXT,
+                dicipta_pada TEXT
+            )
+        """)
+    else:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS dun (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                parlimen_id INTEGER NOT NULL REFERENCES parlimen(id),
+                kod TEXT UNIQUE NOT NULL,
+                nama TEXT NOT NULL,
+                keterangan TEXT,
+                dicipta_pada TEXT
+            )
+        """)
+
+    # 3. pdm (FK → dun)
+    if USE_POSTGRES:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pdm (
+                id SERIAL PRIMARY KEY,
+                dun_id INTEGER NOT NULL REFERENCES dun(id),
+                kod VARCHAR(20),
+                nama TEXT NOT NULL,
+                keterangan TEXT,
+                dicipta_pada TEXT
+            )
+        """)
+    else:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pdm (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                dun_id INTEGER NOT NULL REFERENCES dun(id),
+                kod TEXT,
+                nama TEXT NOT NULL,
+                keterangan TEXT,
+                dicipta_pada TEXT
+            )
+        """)
+
+    # 4. kampung (FK → pdm)
+    if USE_POSTGRES:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS kampung (
+                id SERIAL PRIMARY KEY,
+                pdm_id INTEGER NOT NULL REFERENCES pdm(id),
+                nama TEXT NOT NULL,
+                keterangan TEXT,
+                dicipta_pada TEXT
+            )
+        """)
+    else:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS kampung (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pdm_id INTEGER NOT NULL REFERENCES pdm(id),
+                nama TEXT NOT NULL,
+                keterangan TEXT,
+                dicipta_pada TEXT
+            )
+        """)
+
+    # Seed data awal untuk parlimen P170 Tuaran dan 4 DUN (selepas jadual wujud)
+    now_str = datetime.now().isoformat()
+    cursor.execute("SELECT COUNT(*) FROM parlimen")
+    if cursor.fetchone()[0] == 0:
+        if USE_POSTGRES:
+            cursor.execute(
+                "INSERT INTO parlimen (kod, nama, keterangan, dicipta_pada) VALUES (%s, %s, %s, %s)",
+                ("P170", "Tuaran", "Parlimen P170 Tuaran, Sabah", now_str)
+            )
+            parlimen_id = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO dun (parlimen_id, kod, nama, keterangan, dicipta_pada) VALUES (%s, %s, %s, %s, %s)",
+                (parlimen_id, "N12", "Sulaman", "DUN N12 Sulaman", now_str)
+            )
+            cursor.execute(
+                "INSERT INTO dun (parlimen_id, kod, nama, keterangan, dicipta_pada) VALUES (%s, %s, %s, %s, %s)",
+                (parlimen_id, "N13", "Pantai Dalit", "DUN N13 Pantai Dalit", now_str)
+            )
+            cursor.execute(
+                "INSERT INTO dun (parlimen_id, kod, nama, keterangan, dicipta_pada) VALUES (%s, %s, %s, %s, %s)",
+                (parlimen_id, "N14", "Tamparuli", "DUN N14 Tamparuli", now_str)
+            )
+            cursor.execute(
+                "INSERT INTO dun (parlimen_id, kod, nama, keterangan, dicipta_pada) VALUES (%s, %s, %s, %s, %s)",
+                (parlimen_id, "N15", "Kiulu", "DUN N15 Kiulu", now_str)
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO parlimen (kod, nama, keterangan, dicipta_pada) VALUES (?, ?, ?, ?)",
+                ("P170", "Tuaran", "Parlimen P170 Tuaran, Sabah", now_str)
+            )
+            parlimen_id = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO dun (parlimen_id, kod, nama, keterangan, dicipta_pada) VALUES (?, ?, ?, ?, ?)",
+                (parlimen_id, "N12", "Sulaman", "DUN N12 Sulaman", now_str)
+            )
+            cursor.execute(
+                "INSERT INTO dun (parlimen_id, kod, nama, keterangan, dicipta_pada) VALUES (?, ?, ?, ?, ?)",
+                (parlimen_id, "N13", "Pantai Dalit", "DUN N13 Pantai Dalit", now_str)
+            )
+            cursor.execute(
+                "INSERT INTO dun (parlimen_id, kod, nama, keterangan, dicipta_pada) VALUES (?, ?, ?, ?, ?)",
+                (parlimen_id, "N14", "Tamparuli", "DUN N14 Tamparuli", now_str)
+            )
+            cursor.execute(
+                "INSERT INTO dun (parlimen_id, kod, nama, keterangan, dicipta_pada) VALUES (?, ?, ?, ?, ?)",
+                (parlimen_id, "N15", "Kiulu", "DUN N15 Kiulu", now_str)
+            )
+        print("✅ Seed data parlimen & DUN untuk P170 Tuaran telah dimasukkan")
+
+    # 5. users (RBAC)
     if USE_POSTGRES:
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
@@ -195,7 +342,7 @@ def init_db():
             )
         """)
 
-    # Jadual pengundi
+    # 6. pengundi (FK ke parlimen, dun, pdm, kampung - semua dah wujud)
     if USE_POSTGRES:
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS pengundi (
@@ -204,6 +351,10 @@ def init_db():
                 nama_penuh TEXT,
                 jantina VARCHAR(1),
                 tahun_lahir INTEGER,
+                parlimen_id INTEGER REFERENCES parlimen(id),
+                dun_id INTEGER REFERENCES dun(id),
+                pdm_id INTEGER REFERENCES pdm(id),
+                kampung_id INTEGER REFERENCES kampung(id),
                 dm TEXT,
                 lokaliti TEXT,
                 no_telefon TEXT,
@@ -223,6 +374,10 @@ def init_db():
                 nama_penuh TEXT,
                 jantina TEXT,
                 tahun_lahir INTEGER,
+                parlimen_id INTEGER REFERENCES parlimen(id),
+                dun_id INTEGER REFERENCES dun(id),
+                pdm_id INTEGER REFERENCES pdm(id),
+                kampung_id INTEGER REFERENCES kampung(id),
                 dm TEXT,
                 lokaliti TEXT,
                 no_telefon TEXT,
@@ -235,7 +390,7 @@ def init_db():
             )
         """)
 
-    # Jadual audit_logs
+    # 7. audit_logs
     if USE_POSTGRES:
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS audit_logs (
@@ -269,7 +424,7 @@ def init_db():
             )
         """)
 
-    # Jadual Survey
+    # 8. Survey
     if USE_POSTGRES:
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS Survey (
@@ -316,6 +471,21 @@ def init_db():
         """)
 
     # Indeks – sintaks sama untuk kedua-dua pangkalan data
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_parlimen_kod ON parlimen(kod)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_dun_kod ON dun(kod)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_dun_parlimen_id ON dun(parlimen_id)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_pdm_dun_id ON pdm(dun_id)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_kampung_pdm_id ON kampung(pdm_id)
+    """)
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_pengundi_no_kp ON pengundi(no_kp)
     """)
