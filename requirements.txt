@@ -1,1 +1,26 @@
--r backend/requirements.txt
+# ============================================================
+# JENTERA PINTAR P170 TUARAN - Python Dependencies
+# ============================================================
+# Install: pip install -r requirements.txt
+
+# === WEB FRAMEWORK ===
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.9
+
+# === AUTHENTICATION & SECURITY ===
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+
+# === DATA VALIDATION ===
+pydantic==2.9.2
+
+# === DATA PROCESSING ===
+pandas==2.2.3
+openpyxl==3.1.5
+
+# === DATABASE (SQLite - default / PostgreSQL via DATABASE_URL) ===
+# By default, sistem guna SQLite tempatan.
+# Jika env var DATABASE_URL diset, sistem akan guna PostgreSQL.
+psycopg2-binary==2.9.9
