@@ -131,14 +131,20 @@ class _PostgresConnection:
             dsn = "postgresql://" + dsn[len("postgres://"):]
         # 2. Force guna IPv4 Pooler Host: tukar domain Direct Connection ke pooler
         #    Vercel Serverless tidak menyokong IPv6 — pooler guna IPv4
-        if "db.hgweacgibbnynjviocje.supabase.co" in dsn:
+        PROJECT_REF = "hgweacgibbnynjviocje"
+        if f"db.{PROJECT_REF}.supabase.co" in dsn:
             dsn = dsn.replace(
-                "db.hgweacgibbnynjviocje.supabase.co",
+                f"db.{PROJECT_REF}.supabase.co",
                 "aws-0-ap-southeast-1.pooler.supabase.com"
             )
+        # 2b. Pooler memerlukan username dalam format postgres.<project_ref>
+        #     (bukan postgres sahaja) — jika tidak, ENOIDENTIFIER error
+        if "aws-0-ap-southeast-1.pooler.supabase.com" in dsn:
+            if "://postgres:" in dsn and f"://postgres.{PROJECT_REF}:" not in dsn:
+                dsn = dsn.replace("://postgres:", f"://postgres.{PROJECT_REF}:")
         # 3. Force guna port 6543 (Transaction Pooler) jika port 5432 masih ada
         dsn = re.sub(r':5432([/?]|$)', r':6543\1', dsn)
-        # 3. Dalam production (Supabase/Vercel), pastikan SSL diwajibkan
+        # 4. Dalam production (Supabase/Vercel), pastikan SSL diwajibkan
         if settings.is_production and 'sslmode' not in dsn:
             separator = '&' if '?' in dsn else '?'
             dsn = f"{dsn}{separator}sslmode=require"
