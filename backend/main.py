@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Query, Request, UploadFile, File, Body
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional
@@ -38,6 +38,19 @@ if settings.PRODUCTION:
     if os.path.exists(dist_path):
         app.mount("/", StaticFiles(directory=dist_path, html=True), name="static")
         print(f"✅ Static files served from: {dist_path} (source maps: DISABLED)")
+
+
+# ===== GLOBAL EXCEPTION HANDLER =====
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    import sys
+    print(f"❌ GLOBAL EXCEPTION HANDLER: {type(exc).__name__}: {str(exc)}", file=sys.stderr)
+    traceback.print_exc(file=sys.stderr)
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal Server Error", "details": str(exc), "type": type(exc).__name__}
+    )
 
 
 # ===== MODEL DATA =====
