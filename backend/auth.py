@@ -45,9 +45,14 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 
 
 def get_pengguna_dari_db(username: str):
-    db = get_db()
-    cursor = db.cursor()
-    cursor.execute("SELECT * FROM users WHERE username = ? AND aktif = 1", (username,))
-    user = cursor.fetchone()
-    db.close()
-    return user
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SELECT * FROM users WHERE username = ? AND aktif = 1", (username,))
+        user = cursor.fetchone()
+        db.close()
+        return user
+    except Exception as e:
+        import sys
+        print(f"❌ DB Auth Error (get_pengguna_dari_db): {e}", file=sys.stderr)
+        return None

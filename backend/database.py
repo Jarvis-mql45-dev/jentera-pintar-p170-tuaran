@@ -122,17 +122,26 @@ class _PostgresConnection:
 
     def __init__(self, dsn: str):
         import psycopg2
+        import re
         # 0. Guard clause: jangan teruskan jika DSN kosong
         if not dsn or not dsn.strip():
             raise ValueError("DATABASE_URL tidak diset atau kosong — sambungan PostgreSQL tidak dapat dibuat")
         # 1. Dialect fix: psycopg2 hanya terima postgresql://, bukan postgres://
         if dsn.startswith("postgres://"):
             dsn = "postgresql://" + dsn[len("postgres://"):]
-        # 2. Dalam production (Supabase/Vercel), pastikan SSL diwajibkan
+        # 2. Force guna port 6543 (Supabase Transaction Pooler) jika port 5432 dikesan
+        #    Vercel Serverless tidak menyokong IPv6 untuk Direct Connection (port 5432)
+        dsn = re.sub(r':5432([/?]|$)', r':6543\1', dsn)
+        # 3. Dalam production (Supabase/Vercel), pastikan SSL diwajibkan
         if settings.is_production and 'sslmode' not in dsn:
             separator = '&' if '?' in dsn else '?'
             dsn = f"{dsn}{separator}sslmode=require"
-        self._inner = psycopg2.connect(dsn)
+        try:
+            self._inner = psycopg2.connect(dsn)
+        except Exception as e:
+            import sys
+            print(f"❌ KRITIKAL: Gagal sambung PostgreSQL (dsn={dsn[:30]}...): {e}", file=sys.stderr)
+            raise
         self._inner.autocommit = False
 
     def cursor(self):
