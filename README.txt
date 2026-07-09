@@ -71,7 +71,13 @@ Sistem ini menyediakan:
   Nama                   | Wajib | Penerangan
   -----------------------|-------|----------------------------------------------
   DATABASE_URL           | Ya    | Connection string PostgreSQL daripada Supabase.
-                         |       | Contoh: postgresql://user:pass@host:5432/db
+                          |       | ⚠️ WAJIB menggunakan **Transaction Pooler (Port 6543)**.
+                          |       | JANGAN gunakan Direct Connection (Port 5432) kerana
+                          |       | infrastruktur Vercel Serverless tidak menyokong
+                          |       | sambungan IPv6 asli secara lalai.
+                          |       |
+                          |       | Format Wajib:
+                          |       | postgresql://postgres.[ID]:[PASSWORD]@[HOS-POOLER]:6543/postgres?sslmode=require
   -----------------------|-------|----------------------------------------------
   JENTERA_PRODUCTION     | Ya    | "true" untuk production mode (menghidupkan
                          |       | static file serving, CORS terhad, tiada
@@ -141,6 +147,32 @@ Sistem ini menyediakan:
 
   Fail: backend/__init__.py, api/index.py, backend/main.py
   Commit: 7cbe56a
+
+
+  4.4 Ralat Kegagalan Startup / Sekatan Rangkaian IPv6 Supabase (Serverless Pooler Fix)
+  --------------------------------------------------------------------
+  ISU    : Apabila pengguna cuba log masuk, portal memaparkan ralat merah:
+           "Unexpected token 'A', \"A server e\"... is not valid JSON"
+           dan Log Vercel menunjukkan status "POST 500" dengan mesej
+           "Application startup failed. Exiting."
+  PUNCA  : Fungsi Vercel Serverless dijalankan di atas persekitaran rangkaian yang
+           tidak menyokong IPv6 asli secara lalai. Pautan "Direct Connection" asal
+           daripada Supabase (Port 5432) memaksa penggunaan IPv6, menyebabkan
+           skrip FastAPI gagal membina jabat tangan (handshake) pangkalan data
+           semasa aplikasi dimulakan.
+  PENYELESAIAN:
+     - Mengubah konfigurasi sambungan di bawah menu "🔌 Connect" di Supabase
+       daripada 'Direct connection' kepada 'Transaction pooler'.
+     - Menukar alamat hos sambungan kepada kluster IPv4 pooler rasmi
+       (aws-0-ap-southeast-1.pooler.supabase.com) dan menukar port ke **6543**.
+     - Memastikan parameter `?sslmode=require` diletakkan di penghujung string
+       sambungan di dalam fail konfig atau pembolehubah persekitaran Vercel.
+     - Menggantikan placeholder teks `[YOUR-PASSWORD]` dengan kata laluan pangkalan
+       data pengeluaran (production) yang sah sebelum melakukan proses 'Redeploy'
+       di Vercel tanpa cache.
+
+  Fail Terlibat : Vercel Environment Variables (DATABASE_URL), backend/database.py
+  Tarikh Isu    : Julai 2026
 
 
 5. PELAN PEMBANGUNAN MENYELURUH (OVERALL DEVELOPMENT PLAN)
