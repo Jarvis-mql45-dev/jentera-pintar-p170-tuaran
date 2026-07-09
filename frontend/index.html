@@ -115,6 +115,74 @@ const state = {
 };
 
 // ============================================================
+// PDM-TO-DUN MAPPING untuk P170 Tuaran
+// ============================================================
+const PDM_DUN_MAP = {
+    // N12 Sulaman
+    "BINGOLON": "N12 SULAMAN", "DUALOG": "N12 SULAMAN", "INDARASON": "N12 SULAMAN",
+    "KANDAWAYON": "N12 SULAMAN", "LAJONG": "N12 SULAMAN", "LODUNG": "N12 SULAMAN",
+    "MENGKABONG": "N12 SULAMAN", "PENIMBAWAN": "N12 SULAMAN", "SERUSUP": "N12 SULAMAN",
+    "MENGKAPUR": "N12 SULAMAN",
+    // N13 Pantai Dalit
+    "BERUNGIS": "N13 PANTAI DALIT", "TUARAN BANDAR": "N13 PANTAI DALIT",
+    "TUARAN": "N13 PANTAI DALIT", "TAMPARULI LAMA": "N13 PANTAI DALIT",
+    "RANAU ROAD": "N13 PANTAI DALIT", "SABUR": "N13 PANTAI DALIT",
+    "RUMOH TERES PALU-PALU": "N13 PANTAI DALIT",
+    // N14 Tamparuli
+    "BATANGAN": "N14 TAMPARULI", "TAMPARULI": "N14 TAMPARULI",
+    "TENGHILAN": "N14 TAMPARULI", "SINORIAH": "N14 TAMPARULI",
+    "KUALA": "N14 TAMPARULI", "LONGGUNGON": "N14 TAMPARULI",
+    "RUMOH PANGSAPURI TAMPARULI": "N14 TAMPARULI",
+    // N15 Kiulu
+    "KIULU": "N15 KIULU", "NABALU": "N15 KIULU",
+    "TAGIHON": "N15 KIULU", "LIDONG": "N15 KIULU",
+    "PUKAKON": "N15 KIULU", "BINKAHAK": "N15 KIULU",
+    "RUMOH KELUARGA KAMI": "N15 KIULU",
+    // Default untuk PDM luar jangkaan
+    "_default": "LAIN-LAIN"
+};
+
+function getDunForPdm(pdmName) {
+    const upper = pdmName.toUpperCase().trim();
+    // Cuba padanan tepat dulu
+    if (PDM_DUN_MAP[upper]) return PDM_DUN_MAP[upper];
+    // Cuba padanan separa (prefix)
+    for (const [key, dun] of Object.entries(PDM_DUN_MAP)) {
+        if (key !== "_default" && upper.startsWith(key)) return dun;
+    }
+    return PDM_DUN_MAP["_default"];
+}
+
+function groupPdmByDun(pdmList) {
+    const groups = {};
+    const order = ["N12 SULAMAN", "N13 PANTAI DALIT", "N14 TAMPARULI", "N15 KIULU", "LAIN-LAIN"];
+    // Init semua group ikut urutan
+    order.forEach(dun => groups[dun] = []);
+    pdmList.forEach(pdm => {
+        const dun = getDunForPdm(pdm);
+        if (!groups[dun]) groups[dun] = [];
+        if (!groups[dun].includes(pdm)) groups[dun].push(pdm);
+    });
+    // Buang group kosong
+    order.forEach(dun => { if (groups[dun].length === 0) delete groups[dun]; });
+    return { groups, order: order.filter(dun => groups[dun]) };
+}
+
+function renderGroupedPdmOptions(pdmList, selectedValue) {
+    const { groups, order } = groupPdmByDun(pdmList);
+    let html = '';
+    order.forEach(dun => {
+        html += `<optgroup label="${dun}">`;
+        groups[dun].forEach(pdm => {
+            const sel = pdm === selectedValue ? ' selected' : '';
+            html += `<option value="${pdm}"${sel}>${pdm}</option>`;
+        });
+        html += '</optgroup>';
+    });
+    return html;
+}
+
+// ============================================================
 // API HELPER
 // ============================================================
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
@@ -829,7 +897,7 @@ async function renderDashboard() {
             </div>
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="lg:col-span-2 flex flex-col gap-6">
-                    <div class="card"><div class="flex items-center justify-between mb-4"><h3 class="font-semibold text-gray-800">Status Sokongan</h3><select id="dmFilter" onchange="state.dashboardDm=this.value; renderDashboard()" class="w-auto text-sm"><option value="">Semua PDM</option>${state.pdmList.map(p => `<option value="${p}" ${state.dashboardDm===p?'selected':''}>${p}</option>`).join('')}</select></div>
+                    <div class="card"><div class="flex items-center justify-between mb-4"><h3 class="font-semibold text-gray-800">Status Sokongan</h3><select id="dmFilter" onchange="state.dashboardDm=this.value; renderDashboard()" class="w-auto text-sm"><option value="">Semua PDM</option>${renderGroupedPdmOptions(state.pdmList, state.dashboardDm)}</select></div>
                         <div class="flex flex-col md:flex-row items-center gap-6"><div class="w-full md:w-64 h-64"><canvas id="sokonganChart"></canvas></div>
                             <div class="flex-1 w-full"><table><thead><tr><th class="pl-0">Status</th><th>Jumlah</th><th>Peratusan</th></tr></thead>
                             <tbody><tr><td class="pl-0"><span class="badge badge-putih">Putih</span></td><td>${putih.toLocaleString()}</td><td>${totalSokongan?((putih/totalSokongan)*100).toFixed(1):0}%</td></tr>
