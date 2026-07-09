@@ -901,6 +901,17 @@ async function renderDashboard() {
         // Paparkan label pertama dari kategori lain atau 'Tiada' jika kosong
         const labelLain = Object.keys(kategoriLain)[0] || 'Tiada';
 
+        // Fetch N12 data untuk canvas Sulaman (Fasa 2)
+        const n12Data = await api(`/api/dashboard/dun/N12${state.dunN12Pdm ? `?dm=${encodeURIComponent(state.dunN12Pdm)}` : ''}`);
+        const n12Sok = n12Data.sokongan || {};
+        const n12Putih = n12Sok['Putih'] || 0;
+        const n12Hitam = n12Sok['Hitam'] || 0;
+        const n12Atas = n12Sok['Atas Pagar'] || 0;
+        const n12Lain = Object.keys(n12Sok).filter(k => !['Putih','Hitam','Atas Pagar'].includes(k))[0] || 'Tiada';
+        const n12TotLain = Object.entries(n12Sok).filter(([k]) => !['Putih','Hitam','Atas Pagar'].includes(k)).reduce((a, [,v]) => a + v, 0);
+        const n12TotalSok = Object.values(n12Sok).reduce((a, b) => a + b, 0);
+        const pctN12 = (v) => n12TotalSok ? ((v/n12TotalSok)*100).toFixed(1) : 0;
+
         content.innerHTML = `
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <div class="card"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-500">Jumlah Pengundi</p><p class="text-2xl font-bold text-gray-800">${jumlah_pengundi.toLocaleString()}</p></div><div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div></div><div class="mt-2 flex items-center gap-1 text-xs text-gray-500"><span class="text-green-600 font-medium">✓ ${fizikal?.Hidup || 0} Hidup</span><span>·</span><span class="text-red-600">✗ ${fizikal?.['Meninggal Dunia'] || 0} Meninggal</span></div></div>
