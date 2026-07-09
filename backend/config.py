@@ -1,5 +1,5 @@
 """
-Configuration management for JenteraPintar N05 Matunggong.
+Configuration management for JenteraPintar P170 Tuaran.
 Menyokong environment variables untuk production deployment.
 Semua konfigurasi sensitif diambil dari environment variables, BUKAN hardcoded.
 """

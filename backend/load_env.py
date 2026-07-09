@@ -1,5 +1,5 @@
 """
-Environment variable loader untuk JenteraPintar N05 Matunggong.
+Environment variable loader untuk JenteraPintar P170 Tuaran.
 Membaca .env file untuk production configuration.
 """
 
