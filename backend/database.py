@@ -129,8 +129,14 @@ class _PostgresConnection:
         # 1. Dialect fix: psycopg2 hanya terima postgresql://, bukan postgres://
         if dsn.startswith("postgres://"):
             dsn = "postgresql://" + dsn[len("postgres://"):]
-        # 2. Force guna port 6543 (Supabase Transaction Pooler) jika port 5432 dikesan
-        #    Vercel Serverless tidak menyokong IPv6 untuk Direct Connection (port 5432)
+        # 2. Force guna IPv4 Pooler Host: tukar domain Direct Connection ke pooler
+        #    Vercel Serverless tidak menyokong IPv6 — pooler guna IPv4
+        if "db.hgweacgibbnynjviocje.supabase.co" in dsn:
+            dsn = dsn.replace(
+                "db.hgweacgibbnynjviocje.supabase.co",
+                "aws-0-ap-southeast-1.pooler.supabase.com"
+            )
+        # 3. Force guna port 6543 (Transaction Pooler) jika port 5432 masih ada
         dsn = re.sub(r':5432([/?]|$)', r':6543\1', dsn)
         # 3. Dalam production (Supabase/Vercel), pastikan SSL diwajibkan
         if settings.is_production and 'sslmode' not in dsn:
