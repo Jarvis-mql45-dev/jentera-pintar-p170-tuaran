@@ -276,9 +276,15 @@ def get_dashboard_dun(request: Request, dun_kod: str, dm: Optional[str] = None, 
         }
     except Exception as e:
         import traceback
-        error_detail = f"{type(e).__name__}: {str(e)}"
-        print(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=error_detail)
+        print(f"⚠️ Dashboard DUN error (fallback to empty data): {type(e).__name__}: {str(e)}")
+        traceback.print_exc()
+        # Fallback: pulangkan data kosong supaya frontend tidak crash
+        return {
+            "jumlah_pengundi": 0,
+            "sokongan": {},
+            "dun_kod": dun_kod,
+            "error": str(e)
+        }
 
 
 # Dashboard stats - guna parameter dun (filter ikut DUN)
