@@ -883,8 +883,8 @@ async function renderDashboard() {
     const content = document.getElementById('contentArea');
     content.innerHTML = `<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan dashboard...</span></div>`;
     try {
-        const dm = state.dashboardDm;
-        const data = await api(`/api/dashboard${dm ? `?dm=${dm}` : ''}`);
+        const selectedDun = state.dashboardDm || '';  // Kini simpan KOD DUN, bukan PDM
+        const data = await api(`/api/dashboard${selectedDun ? `?dun=${selectedDun}` : ''}`);
         state.dashboardData = data;
         if (!state.pdmList.length) state.pdmList = await api('/api/pdm');
         const { jumlah_pengundi, sokongan, jantina, fizikal, lokaliti_teratas } = data;
@@ -910,7 +910,7 @@ async function renderDashboard() {
             </div>
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="lg:col-span-2 flex flex-col gap-6">
-                    <div class="card"><div class="flex items-center justify-between mb-4"><h3 class="font-semibold text-gray-800">Status Sokongan</h3><select id="dmFilter" onchange="state.dashboardDm=this.value; renderDashboard()" class="w-auto text-sm"><option value="">Semua PDM</option>${renderGroupedPdmOptions(state.pdmList, state.dashboardDm)}</select></div>
+                    <div class="card"><div class="flex items-center justify-between mb-4"><h3 class="font-semibold text-gray-800">P170 Tuaran - Sokongan Mengikut DUN</h3><select id="dmFilter" onchange="state.dashboardDm=this.value; renderDashboard()" class="w-auto text-sm"><option value="">Semua DUN</option><option value="N12" ${selectedDun==='N12'?'selected':''}>N12 Sulaman</option><option value="N13" ${selectedDun==='N13'?'selected':''}>N13 Pantai Dalit</option><option value="N14" ${selectedDun==='N14'?'selected':''}>N14 Tamparuli</option><option value="N15" ${selectedDun==='N15'?'selected':''}>N15 Kiulu</option></select></div>
                         <div class="flex flex-col md:flex-row items-center gap-6"><div class="w-full md:w-64 h-64"><canvas id="sokonganChart"></canvas></div>
                             <div class="flex-1 w-full"><table><thead><tr><th class="pl-0">Status</th><th>Jumlah</th><th>Peratusan</th></tr></thead>
                             <tbody><tr><td class="pl-0"><span class="badge badge-putih">Putih</span></td><td>${putih.toLocaleString()}</td><td>${totalSokongan?((putih/totalSokongan)*100).toFixed(1):0}%</td></tr>
