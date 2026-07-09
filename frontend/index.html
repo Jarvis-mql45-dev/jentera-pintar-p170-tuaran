@@ -113,6 +113,7 @@ const state = {
     surveyEditId: null,
     surveyQuestions: [],
     charts: {},  // Chart.js instances untuk update tanpa destroy
+    dunN12Pdm: '',  // PDM filter untuk N12 Sulaman
 };
 
 // ============================================================
@@ -948,7 +949,31 @@ async function renderDashboard() {
                 </div>
             </div>
 
-            `;
+            <!-- N12 SULAMAN CANVAS - Fasa 2 -->
+            <div class="card mt-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-semibold text-gray-800">N12 Sulaman - Sokongan Mengikut PDM</h3>
+                    <select id="n12PdmFilter" onchange="state.dunN12Pdm=this.value; renderDashboard()" class="w-auto text-sm">
+                        <option value="">Semua PDM N12</option>
+                        ${PDM_BY_DUN['N12'].map(pdm => `<option value="${pdm}" ${state.dunN12Pdm===pdm?'selected':''}>${pdm}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="flex flex-col md:flex-row items-center gap-6">
+                    <div class="w-full md:w-64 h-64"><canvas id="n12SokonganChart"></canvas></div>
+                    <div class="flex-1 w-full">
+                        <table>
+                            <thead><tr><th class="pl-0">Status</th><th>Jumlah</th><th>Peratusan</th></tr></thead>
+                            <tbody>
+                                <tr><td class="pl-0"><span class="badge badge-putih">Putih</span></td><td>${n12Putih.toLocaleString()}</td><td>${pctN12(n12Putih)}%</td></tr>
+                                <tr><td class="pl-0"><span class="badge badge-atas">Atas Pagar</span></td><td>${n12Atas.toLocaleString()}</td><td>${pctN12(n12Atas)}%</td></tr>
+                                <tr><td class="pl-0"><span class="badge badge-hitam">Hitam</span></td><td>${n12Hitam.toLocaleString()}</td><td>${pctN12(n12Hitam)}%</td></tr>
+                                <tr><td class="pl-0"><span class="badge badge-tiada">${n12Lain}</span></td><td>${n12TotLain.toLocaleString()}</td><td>${pctN12(n12TotLain)}%</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
         
         setTimeout(() => {
             // Pie Chart - with try/catch so stacked bar still works if this fails
@@ -979,6 +1004,30 @@ async function renderDashboard() {
                     new Chart(ctx3, { type:'bar', data:{ labels:umurDisplayLabels, datasets:sokonganLabels.map((label,i)=>({ label:sokonganDisplayLabels[i], data:umurDisplayLabels.map(displayLabel=>{ const key=umurKeyMap[displayLabel]||displayLabel; return (su[key]&&su[key][label])||0; }), backgroundColor:sokonganWarnaMap[label]||defaultColours[i%defaultColours.length], borderRadius:4, stack:'stack1' })) }, options:{ responsive:true, maintainAspectRatio:false, interaction:{ mode:'nearest', axis:'xy', intersect:false }, scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, grid:{ color:'#f1f5f9' } } }, plugins:{ legend:{ position:'top', labels:{ boxWidth:12, padding:12 } }, tooltip:{ enabled:true, mode:'nearest', axis:'xy', intersect:false, callbacks:{ label:function(context){ return (context.dataset.label||'')+': '+(context.parsed.y||0); } } } } } });
                 }
             } catch (e) { console.error('Stacked bar chart error:', e); }
+            
+            // N12 Sulaman Chart (Fasa 2)
+            try {
+                const n12Ctx = document.getElementById('n12SokonganChart');
+                if (n12Ctx) {
+                    const n12LabelLain = Object.keys(n12Sok).filter(k => !['Putih','Hitam','Atas Pagar'].includes(k))[0] || 'Tiada';
+                    const n12ChartData = [n12Putih, n12Atas, n12Hitam, n12TotLain];
+                    const n12ChartLabels = ['Putih','Atas Pagar','Hitam', n12LabelLain];
+                    if (state.charts['n12']) {
+                        state.charts['n12'].data.datasets[0].data = n12ChartData;
+                        state.charts['n12'].data.labels = n12ChartLabels;
+                        state.charts['n12'].update();
+                    } else {
+                        state.charts['n12'] = new Chart(n12Ctx, {
+                            type: 'doughnut',
+                            data: {
+                                labels: n12ChartLabels,
+                                datasets: [{ data: n12ChartData, backgroundColor: ['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth: 2, borderColor: '#fff' }]
+                            },
+                            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } } }
+                        });
+                    }
+                }
+            } catch (e) { console.error('N12 chart error:', e); }
         }, 100);
     } catch (err) {
         content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`;
