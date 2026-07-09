@@ -202,19 +202,78 @@ def get_pdm_list(user=Depends(get_current_user)):
     db.close()
     return pdms
 
+# Senarai DUN
+@app.get("/api/dun")
+def get_dun_list(user=Depends(get_current_user)):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT kod, nama FROM dun ORDER BY id")
+    duns = [{"kod": row[0], "nama": row[1]} for row in cursor.fetchall()]
+    db.close()
+    return duns
 
-# Dashboard stats
+# Senarai PDM mengikut DUN
+@app.get("/api/pdm/dun/{dun_kod}")
+def get_pdm_by_dun(dun_kod: str, user=Depends(get_current_user)):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT DISTINCT dm FROM pengundi WHERE dm IS NOT NULL AND dm != '' AND status_fizikal = 'Hidup' AND status_rekod = 'Sah' AND dun_id = (SELECT id FROM dun WHERE kod = ?) ORDER BY dm", (dun_kod,))
+    pdms = [row[0] for row in cursor.fetchall()]
+    db.close()
+    return pdms
+
+# Dashboard stats untuk DUN tertentu (filter ikut PDM dalam DUN)
+@app.get("/api/dashboard/dun/{dun_kod}")
+def get_dashboard_dun(request: Request, dun_kod: str, dm: Optional[str] = None, user=Depends(get_current_user)):
+    try:
+        db = get_db()
+        cursor = db.cursor()
+
+        where = "WHERE status_fizikal = 'Hidup' AND status_rekod = 'Sah' AND dun_id = (SELECT id FROM dun WHERE kod = ?)"
+        params = [dun_kod]
+        if dm:
+            where += " AND dm = ?"
+            params.append(dm)
+        
+        THN_SEMASA = 2026
+
+        # Jumlah pengundi
+        cursor.execute(f"SELECT COUNT(*) FROM pengundi {where}", params)
+        jumlah_pengundi = cursor.fetchone()[0]
+
+        # Status sokongan
+        cursor.execute(f"SELECT status_sokongan, COUNT(*) as jumlah FROM pengundi {where} GROUP BY status_sokongan ORDER BY jumlah DESC", params)
+        sokongan = {}
+        for row in cursor.fetchall():
+            key = row["status_sokongan"] or "Tiada"
+            sokongan[key] = row["jumlah"]
+
+        db.close()
+
+        return {
+            "jumlah_pengundi": jumlah_pengundi,
+            "sokongan": sokongan,
+            "dun_kod": dun_kod
+        }
+    except Exception as e:
+        import traceback
+        error_detail = f"{type(e).__name__}: {str(e)}"
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=error_detail)
+
+
+# Dashboard stats - guna parameter dun (filter ikut DUN)
 @app.get("/api/dashboard")
-def get_dashboard(request: Request, dm: Optional[str] = None, user=Depends(get_current_user)):
+def get_dashboard(request: Request, dun: Optional[str] = None, user=Depends(get_current_user)):
     try:
         db = get_db()
         cursor = db.cursor()
 
         where = "WHERE status_fizikal = 'Hidup' AND status_rekod = 'Sah'"
         params = []
-        if dm:
-            where += " AND dm = ?"
-            params.append(dm)
+        if dun:
+            where += " AND dun_id = (SELECT id FROM dun WHERE kod = ?)"
+            params.append(dun)
         
         THN_SEMASA = 2026
 
