@@ -105,51 +105,57 @@ def log_activity(request: Request, user: dict, tindakan: str, penerangan: str, n
 # ===== EVENT STARTUP =====
 @app.on_event("startup")
 def startup():
-    # Redirect stdout to stderr supaya print() tidak cemarkan JSON response
-    import sys
-    sys.stdout = sys.stderr
-    
-    init_db()
-    
-    # Seed default users individually if they don't exist
-    db = get_db()
-    cursor = db.cursor()
-    default_users = [
-        ("admin", "Admin Sistem", hash_kata_laluan("admin123"), "Admin"),
-        ("petugas", "Petugas Padang", hash_kata_laluan("petugas123"), "Petugas Padang"),
-        ("pemerhati", "Pemerhati", hash_kata_laluan("pemerhati123"), "Pemerhati"),
-    ]
-    now = datetime.now().isoformat()
-    seeded = 0
-    for username, nama_penuh, kata_laluan, peranan in default_users:
-        cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
-        if not cursor.fetchone():
-            cursor.execute(
-                "INSERT INTO users (username, nama_penuh, kata_laluan, peranan, dm, aktif, dicipta_pada) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (username, nama_penuh, kata_laluan, peranan, None, 1, now)
-            )
-            seeded += 1
-    if seeded > 0:
-        db.commit()
-        print(f"✅ {seeded} pengguna lalai telah dicipta")
-    else:
-        print("✅ Semua pengguna lalai sudah wujud")
-    
-    # Seed sample pengundi data if database empty
-    cursor.execute("SELECT COUNT(*) FROM pengundi")
-    pengundi_count = cursor.fetchone()[0]
-    if pengundi_count == 0:
-        print("📦 Database pengundi kosong - memasukkan data sample...")
-        try:
-            from backend.seed_data import seed_database
-            seed_database()
-            print("✅ Data sample pengundi berjaya dimasukkan!")
-        except Exception as e:
-            print(f"⚠️ Gagal seed data: {e}")
-    else:
-        print(f"✅ Database pengundi sudah mempunyai {pengundi_count} rekod")
-    
-    db.close()
+    try:
+        # Redirect stdout to stderr supaya print() tidak cemarkan JSON response
+        import sys
+        sys.stdout = sys.stderr
+        
+        init_db()
+        
+        # Seed default users individually if they don't exist
+        db = get_db()
+        cursor = db.cursor()
+        default_users = [
+            ("admin", "Admin Sistem", hash_kata_laluan("admin123"), "Admin"),
+            ("petugas", "Petugas Padang", hash_kata_laluan("petugas123"), "Petugas Padang"),
+            ("pemerhati", "Pemerhati", hash_kata_laluan("pemerhati123"), "Pemerhati"),
+        ]
+        now = datetime.now().isoformat()
+        seeded = 0
+        for username, nama_penuh, kata_laluan, peranan in default_users:
+            cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+            if not cursor.fetchone():
+                cursor.execute(
+                    "INSERT INTO users (username, nama_penuh, kata_laluan, peranan, dm, aktif, dicipta_pada) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (username, nama_penuh, kata_laluan, peranan, None, 1, now)
+                )
+                seeded += 1
+        if seeded > 0:
+            db.commit()
+            print(f"✅ {seeded} pengguna lalai telah dicipta")
+        else:
+            print("✅ Semua pengguna lalai sudah wujud")
+        
+        # Seed sample pengundi data if database empty
+        cursor.execute("SELECT COUNT(*) FROM pengundi")
+        pengundi_count = cursor.fetchone()[0]
+        if pengundi_count == 0:
+            print("📦 Database pengundi kosong - memasukkan data sample...")
+            try:
+                from backend.seed_data import seed_database
+                seed_database()
+                print("✅ Data sample pengundi berjaya dimasukkan!")
+            except Exception as e:
+                print(f"⚠️ Gagal seed data: {e}")
+        else:
+            print(f"✅ Database pengundi sudah mempunyai {pengundi_count} rekod")
+        
+        db.close()
+    except Exception as e:
+        import traceback
+        print(f"❌ KRITIKAL: Startup function gagal: {e}", file=__import__('sys').stderr)
+        traceback.print_exc()
+        print("⚠️ App masih berjalan — endpoint akan return error 500 jika guna database.")
 
 
 # ===== FUNGSI CHECK PERANAN =====
