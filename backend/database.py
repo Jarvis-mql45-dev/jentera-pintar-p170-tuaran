@@ -122,6 +122,10 @@ class _PostgresConnection:
 
     def __init__(self, dsn: str):
         import psycopg2
+        # Dalam production (Supabase/Vercel), pastikan SSL diwajibkan
+        if settings.is_production and 'sslmode' not in dsn:
+            separator = '&' if '?' in dsn else '?'
+            dsn = f"{dsn}{separator}sslmode=require"
         self._inner = psycopg2.connect(dsn)
         self._inner.autocommit = False
 
