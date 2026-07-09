@@ -8,7 +8,7 @@ from typing import Optional
 
 # Auto-load .env file jika wujud
 try:
-    from load_env import load_env_file
+    from backend.load_env import load_env_file
     load_env_file()
 except ImportError:
     pass

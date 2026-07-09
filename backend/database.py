@@ -1,5 +1,5 @@
 """
-Database abstraction layer for JenteraPintar N05 Matunggong.
+Database abstraction layer for JenteraPintar P170 Tuaran.
 Menyokong DUA mod:
 
 1. SQLite (default – tempatan) – jika DATABASE_URL tidak diset
@@ -9,7 +9,7 @@ Semua kod aplikasi TIDAK perlu diubah — antara muka cursor dikekalkan.
 """
 import os
 from datetime import datetime
-from config import settings
+from backend.config import settings
 from typing import Optional
 
 # Tentukan mod pangkalan data
