@@ -112,11 +112,20 @@ const state = {
     surveyPage: 'list',
     surveyEditId: null,
     surveyQuestions: [],
+    charts: {},  // Chart.js instances untuk update tanpa destroy
 };
 
 // ============================================================
 // PDM-TO-DUN MAPPING untuk P170 Tuaran
 // ============================================================
+// Hardcoded PDM mengikut DUN - elakkan fetch API untuk dropdown
+const PDM_BY_DUN = {
+    "N12": ["BARU-BARU","BATANGAN","INDAI","KINDU","PENIMBAWAN","SERUSUP","TAMBALANG"],
+    "N13": ["BERUNGIS","GAYANG","MARABAHAI","MENGKABONG","NONGKOULUD","TELIPOK","TUARAN BANDAR"],
+    "N14": ["GAYARATAU","KILANG BATA","MENGKALADOI","RANI","RENGALIS","RUNGUS","SAWAH","TAMPARULI","TELIBONG","TENGHILAN","TOPOKON"],
+    "N15": ["BONGOL","KELAWAT","KIULU","MALANGANG","MANTOB","PAHU","PORING","PUKAK","RANGALAU","SIMPANGAN","TAGINAMBUR","TIONG SIMPODON","TOGOP","TOMIS","TUDAN"]
+};
+
 const PDM_DUN_MAP = {
     // N12 Sulaman (dari SENARAI PENGUNDI SULAMAN.xlsx)
     "BARU-BARU": "N12 SULAMAN", "BATANGAN": "N12 SULAMAN",
