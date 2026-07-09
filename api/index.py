@@ -4,6 +4,11 @@ FastAPI app diimport dari backend/main.py
 """
 import sys
 import os
+
+# Redirect stdout to stderr SUPAYA print() TIDAK cemarkan response JSON
+_original_stdout = sys.stdout
+sys.stdout = sys.stderr
+
 from fastapi.responses import JSONResponse
 from fastapi import Request
 import traceback
@@ -30,3 +35,10 @@ except Exception as e:
                 "traceback": error_detail
             }
         )
+
+# Tambah middleware untuk paksa Content-Type JSON dan bersihkan response
+@app.middleware("http")
+async def clean_json_response(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Content-Type"] = "application/json; charset=utf-8"
+    return response

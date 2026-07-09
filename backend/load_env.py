@@ -16,11 +16,11 @@ def load_env_file(env_path: str = ENV_PATH) -> bool:
     Returns True jika berjaya, False jika fail tidak wujud.
     """
     if not os.path.exists(env_path):
-        print(f"ℹ️  .env file tidak dijumpai di {env_path}")
-        print("   Guna config development lalai.")
+        print(f"ℹ️  .env file tidak dijumpai di {env_path}", file=sys.stderr)
+        print("   Guna config development lalai.", file=sys.stderr)
         return False
 
-    print(f"📂 Membaca konfigurasi dari {env_path}")
+    print(f"📂 Membaca konfigurasi dari {env_path}", file=sys.stderr)
     loaded_count = 0
     with open(env_path, 'r', encoding='utf-8') as f:
         for line in f:
@@ -45,7 +45,7 @@ def load_env_file(env_path: str = ENV_PATH) -> bool:
                 os.environ[key] = value
                 loaded_count += 1
 
-    print(f"✅ {loaded_count} pembolehubah persekitaran dimuatkan")
+    print(f"✅ {loaded_count} pembolehubah persekitaran dimuatkan", file=sys.stderr)
     return True
 
 
@@ -63,19 +63,19 @@ def ensure_production_config():
         default_key = "kunci-rahasia-dun-matunggong-2026"
 
         if not secret_key or secret_key == default_key:
-            print("=" * 60)
-            print("  ⚠️  AMARAN KESELAMATAN!")
-            print("  JENTERA_SECRET_KEY masih menggunakan nilai lalai!")
-            print("  Sila set JENTERA_SECRET_KEY dalam .env dengan kunci rawak.")
-            print("=" * 60)
-            print()
+            print("=" * 60, file=sys.stderr)
+            print("  ⚠️  AMARAN KESELAMATAN!", file=sys.stderr)
+            print("  JENTERA_SECRET_KEY masih menggunakan nilai lalai!", file=sys.stderr)
+            print("  Sila set JENTERA_SECRET_KEY dalam .env dengan kunci rawak.", file=sys.stderr)
+            print("=" * 60, file=sys.stderr)
+            print(file=sys.stderr)
 
         # Pastikan allowed origins di set
         origins = os.environ.get("JENTERA_ALLOWED_ORIGINS", "")
         if not origins:
-            print("  ⚠️  AMARAN: JENTERA_ALLOWED_ORIGINS tidak diset!")
-            print("  CORS akan menggunakan '*', yang TIDAK SELAMAT untuk production.")
-            print()
+            print("  ⚠️  AMARAN: JENTERA_ALLOWED_ORIGINS tidak diset!", file=sys.stderr)
+            print("  CORS akan menggunakan '*', yang TIDAK SELAMAT untuk production.", file=sys.stderr)
+            print(file=sys.stderr)
 
 
 # Auto-load apabila module diimport

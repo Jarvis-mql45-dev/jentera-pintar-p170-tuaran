@@ -1,5 +1,5 @@
 # ============================================================
-# JENTERA PINTAR N05 MATUNGGONG - Python Dependencies
+# JENTERA PINTAR P170 TUARAN - Python Dependencies
 # ============================================================
 # Install: pip install -r requirements.txt
 
