@@ -137,9 +137,7 @@ const PDM_DUN_MAP = {
     "KIULU": "N15 KIULU", "NABALU": "N15 KIULU",
     "TAGIHON": "N15 KIULU", "LIDONG": "N15 KIULU",
     "PUKAKON": "N15 KIULU", "BINKAHAK": "N15 KIULU",
-    "RUMOH KELUARGA KAMI": "N15 KIULU",
-    // Default untuk PDM luar jangkaan
-    "_default": "LAIN-LAIN"
+    "RUMOH KELUARGA KAMI": "N15 KIULU"
 };
 
 function getDunForPdm(pdmName) {
@@ -148,20 +146,21 @@ function getDunForPdm(pdmName) {
     if (PDM_DUN_MAP[upper]) return PDM_DUN_MAP[upper];
     // Cuba padanan separa (prefix)
     for (const [key, dun] of Object.entries(PDM_DUN_MAP)) {
-        if (key !== "_default" && upper.startsWith(key)) return dun;
+        if (upper.startsWith(key)) return dun;
     }
-    return PDM_DUN_MAP["_default"];
+    return null;
 }
 
 function groupPdmByDun(pdmList) {
     const groups = {};
-    const order = ["N12 SULAMAN", "N13 PANTAI DALIT", "N14 TAMPARULI", "N15 KIULU", "LAIN-LAIN"];
+    const order = ["N12 SULAMAN", "N13 PANTAI DALIT", "N14 TAMPARULI", "N15 KIULU"];
     // Init semua group ikut urutan
     order.forEach(dun => groups[dun] = []);
     pdmList.forEach(pdm => {
         const dun = getDunForPdm(pdm);
-        if (!groups[dun]) groups[dun] = [];
-        if (!groups[dun].includes(pdm)) groups[dun].push(pdm);
+        if (dun && groups[dun] && !groups[dun].includes(pdm)) {
+            groups[dun].push(pdm);
+        }
     });
     // Buang group kosong
     order.forEach(dun => { if (groups[dun].length === 0) delete groups[dun]; });
