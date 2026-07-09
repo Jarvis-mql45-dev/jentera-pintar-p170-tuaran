@@ -105,6 +105,10 @@ def log_activity(request: Request, user: dict, tindakan: str, penerangan: str, n
 # ===== EVENT STARTUP =====
 @app.on_event("startup")
 def startup():
+    # Redirect stdout to stderr supaya print() tidak cemarkan JSON response
+    import sys
+    sys.stdout = sys.stderr
+    
     init_db()
     
     # Seed default users individually if they don't exist
