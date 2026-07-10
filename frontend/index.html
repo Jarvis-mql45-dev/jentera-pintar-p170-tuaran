@@ -80,8 +80,6 @@
     </style>
     <!-- Interact.js CDN untuk Drag & Resize -->
     <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
-    <!-- 🛑 ISOLATED ZONE: Dashboard Layout Module (Interact.js) -->
-    <script src="js/dashboard-layout.js"></script>
 </head>
 <body>
 
@@ -1526,6 +1524,9 @@ document.addEventListener('click', (e) => {
     }
 });
 </script>
+
+<!-- 🛑 ISOLATED ZONE: Dashboard Layout Module (Interact.js) - MUAT SELEPAS semua elemen DOM siap -->
+<script src="js/dashboard-layout.js"></script>
 
 <!-- PWA Service Worker Registration -->
 <script>
