@@ -171,8 +171,108 @@ Sistem ini menyediakan:
        data pengeluaran (production) yang sah sebelum melakukan proses 'Redeploy'
        di Vercel tanpa cache.
 
-  Fail Terlibat : Vercel Environment Variables (DATABASE_URL), backend/database.py
-  Tarikh Isu    : Julai 2026
+   Fail Terlibat : Vercel Environment Variables (DATABASE_URL), backend/database.py
+   Tarikh Isu    : Julai 2026
+
+
+   4.5 Skrin Putih (Blank Screen) — Template Literal JavaScript Tidak Ditutup
+   --------------------------------------------------------------------
+   ISU    : Selepas menyuntik kod HTML untuk Canvas N12 Sulaman, dashboard
+            menjadi skrin putih sepenuhnya tanpa sebarang ralat di konsol.
+   PUNCA  : Template literal `content.innerHTML = \`...\`` tidak ditutup
+            dengan backtick (\`) sebelum `setTimeout()`. JavaScript parser
+            gagal membaca keseluruhan fungsi renderDashboard(), menghasilkan
+            runtime crash senyap.
+   PENYELESAIAN: Menambah backtick penutup \`;\` selepas blok HTML N12 card.
+            Semua guard clause dan try/catch sedia ada sudah memadai.
+
+   Fail: frontend/index.html
+   Commit: 6059f47
+
+
+   4.6 Ralat "A server error" / "Internal Server Error" — Tiada Global Exception Handler
+   --------------------------------------------------------------------
+   ISU    : Apabila startup function gagal (contoh sambungan database),
+            FastAPI mengembalikan plain text error dan bukannya JSON.
+   PUNCA  : Function `startup()` tidak dibalut dengan try/except global.
+            Tiada `@app.exception_handler(Exception)` untuk menangkap
+            sebarang unhandled exception.
+   PENYELESAIAN:
+      - Balut keseluruhan `startup()` dalam try/except global.
+      - Tambah `@app.exception_handler(Exception)` di backend/main.py
+        yang memulangkan JSONResponse dengan status 500.
+      - Pastikan route `/api/dashboard/dun/{dun_kod}` return data fallback
+        kosong (bukan HTTPException 500) jika database gagal.
+
+   Fail: backend/main.py
+   Commit: 83bab66, 5990662, ebf2437
+
+
+   4.7 Ralat "Cannot assign requested address" — IPv6 Direct Connection Supabase (Port 5432)
+   --------------------------------------------------------------------
+   ISU    : Vercel Serverless tidak dapat menyambung ke Supabase melalui
+            Direct Connection (port 5432) kerana IPv6 tidak disokong.
+            Ralat: `psycopg2.OperationalError: Cannot assign requested address`
+   PUNCA  : DATABASE_URL menggunakan domain `db.hgweacgibbnynjviocje.supabase.co`
+            yang menyelesaikan ke alamat IPv6. Vercel Serverless tidak
+            menyokong IPv6 asli.
+   PENYELESAIAN:
+      - Force replace domain ke pooler IPv4:
+        `db.hgweacgibbnynjviocje.supabase.co` → `aws-0-ap-southeast-1.pooler.supabase.com`
+      - Force port 6543 (Transaction Pooler) jika port 5432 dikesan.
+      - Tambah tenant identifier: username `postgres` → `postgres.<project_ref>`
+        untuk elak ralat "ENOIDENTIFIER: no tenant identifier provided".
+      - Balut `psycopg2.connect()` dengan try/except untuk log error.
+      - Tambah try/except pada `get_pengguna_dari_db()` di backend/auth.py.
+
+   Fail: backend/database.py
+   Commit: 5866e4f, 1dfb833, ffae3ec
+
+
+   4.8 Auth Isolation — Cipta Modul backend/secure_auth.py
+   --------------------------------------------------------------------
+   ISU    : Logik autentikasi (login, JWT, password verification) bercampur
+            dengan kod dashboard dan pengundi dalam backend/main.py. Ini
+            meningkatkan risiko regresi keselamatan (bypass login) apabila
+            mengubah suai kod dashboard.
+   PUNCA  : Endpoint login, fungsi hash, dan verify berada dalam fail yang
+            sama dengan endpoint dashboard dan CRUD pengundi.
+   PENYELESAIAN:
+      - Cipta fail baharu `backend/secure_auth.py` — modul autentikasi
+        terpencil yang hanya mengandungi:
+          * `login_endpoint()` — satu-satunya fungsi login
+          * `hash_kata_laluan()`, `sahkan_kata_laluan()`, `create_access_token()`
+          * `get_pengguna_dari_db()` dengan strict fallback
+      - Endpoint login di `backend/main.py` cuma 3 baris:
+        `def login(req): return login_endpoint(req.username, req.kata_laluan)`
+      - Strict fallback: jika database down, HANYA admin/admin123 dibenarkan.
+        Selain itu, semua login ditolak dengan 401.
+      - Fallback statik kemudian dibuang sepenuhnya demi keselamatan.
+
+   Fail: backend/secure_auth.py, backend/main.py
+   Commit: 4189887, 40dec20
+
+
+   4.9 Frontend Dynamic Canvas — Drag & Resize (Iterasi 3: Interact.js)
+   --------------------------------------------------------------------
+   ISU    : Tiga percubaan untuk melaksanakan fungsi drag & resize pada
+            dashboard card. Setiap percubaan gagal dan memerlukan eliminasi.
+   PERCUBAAN 1 (HTML5 Drag & Drop Manual):
+      - Gagal kerana canvas Chart.js menghalang resize handle.
+   PERCUBAAN 2 (Gridstack.js CDN):
+      - Gagal kerana memerlukan perombakan struktur HTML yang terlalu
+        mendalam dan merosakkan susunan asal.
+   PERCUBAAN 3 (Interact.js CDN) — BERJAYA ✅:
+      - Interact.js ringan, tidak memerlukan perubahan struktur HTML.
+      - `interact().draggable()` dengan restrictRect dalam container.
+      - `interact().resizable()` dengan edges: right, bottom, bottomRight.
+      - `chart.resize()` dipanggil dalam event onresize.
+      - LocalStorage auto-save: `dashboardInteractLayout`.
+      - Butang toggle "✏️ Ubah Susunan / 🔒 Kunci Susunan".
+   STATUS: Dilaksanakan di branch `feature/dynamic-canvas` (belum merge ke main).
+
+   Fail: frontend/index.html
+   Commit: 4ccc33a, 53b0422
 
 
 5. PELAN PEMBANGUNAN MENYELURUH (OVERALL DEVELOPMENT PLAN)
@@ -208,28 +308,29 @@ Sistem ini menyediakan:
 
 
   --------------------------------------------------------------------
-  FASA 2: FUNGSI PENGURUSAN & DASHBOARD VISUAL (SEDANG BERJALAN ⏳)
-  --------------------------------------------------------------------
+   FASA 2: FUNGSI PENGURUSAN & DASHBOARD VISUAL (SELESAI ✅)
+   --------------------------------------------------------------------
 
-  a) Dashboard Statistik Dinamik
-     Membina komponen kad ringkasan (summary cards) dan carta visual
-     pada frontend untuk memaparkan jumlah pengundi semasa secara
-     langsung (real-time) mengikut pecahan 4 DUN dari Supabase.
+   a) Dashboard Statistik Dinamik (✅ Selesai)
+      - Kad ringkasan (Jumlah Pengundi, Putih, Hitam, Atas Pagar).
+      - Pie chart P170 Tuaran dengan filter DUN (N12-N15).
+      - Stacked bar chart "Status Sokongan × Klasifikasi Umur".
+      - Card N12 Sulaman dengan carta donut dan dropdown PDM.
+      - Dynamic Canvas (Interact.js drag & resize) di branch feature/dynamic-canvas.
 
-  b) Modul Carian Pengundi
-     Mengaktifkan fungsi bar carian berprestasi tinggi pada frontend
-     untuk membolehkan petugas mencari maklumat pengundi menggunakan
-     No. Kad Pengenalan atau Nama.
+   b) Modul Carian Pengundi (✅ Selesai)
+      - Bar carian dengan multi-filter: PDM, Lokaliti, Sokongan.
+      - Pagination dan edit/padam terus dari senarai.
 
-  c) Sistem Log Masuk Petugas Padang
-     Menetapkan tahap capaian keselamatan (role-based access) untuk
-     memastikan petugas jentera kampung hanya boleh melihat dan
-     menguruskan data di bawah Pusat Daerah Mengundi (PDM) mereka
-     sahaja.
+   c) Sistem Log Masuk Petugas Padang (✅ Selesai)
+      - JWT token-based authentication dengan python-jose.
+      - Role-based access: Admin, Petugas Padang, Pemerhati.
+      - Modul auth terpencil: backend/secure_auth.py.
+      - Strict fallback jika database down (admin sahaja).
 
 
-  --------------------------------------------------------------------
-  FASA 3: MODUL LAPANGAN & PENGOPTIMUMAN PWA (AKAN DATANG 🚀)
+   --------------------------------------------------------------------
+   FASA 3: MODUL LAPANGAN & PENGOPTIMUMAN PWA (SEDANG BERJALAN ⏳)
   --------------------------------------------------------------------
 
   a) Kemas Kini Status Pengundi
