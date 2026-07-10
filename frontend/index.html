@@ -71,6 +71,18 @@
         .pagination button { padding: 6px 12px; border: 1px solid #d1d5db; border-radius: 6px; background: white; cursor: pointer; }
         .pagination button.active { background: #2563eb; color: white; border-color: #2563eb; }
         .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+        /* Drag & Resize Styles */
+        .dashboard-edit-mode .card { cursor: grab; user-select: none; }
+        .dashboard-edit-mode .card:active { cursor: grabbing; opacity: 0.85; }
+        .dashboard-edit-mode .card.drag-over { border: 2px dashed #2563eb; transform: scale(1.02); }
+        .dashboard-item { transition: transform 0.15s, box-shadow 0.15s; }
+        .dashboard-item.resizable-card { resize: both; overflow: auto; min-height: 100px; min-width: 200px; }
+        .dashboard-item.resizable-card canvas { max-width: 100%; height: auto !important; }
+        .resize-handle { width: 12px; height: 12px; background: #2563eb; border-radius: 2px; position: absolute; bottom: 4px; right: 4px; cursor: nwse-resize; opacity: 0; transition: opacity 0.2s; }
+        .dashboard-edit-mode .resize-handle { opacity: 0.6; }
+        .dashboard-item { position: relative; }
+        .layout-toggle-btn { transition: all 0.2s; }
+        .layout-toggle-btn:hover { transform: scale(1.05); }
     </style>
 </head>
 <body>
@@ -114,6 +126,9 @@ const state = {
     surveyQuestions: [],
     charts: {},  // Chart.js instances untuk update tanpa destroy
     dunN12Pdm: '',  // PDM filter untuk N12 Sulaman
+    dashboardEditMode: false,  // Toggle for drag & resize mode
+    dashboardLayout: JSON.parse(localStorage.getItem('dashboardLayout_v2') || 'null'),  // Saved positions
+    dashboardItems: [],  // DOM order array
 };
 
 // ============================================================
@@ -913,7 +928,17 @@ async function renderDashboard() {
         const n12TotalSok = Object.values(n12Sok).reduce((a, b) => a + b, 0);
         const pctN12 = (v) => n12TotalSok ? ((v/n12TotalSok)*100).toFixed(1) : 0;
 
+        // Add layout toggle button at top
+        const isEditMode = state.dashboardEditMode;
         content.innerHTML = `
+            <div class="flex items-center justify-between mb-4">
+                <div></div>
+                <button id="layoutToggleBtn" onclick="toggleDashboardEditMode()" class="btn ${isEditMode ? 'btn-success' : 'btn-outline'} layout-toggle-btn text-sm flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                    ${isEditMode ? '🔒 Kunci Susunan' : '✏️ Ubah Susunan'}
+                </button>
+            </div>
+            <div id="dashboardContainer" class="${isEditMode ? 'dashboard-edit-mode' : ''}">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <div class="card"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-500">Jumlah Pengundi</p><p class="text-2xl font-bold text-gray-800">${jumlah_pengundi.toLocaleString()}</p></div><div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div></div><div class="mt-2 flex items-center gap-1 text-xs text-gray-500"><span class="text-green-600 font-medium">✓ ${fizikal?.Hidup || 0} Hidup</span><span>·</span><span class="text-red-600">✗ ${fizikal?.['Meninggal Dunia'] || 0} Meninggal</span></div></div>
                 <div class="card"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-500">Putih</p><p class="text-2xl font-bold text-green-700">${putih.toLocaleString()}</p></div><div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg></div></div></div>
@@ -982,10 +1007,13 @@ async function renderDashboard() {
                 </div>
             </div>
 
+            </div>  <!-- TUTUP dashboardContainer -->
+
             `;  // <-- TUTUP TEMPLATE LITERAL content.innerHTML
 
         
         setTimeout(() => {
+            initDashboardDragResize();
             // Pie Chart - with try/catch so stacked bar still works if this fails
             try {
                 const ctx = document.getElementById('sokonganChart');
@@ -1042,6 +1070,121 @@ async function renderDashboard() {
     } catch (err) {
         content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`;
     }
+}
+
+// ========= DRAG & RESIZE FUNCTIONS (Dynamic Canvas) =========
+
+function toggleDashboardEditMode() {
+    state.dashboardEditMode = !state.dashboardEditMode;
+    const container = document.getElementById('dashboardContainer');
+    if (!container) return;
+    container.classList.toggle('dashboard-edit-mode', state.dashboardEditMode);
+    // Enable/disable resize on all dashboard-item cards
+    document.querySelectorAll('.dashboard-item').forEach(el => {
+        el.classList.toggle('resizable-card', state.dashboardEditMode);
+    });
+    showToast(state.dashboardEditMode ? '✏️ Mod Ubah Susunan Diaktifkan' : '🔒 Susunan Dikunci');
+    if (!state.dashboardEditMode) saveDashboardLayout();
+}
+
+function saveDashboardLayout() {
+    const items = document.querySelectorAll('.dashboard-item');
+    const layout = [];
+    items.forEach((el, index) => {
+        layout.push({
+            id: el.dataset.dashboardId || `item-${index}`,
+            order: index,
+            width: el.style.width || '',
+            height: el.style.height || ''
+        });
+    });
+    localStorage.setItem('dashboardLayout_v2', JSON.stringify(layout));
+}
+
+function initDashboardDragResize() {
+    const container = document.getElementById('dashboardContainer');
+    if (!container) return;
+
+    // Restore saved layout if exists
+    const savedLayout = state.dashboardLayout;
+    if (savedLayout && Array.isArray(savedLayout)) {
+        const items = container.querySelectorAll('.dashboard-item');
+        savedLayout.forEach((saved, si) => {
+            const target = container.querySelector(`[data-dashboard-id="${saved.id}"]`) || items[si];
+            if (target) {
+                if (saved.width) target.style.width = saved.width;
+                if (saved.height) target.style.height = saved.height;
+            }
+        });
+    }
+
+    // HTML5 Drag & Drop
+    let dragSrcEl = null;
+    container.addEventListener('dragstart', (e) => {
+        const card = e.target.closest('.dashboard-item');
+        if (!card || !state.dashboardEditMode) return;
+        dragSrcEl = card;
+        e.dataTransfer.effectAllowed = 'move';
+        card.classList.add('opacity-50');
+    });
+    container.addEventListener('dragend', (e) => {
+        const card = e.target.closest('.dashboard-item');
+        if (card) card.classList.remove('opacity-50', 'drag-over');
+        document.querySelectorAll('.dashboard-item').forEach(el => el.classList.remove('drag-over'));
+    });
+    container.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (!state.dashboardEditMode) return;
+        const card = e.target.closest('.dashboard-item');
+        if (card && card !== dragSrcEl) {
+            document.querySelectorAll('.dashboard-item').forEach(el => el.classList.remove('drag-over'));
+            card.classList.add('drag-over');
+        }
+    });
+    container.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (!state.dashboardEditMode || !dragSrcEl) return;
+        const dropTarget = e.target.closest('.dashboard-item');
+        if (dropTarget && dropTarget !== dragSrcEl) {
+            const parent = container;
+            const items = [...parent.querySelectorAll('.dashboard-item')];
+            const fromIdx = items.indexOf(dragSrcEl);
+            const toIdx = items.indexOf(dropTarget);
+            if (fromIdx !== -1 && toIdx !== -1) {
+                if (fromIdx < toIdx) {
+                    dropTarget.parentNode.insertBefore(dragSrcEl, dropTarget.nextSibling);
+                } else {
+                    dropTarget.parentNode.insertBefore(dragSrcEl, dropTarget);
+                }
+                saveDashboardLayout();
+            }
+        }
+        dragSrcEl = null;
+        document.querySelectorAll('.dashboard-item').forEach(el => el.classList.remove('drag-over'));
+    });
+
+    // ResizeObserver for Chart.js resize
+    const resizeObserver = new ResizeObserver((entries) => {
+        entries.forEach(entry => {
+            const canvas = entry.target.querySelector('canvas');
+            if (canvas) {
+                // Trigger Chart.js resize by dispatching event
+                const chartId = canvas.id;
+                if (chartId && state.charts[chartId.replace('SokonganChart', '').replace('sokonganChart', '')]) {
+                    // Chart.js responsive handles resize automatically
+                }
+                // Manual resize trigger for each chart
+                Object.values(state.charts).forEach(chart => {
+                    if (chart && chart.canvas && chart.canvas.parentElement === entry.target) {
+                        chart.resize();
+                    }
+                });
+            }
+        });
+    });
+
+    // Observe all dashboard items
+    document.querySelectorAll('.dashboard-item').forEach(el => resizeObserver.observe(el));
 }
 
 // ========= PENGUNDI LIST =========
