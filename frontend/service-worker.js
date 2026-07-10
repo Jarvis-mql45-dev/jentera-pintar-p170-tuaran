@@ -1,12 +1,14 @@
 // Nama cache dan versi - tukar versi untuk paksa refresh cache
-const CACHE_NAME = 'pengundi-n05-v2';
+const CACHE_NAME = 'pengundi-p170-v3';
 
 // Fail statik yang akan di-cache semasa pemasangan
+// NOTA: Jangan masukkan CDN URLs (tailwind, chart.js) — ia perlu di-fetch dari network
+//       kerana cache.addAll akan gagal jika mana-mana CDN tidak reachable.
 const STATIC_ASSETS = [
     './index.html',
     './manifest.json',
-    'https://cdn.tailwindcss.com',
-    'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'
+    './logo.png',
+    './js/dashboard-layout.js'
 ];
 
 // ===== INSTALL: Cache static assets =====
@@ -14,7 +16,9 @@ self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             console.log('[SW] Caching static assets...');
-            return cache.addAll(STATIC_ASSETS);
+            return cache.addAll(STATIC_ASSETS).catch(err => {
+                console.warn('[SW] Failed to cache some static assets:', err);
+            });
         })
     );
     self.skipWaiting();
