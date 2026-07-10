@@ -1032,7 +1032,8 @@ async function renderDashboard() {
                     } catch(e) {}
                 }
             });
-            // Pie Chart - with try/catch so stacked bar still works if this fails
+            // Pie Chart - wrapped in requestAnimationFrame for timing stability
+            requestAnimationFrame(() => { setTimeout(() => {
             try {
                 const ctx = document.getElementById('sokonganChart');
                 if (ctx) {
@@ -1084,7 +1085,9 @@ async function renderDashboard() {
                     }
                 }
             } catch (e) { console.error('N12 chart error:', e); }
-        }, 100);
+        }, 50);  // setTimeout tutup
+        });  // requestAnimationFrame tutup
+        }, 100);  // setTimeout luar tutup
     } catch (err) {
         content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`;
     }
