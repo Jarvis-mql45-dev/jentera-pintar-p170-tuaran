@@ -275,6 +275,52 @@ Sistem ini menyediakan:
    Commit: 4ccc33a, 53b0422
 
 
+   4.10 Root Cause Analysis — Layout Persistence Interact.js (Belum Selesai)
+   --------------------------------------------------------------------
+   LAPORAN BEDAH SIASAT RASMI — Masalah layout Interact.js kembali ke asal
+   (reset) selepas page refresh walaupun data localStorage wujud.
+
+   PUNCA UTAMA (3 faktor bergabung):
+   1. innerHTML Mental: Fungsi renderDashboard() menggunakan
+      content.innerHTML = `...` yang memusnahkan SEMUA elemen DOM
+      (termasuk inline styles, dataset.x/y, dan Interact.js listeners)
+      setiap kali dashboard di-render. Tiada 'diffing' atau 'morphing' —
+      DOM dibina semula dari kosong.
+
+   2. CSS Grid vs Transform: Kad dashboard dibalut dalam grid Tailwind
+      (grid-cols-1 lg:grid-cols-3). CSS Grid menggunakan positioning
+      relatif/static yang tegar. transform: translate(x, y) hanya offset
+      visual — grid tetap mengira semula kedudukan asal, meng-override
+      transform selepas layout cycle browser.
+
+   3. Timing Init: Interact.js di-init semula selepas innerHTML,
+      tetapi data coordinates perlu di-set semula dari localStorage.
+      Jika timing init berlaku SEBELUM CSS Grid selesai layout,
+      grid akan meng-override style yang baru diset.
+
+   KONFLIK KOD:
+   - Interact.js transform: translate() vs CSS Grid positioning rigid
+   - innerHTML mental vs Interact.js event listeners (hilang bersama DOM)
+   - Data attributes (dataset.x/y) hilang setiap render
+
+   CADANGAN SOLUSI MUTLAK:
+   a) ELIMINASI innerHTML: Gunakan DOM manipulation berperingkat
+      (appendChild, replaceChild) atau library morphdom untuk patch
+      perubahan tanpa memusnahkan elemen sedia ada.
+   b) POSITION ABSOLUTE: Gantikan transform: translate() dengan
+      position: absolute + left/top dalam edit mode. Grid layout
+      tidak akan meng-override positioning absolute.
+   c) LAZY INIT: Init Interact.js dalam window.requestAnimationFrame
+      + setTimeout(0) untuk memastikan grid layout selesai.
+   d) ALTERNATIF LIBRARY: Guna Guizer atau GridStack yang menyokong
+      persistence secara native.
+
+   STATUS: Belum selesai — memerlukan refaktor struktur rendering
+   dashboard yang signifikan. Ditangguhkan ke Fasa 3.
+
+   Fail: frontend/index.html, frontend/js/dashboard-layout.js
+
+
 5. PELAN PEMBANGUNAN MENYELURUH (OVERALL DEVELOPMENT PLAN)
 ================================================================================
 
