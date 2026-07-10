@@ -39,7 +39,18 @@ function applySavedStyles() {
 }
 
 function initDashboardInteract() {
+    // Step 1: Set ID konsisten berdasarkan indeks SEBELUM restore styles
+    const cards = document.querySelectorAll('#dashboardContainer .card');
+    cards.forEach((card, index) => {
+        if (!card.id || card.id.startsWith('card-')) {
+            card.id = 'card-' + index;
+        }
+    });
+    
+    // Step 2: Restore saved styles (inject inline CSS terus)
     applySavedStyles();
+    
+    // Step 3: Apply interact.js
     applyInteractToCards();
 }
 
@@ -50,9 +61,6 @@ function applyInteractToCards() {
     const container = document.getElementById('dashboardContainer');
     
     cards.forEach(card => {
-        if (!card.id) {
-            card.id = 'card-' + Math.random().toString(36).substr(2, 9);
-        }
         
         interact(card).draggable({
             enabled: state.dashboardEditMode,
