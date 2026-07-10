@@ -1011,7 +1011,27 @@ async function renderDashboard() {
 
         
         setTimeout(() => {
+            // Apply saved layout styles - panggil sekali dalam setTimeout dan sekali dalam requestAnimationFrame
             initDashboardInteract();
+            // Second pass: ensure styles are applied after browser layout
+            requestAnimationFrame(() => {
+                const saved = localStorage.getItem('dashboardInteractLayout');
+                if (saved) {
+                    try {
+                        const layout = JSON.parse(saved);
+                        Object.keys(layout).forEach(id => {
+                            const el = document.getElementById(id);
+                            if (!el || !layout[id]) return;
+                            const d = layout[id];
+                            if (d.w) el.style.width = d.w;
+                            if (d.h) el.style.height = d.h;
+                            if (d.transform) el.style.transform = d.transform;
+                            if (d.x !== undefined) el.dataset.x = d.x;
+                            if (d.y !== undefined) el.dataset.y = d.y;
+                        });
+                    } catch(e) {}
+                }
+            });
             // Pie Chart - with try/catch so stacked bar still works if this fails
             try {
                 const ctx = document.getElementById('sokonganChart');
