@@ -71,17 +71,15 @@
         .pagination button { padding: 6px 12px; border: 1px solid #d1d5db; border-radius: 6px; background: white; cursor: pointer; }
         .pagination button.active { background: #2563eb; color: white; border-color: #2563eb; }
         .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
-        /* Drag & Resize Styles */
-        .dashboard-edit-mode .card { cursor: grab; user-select: none; }
-        .dashboard-edit-mode .card:active { cursor: grabbing; opacity: 0.85; }
-        .dashboard-edit-mode .card.drag-over { border: 2px dashed #2563eb; transform: scale(1.02); }
-        .dashboard-item { position: relative; transition: transform 0.15s, box-shadow 0.15s; }
-        .dashboard-item.resizable-card { resize: both !important; overflow: auto !important; min-height: 150px; min-width: 250px; padding-bottom: 20px; }
-        .dashboard-item.resizable-card canvas { max-width: 100%; height: auto !important; pointer-events: none; }
-        .dashboard-item[draggable="true"]:active { cursor: grabbing; }
+        /* Gridstack & Layout Styles */
+        .grid-stack-item-content .card { height: 100%; overflow: auto; }
         .layout-toggle-btn { transition: all 0.2s; }
         .layout-toggle-btn:hover { transform: scale(1.05); }
+        .grid-stack { background: transparent; }
     </style>
+    <!-- Gridstack CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/gridstack.js/10.3.0/gridstack.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gridstack.js/10.3.0/gridstack-all.js"></script>
 </head>
 <body>
 
@@ -1011,7 +1009,7 @@ async function renderDashboard() {
 
         
         setTimeout(() => {
-            initDashboardDragResize();
+            initDashboardGrid();
             // Pie Chart - with try/catch so stacked bar still works if this fails
             try {
                 const ctx = document.getElementById('sokonganChart');
@@ -1070,121 +1068,51 @@ async function renderDashboard() {
     }
 }
 
-// ========= DRAG & RESIZE FUNCTIONS (Dynamic Canvas) =========
+// ========= GRIDSTACK LAYOUT FUNCTIONS =========
+let gridStackInstance = null;
+
+function initDashboardGrid() {
+    const container = document.getElementById('dashboardContainer');
+    if (!container) return;
+    
+    // Convert existing dashboard to grid-stack
+    if (!container.classList.contains('grid-stack')) {
+        container.classList.add('grid-stack');
+    }
+    
+    gridStackInstance = GridStack.init({
+        float: true,
+        animate: true,
+        column: 12,
+        minRow: 1,
+        cellHeight: 80,
+        margin: 8,
+        disableDrag: !state.dashboardEditMode,
+        disableResize: !state.dashboardEditMode
+    });
+    
+    // Load saved layout
+    const saved = localStorage.getItem('dashboardGridLayout');
+    if (saved) {
+        try {
+            const layout = JSON.parse(saved);
+            gridStackInstance.load(layout);
+        } catch(e) {}
+    }
+}
 
 function toggleDashboardEditMode() {
     state.dashboardEditMode = !state.dashboardEditMode;
-    const container = document.getElementById('dashboardContainer');
-    if (!container) return;
-    container.classList.toggle('dashboard-edit-mode', state.dashboardEditMode);
-    // Enable/disable resize on all dashboard-item cards
-    document.querySelectorAll('.dashboard-item').forEach(el => {
-        el.classList.toggle('resizable-card', state.dashboardEditMode);
-        // Set draggable attribute for HTML5 drag to work
-        el.draggable = state.dashboardEditMode;
-    });
-    showToast(state.dashboardEditMode ? '✏️ Mod Ubah Susunan Diaktifkan' : '🔒 Susunan Dikunci');
-    if (!state.dashboardEditMode) saveDashboardLayout();
-}
-
-function saveDashboardLayout() {
-    const items = document.querySelectorAll('.dashboard-item');
-    const layout = [];
-    items.forEach((el, index) => {
-        layout.push({
-            id: el.dataset.dashboardId || `item-${index}`,
-            order: index,
-            width: el.style.width || '',
-            height: el.style.height || ''
-        });
-    });
-    localStorage.setItem('dashboardLayout_v2', JSON.stringify(layout));
-}
-
-function initDashboardDragResize() {
-    const container = document.getElementById('dashboardContainer');
-    if (!container) return;
-
-    // Restore saved layout if exists
-    const savedLayout = state.dashboardLayout;
-    if (savedLayout && Array.isArray(savedLayout)) {
-        const items = container.querySelectorAll('.dashboard-item');
-        savedLayout.forEach((saved, si) => {
-            const target = container.querySelector(`[data-dashboard-id="${saved.id}"]`) || items[si];
-            if (target) {
-                if (saved.width) target.style.width = saved.width;
-                if (saved.height) target.style.height = saved.height;
-            }
-        });
+    if (gridStackInstance) {
+        gridStackInstance.enableMove(state.dashboardEditMode);
+        gridStackInstance.enableResize(state.dashboardEditMode);
     }
-
-    // HTML5 Drag & Drop
-    let dragSrcEl = null;
-    container.addEventListener('dragstart', (e) => {
-        const card = e.target.closest('.dashboard-item');
-        if (!card || !state.dashboardEditMode) return;
-        dragSrcEl = card;
-        e.dataTransfer.effectAllowed = 'move';
-        card.classList.add('opacity-50');
-    });
-    container.addEventListener('dragend', (e) => {
-        const card = e.target.closest('.dashboard-item');
-        if (card) card.classList.remove('opacity-50', 'drag-over');
-        document.querySelectorAll('.dashboard-item').forEach(el => el.classList.remove('drag-over'));
-    });
-    container.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        if (!state.dashboardEditMode) return;
-        const card = e.target.closest('.dashboard-item');
-        if (card && card !== dragSrcEl) {
-            document.querySelectorAll('.dashboard-item').forEach(el => el.classList.remove('drag-over'));
-            card.classList.add('drag-over');
-        }
-    });
-    container.addEventListener('drop', (e) => {
-        e.preventDefault();
-        if (!state.dashboardEditMode || !dragSrcEl) return;
-        const dropTarget = e.target.closest('.dashboard-item');
-        if (dropTarget && dropTarget !== dragSrcEl) {
-            const parent = container;
-            const items = [...parent.querySelectorAll('.dashboard-item')];
-            const fromIdx = items.indexOf(dragSrcEl);
-            const toIdx = items.indexOf(dropTarget);
-            if (fromIdx !== -1 && toIdx !== -1) {
-                if (fromIdx < toIdx) {
-                    dropTarget.parentNode.insertBefore(dragSrcEl, dropTarget.nextSibling);
-                } else {
-                    dropTarget.parentNode.insertBefore(dragSrcEl, dropTarget);
-                }
-                saveDashboardLayout();
-            }
-        }
-        dragSrcEl = null;
-        document.querySelectorAll('.dashboard-item').forEach(el => el.classList.remove('drag-over'));
-    });
-
-    // ResizeObserver for Chart.js resize
-    const resizeObserver = new ResizeObserver((entries) => {
-        entries.forEach(entry => {
-            const canvas = entry.target.querySelector('canvas');
-            if (canvas) {
-                // Trigger Chart.js resize by dispatching event
-                const chartId = canvas.id;
-                if (chartId && state.charts[chartId.replace('SokonganChart', '').replace('sokonganChart', '')]) {
-                    // Chart.js responsive handles resize automatically
-                }
-                // Manual resize trigger for each chart
-                Object.values(state.charts).forEach(chart => {
-                    if (chart && chart.canvas && chart.canvas.parentElement === entry.target) {
-                        chart.resize();
-                    }
-                });
-            }
-        });
-    });
-
-    // Observe all dashboard items
-    document.querySelectorAll('.dashboard-item').forEach(el => resizeObserver.observe(el));
+    showToast(state.dashboardEditMode ? '✏️ Mod Ubah Susunan Diaktifkan' : '🔒 Susunan Dikunci');
+    if (!state.dashboardEditMode) {
+        // Save layout
+        const layout = gridStackInstance ? gridStackInstance.save() : [];
+        localStorage.setItem('dashboardGridLayout', JSON.stringify(layout));
+    }
 }
 
 // ========= PENGUNDI LIST =========
