@@ -895,6 +895,28 @@ async function submitSurveyForm(event, surveyId) {
 // ========= DASHBOARD =========
 async function renderDashboard() {
     const content = document.getElementById('contentArea');
+    // 🛑 WARZONE: Bunuh SEMUA instans Chart.js sebelum DOM dirobohkan (fix memory lifecycle)
+    if (state.chart && typeof state.chart.destroy === 'function') {
+        state.chart.destroy();
+    }
+    state.chart = null;
+    // Bunuh stacked bar chart jika ada
+    if (state.charts['stackedBar'] && typeof state.charts['stackedBar'].destroy === 'function') {
+        state.charts['stackedBar'].destroy();
+    }
+    state.charts['stackedBar'] = null;
+    // Bunuh N12 chart jika ada
+    if (state.charts['n12'] && typeof state.charts['n12'].destroy === 'function') {
+        state.charts['n12'].destroy();
+    }
+    state.charts['n12'] = null;
+    // Bunuh mana-mana instans lain dalam state.charts
+    Object.keys(state.charts).forEach(key => {
+        if (state.charts[key] && typeof state.charts[key].destroy === 'function') {
+            state.charts[key].destroy();
+        }
+        state.charts[key] = null;
+    });
     content.innerHTML = `<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan dashboard...</span></div>`;
     try {
         const selectedDun = state.dashboardDm || '';  // Kini simpan KOD DUN, bukan PDM
@@ -967,7 +989,7 @@ async function renderDashboard() {
                         </select>
                     </div>
                     <div class="flex flex-col md:flex-row items-center gap-6">
-                        <div class="w-full md:w-64 min-h-[250px]"><canvas id="n12SokonganChart"></canvas></div>
+                        <div class="w-full md:w-64 h-64"><canvas id="n12SokonganChart"></canvas></div>
                         <div class="flex-1 w-full">
                             <table>
                                 <thead><tr><th class="pl-0">Status</th><th>Jumlah</th><th>Peratusan</th></tr></thead>
@@ -1032,25 +1054,32 @@ async function renderDashboard() {
                     } catch(e) {}
                 }
             });
-            // Pie Chart - wrapped in requestAnimationFrame for timing stability
+            // 🛠️ CHART.JS LIFECYCLE: Pie Chart (sokonganChart) - Destroy & recreate pattern (P170 stable pattern)
             requestAnimationFrame(() => { setTimeout(() => {
             try {
                 const ctx = document.getElementById('sokonganChart');
                 if (ctx) {
-                    if (state.chart) state.chart.destroy();
+                    // Destroy instans lama jika ada
+                    if (state.chart && typeof state.chart.destroy === 'function') {
+                        state.chart.destroy();
+                    }
+                    state.chart = null;
+                    // Recreate pada ctx yang SAMA (tiada replaceChild)
                     state.chart = new Chart(ctx, { type:'pie', data:{ labels:['Putih','Atas Pagar','Hitam',labelLain], datasets:[{ data:[putih,atasPagar,hitam,totalLain], backgroundColor:['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth:2, borderColor:'#fff' }] }, options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{ display:false } } } });
                 }
             } catch (e) { console.error('Pie chart error:', e); }
             
-            // Stacked Bar Chart - with try/catch
+            // 🛠️ CHART.JS LIFECYCLE: Stacked Bar Chart - Destroy & recreate pattern
             try {
+                // Destroy instans lama stacked bar jika ada
+                if (state.charts['stackedBar'] && typeof state.charts['stackedBar'].destroy === 'function') {
+                    state.charts['stackedBar'].destroy();
+                }
+                state.charts['stackedBar'] = null;
                 const ctx3 = document.getElementById('stackedBarChart');
                 if (ctx3) {
                     const su = data.sokongan_ikut_umur || {};
-                    // API returns keys: 'Belia', 'Dewasa', 'Warga Emas', 'Tidak Diketahui'
-                    // Display labels with age range
                     const umurDisplayLabels = ['Belia (18-30 thn)','Dewasa (31-59 thn)','Warga Emas (60+ thn)','Tidak Diketahui'];
-                    // Map display labels to actual API keys
                     const umurKeyMap = {'Belia (18-30 thn)':'Belia','Dewasa (31-59 thn)':'Dewasa','Warga Emas (60+ thn)':'Warga Emas','Tidak Diketahui':'Tidak Diketahui'};
                     const sokonganSet = new Set();
                     Object.values(su).forEach(inner => { Object.keys(inner).forEach(k => sokonganSet.add(k)); });
@@ -1058,31 +1087,31 @@ async function renderDashboard() {
                     const sokonganDisplayLabels = sokonganLabels.map(l => l==='Tiada'?'Tidak Dikenal Pasti':l);
                     const sokonganWarnaMap = { 'Putih':'#22c55e', 'Atas Pagar':'#eab308', 'Hitam':'#ef4444' };
                     const defaultColours = ['#94a3b8','#818cf8','#f472b6','#34d399','#fbbf24','#a78bfa'];
-                    new Chart(ctx3, { type:'bar', data:{ labels:umurDisplayLabels, datasets:sokonganLabels.map((label,i)=>({ label:sokonganDisplayLabels[i], data:umurDisplayLabels.map(displayLabel=>{ const key=umurKeyMap[displayLabel]||displayLabel; return (su[key]&&su[key][label])||0; }), backgroundColor:sokonganWarnaMap[label]||defaultColours[i%defaultColours.length], borderRadius:4, stack:'stack1' })) }, options:{ responsive:true, maintainAspectRatio:false, interaction:{ mode:'nearest', axis:'xy', intersect:false }, scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, grid:{ color:'#f1f5f9' } } }, plugins:{ legend:{ position:'top', labels:{ boxWidth:12, padding:12 } }, tooltip:{ enabled:true, mode:'nearest', axis:'xy', intersect:false, callbacks:{ label:function(context){ return (context.dataset.label||'')+': '+(context.parsed.y||0); } } } } } });
+                    state.charts['stackedBar'] = new Chart(ctx3, { type:'bar', data:{ labels:umurDisplayLabels, datasets:sokonganLabels.map((label,i)=>({ label:sokonganDisplayLabels[i], data:umurDisplayLabels.map(displayLabel=>{ const key=umurKeyMap[displayLabel]||displayLabel; return (su[key]&&su[key][label])||0; }), backgroundColor:sokonganWarnaMap[label]||defaultColours[i%defaultColours.length], borderRadius:4, stack:'stack1' })) }, options:{ responsive:true, maintainAspectRatio:false, interaction:{ mode:'nearest', axis:'xy', intersect:false }, scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, grid:{ color:'#f1f5f9' } } }, plugins:{ legend:{ position:'top', labels:{ boxWidth:12, padding:12 } }, tooltip:{ enabled:true, mode:'nearest', axis:'xy', intersect:false, callbacks:{ label:function(context){ return (context.dataset.label||'')+': '+(context.parsed.y||0); } } } } } });
                 }
             } catch (e) { console.error('Stacked bar chart error:', e); }
             
-            // N12 Sulaman Chart (Fasa 2)
+            // 🛠️ CHART.JS LIFECYCLE: N12 Sulaman Chart - Destroy & recreate pattern (SAMA seperti P170)
             try {
                 const n12Ctx = document.getElementById('n12SokonganChart');
                 if (n12Ctx) {
                     const n12LabelLain = Object.keys(n12Sok).filter(k => !['Putih','Hitam','Atas Pagar'].includes(k))[0] || 'Tiada';
                     const n12ChartData = [n12Putih, n12Atas, n12Hitam, n12TotLain];
                     const n12ChartLabels = ['Putih','Atas Pagar','Hitam', n12LabelLain];
-                    if (state.charts['n12']) {
-                        state.charts['n12'].data.datasets[0].data = n12ChartData;
-                        state.charts['n12'].data.labels = n12ChartLabels;
-                        state.charts['n12'].update();
-                    } else {
-                        state.charts['n12'] = new Chart(n12Ctx, {
-                            type: 'doughnut',
-                            data: {
-                                labels: n12ChartLabels,
-                                datasets: [{ data: n12ChartData, backgroundColor: ['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth: 2, borderColor: '#fff' }]
-                            },
-                            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } } }
-                        });
+                    // Destroy instans lama jika ada (sama pattern macam P170)
+                    if (state.charts['n12'] && typeof state.charts['n12'].destroy === 'function') {
+                        state.charts['n12'].destroy();
                     }
+                    state.charts['n12'] = null;
+                    // Recreate pada ctx yang SAMA (tiada replaceChild)
+                    state.charts['n12'] = new Chart(n12Ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: n12ChartLabels,
+                            datasets: [{ data: n12ChartData, backgroundColor: ['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth: 2, borderColor: '#fff' }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } } }
+                    });
                 }
             } catch (e) { console.error('N12 chart error:', e); }
         }, 50);  // setTimeout tutup

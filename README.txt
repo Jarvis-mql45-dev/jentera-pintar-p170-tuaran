@@ -1,6 +1,6 @@
 ================================================================================
-                 JENTERA PINTAR P170 TUARAN
-         Sistem Pengurusan Pengundi & Analisis Pilihan Raya
+                  JENTERA PINTAR P170 TUARAN
+          Sistem Pengurusan Pengundi & Analisis Pilihan Raya
 ================================================================================
 
 1. MAKLUMAT AM PROJEK
@@ -319,6 +319,97 @@ Sistem ini menyediakan:
    dashboard yang signifikan. Ditangguhkan ke Fasa 3.
 
    Fail: frontend/index.html, frontend/js/dashboard-layout.js
+
+
+   4.11 Chart Disappearing on SPA Navigation — Destroy ➔ Null ➔ Recreate Pattern
+   --------------------------------------------------------------------
+   ISU    : Graf donut "N12 Sulaman - Sokongan Mengikut PDM" dan stacked bar
+            chart "Status Sokongan × Klasifikasi Umur" hilang (blank/kosong)
+            setiap kali pengguna menavigasi ke menu lain (contoh: Senarai
+            Pengundi) dan kembali semula ke Dashboard. Graf pie "P170 Tuaran"
+            pula kekal stabil.
+   PUNCA (4 faktor bergabung):
+      (a) Lifecycle Chart.js tidak dikendalikan: Stacked bar chart dimulakan
+          dengan `new Chart(ctx3, ...)` tanpa menyimpan rujukan instans untuk
+          dimusnahkan (destroy). Apabila renderDashboard() dipanggil semula,
+          instans lama tertinggal dalam memori ('orphan Chart instance'),
+          menyebabkan konflik dengan canvas baru.
+      (b) Corak `.update()` untuk N12 Chart: Kod asal menggunakan pendekatan
+          `state.charts['n12'].update()` untuk mengemas kini data chart lama.
+          Kaedah ini meninggalkan rujukan canvas yang stale (stale binding)
+          apabila innerHTML memadamkan dan mencipta semula elemen <canvas>
+          secara total.
+      (c) Eksperimen `replaceChild()` awal: Menggunakan `container.replaceChild()`
+          untuk 'force-reset' elemen canvas menyebabkan pemutusan total antara
+          rujukan DOM dan objek Chart.js, menjadikan chart tidak dapat di-render
+          langsung (blank).
+      (d) CSS height tidak konsisten: N12 canvas parent menggunakan `min-h-[250px]`
+          (minimum sahaja) berbanding P170 yang guna `h-64` (fixed height).
+          Tanpa height tetap, Chart.js kadang-kala gagal mengira dimensi layout,
+          menghasilkan canvas 0px tinggi.
+   PENYELESAIAN MUTLAK (Standard Wajib Projek):
+      (a) Destroy semua instans Chart.js SEBELUM innerHTML di renderDashboard():
+          ```
+          if (state.chart && typeof state.chart.destroy === 'function')
+              state.chart.destroy();
+          state.chart = null;
+          Object.keys(state.charts).forEach(key => {
+              if (state.charts[key]?.destroy) state.charts[key].destroy();
+              state.charts[key] = null;
+          });
+          ```
+      (b) Wajib guna corak **"Destroy ➔ Null ➔ Recreate"** untuk SEMUA chart:
+          ```
+          if (state.charts['n12']?.destroy) state.charts['n12'].destroy();
+          state.charts['n12'] = null;
+          state.charts['n12'] = new Chart(n12Ctx, { ... });
+          ```
+          ⚠️ JANGAN GUNA `.update()` — ia menyebabkan stale binding.
+          ⚠️ JANGAN GUNA `replaceChild()` — ia memutuskan rujukan canvas.
+      (c) Standardkan height parent container: guna `h-64` (fixed height 256px)
+          untuk semua container canvas. Jangan guna `min-h-*` atau height auto.
+      (d) Timing inisialisasi chart:
+          ```
+          requestAnimationFrame(() => {
+              setTimeout(() => {
+                  // Init chart di sini — DOM sudah siap dilukis
+              }, 50);
+          });
+          ```
+      (e) Destroy block di bahagian ATAS renderDashboard(), SEBELUM innerHTML.
+          Init block di bahagian BAWAH renderDashboard(), SELEPAS innerHTML.
+   KESAN   : Ketiga-tiga carta (Pie, Stacked Bar, N12 Doughnut) stabil semasa
+             navigasi SPA. Tiada lagi blank chart selepas bertukar menu.
+   PENGESANAN: Guna VS Code Debugger — letak Breakpoint pada baris
+             `const ctx = document.getElementById('sokonganChart')` dan periksa
+             jika elemen null. Jika null, canvas tidak wujud dalam DOM.
+   Fail   : frontend/index.html (baris ~897 destroy block, baris ~1057 chart init)
+   Branch : debug/chartjs-lifecycle
+   Status : SELESAI ✅ — digabungkan ke main
+
+
+   4.12 Service Worker Cache — Pengecualian Aset CDN Luaran
+   --------------------------------------------------------------------
+   ISU    : Ralat "TypeError: Failed to fetch" pada aset CDN (Chart.js CDN,
+            Tailwind CDN, Interact.js CDN) apabila service-worker.js cuba
+            memasukkannya ke dalam senarai STATIC_ASSETS semasa fasa install.
+   PUNCA  : Service Worker (PWA) cuba pre-cache URL CDN pihak ketiga yang
+            tidak berada di origin yang sama. Ini melanggar same-origin policy
+            dalam konteks Cache API.
+   PENYELESAIAN:
+      - SENARAI HITAM: Semua URL yang bermula dengan `https://cdn.`,
+        `https://unpkg.com`, atau protokol mutlak TIDAK BOLEH dimasukkan
+        dalam tatasusunan STATIC_ASSETS.
+      - Guna saringan: `new URL(asset, self.location.origin).origin ===
+        self.location.origin` untuk pastikan hanya aset origin sendiri
+        di-cache.
+      - Aset CDN (Chart.js, Interact.js, Tailwind) dimuatkan terus dari CDN
+        melalui tag <script> — ia diuruskan oleh HTTP cache browser, BUKAN
+        oleh Service Worker cache.
+      - Strategi: "Network First" untuk halaman utama, "Cache First" untuk
+        aset statik tempatan (JS, CSS, imej).
+   Fail   : frontend/service-worker.js
+   Status : SELESAI ✅
 
 
 5. PELAN PEMBANGUNAN MENYELURUH (OVERALL DEVELOPMENT PLAN)
