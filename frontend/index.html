@@ -930,32 +930,41 @@ async function renderDashboard() {
                             <tr><td class="pl-0"><span class="badge badge-hitam">Hitam</span></td><td>${hitam.toLocaleString()}</td><td>${totalSokongan?((hitam/totalSokongan)*100).toFixed(1):0}%</td></tr>
                             <tr><td class="pl-0"><span class="badge badge-tiada">${labelLain}</span></td><td>${totalLain.toLocaleString()}</td><td>${totalSokongan?((totalLain/totalSokongan)*100).toFixed(1):0}%</td></tr></tbody></table></div></div>
                     </div>
+                </div>
+            </div>
+
+            <!-- N12 SULAMAN CANVAS - Baris penuh di bawah P170 -->
+            <div class="w-full mt-6">
+                <div class="card">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-semibold text-gray-800">N12 Sulaman - Sokongan Mengikut PDM</h3>
+                        <select id="n12PdmFilter" onchange="state.dunN12Pdm=this.value; renderDashboard()" class="w-auto text-sm">
+                            <option value="">Semua PDM N12</option>
+                            ${PDM_BY_DUN['N12'].map(pdm => `<option value="${pdm}" ${state.dunN12Pdm===pdm?'selected':''}>${pdm}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="flex flex-col md:flex-row items-center gap-6">
+                        <div class="w-full md:w-64 min-h-[250px]"><canvas id="n12SokonganChart"></canvas></div>
+                        <div class="flex-1 w-full">
+                            <table>
+                                <thead><tr><th class="pl-0">Status</th><th>Jumlah</th><th>Peratusan</th></tr></thead>
+                                <tbody>
+                                    <tr><td class="pl-0"><span class="badge badge-putih">Putih</span></td><td>${n12Putih.toLocaleString()}</td><td>${pctN12(n12Putih)}%</td></tr>
+                                    <tr><td class="pl-0"><span class="badge badge-atas">Atas Pagar</span></td><td>${n12Atas.toLocaleString()}</td><td>${pctN12(n12Atas)}%</td></tr>
+                                    <tr><td class="pl-0"><span class="badge badge-hitam">Hitam</span></td><td>${n12Hitam.toLocaleString()}</td><td>${pctN12(n12Hitam)}%</td></tr>
+                                    <tr><td class="pl-0"><span class="badge badge-tiada">${n12Lain}</span></td><td>${n12TotLain.toLocaleString()}</td><td>${pctN12(n12TotLain)}%</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grid bawah: Graf Umur + Jantina/Klasifikasi/Lokaliti -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                <div class="lg:col-span-2 flex flex-col gap-6">
                     <div class="card"><div class="flex items-center justify-between mb-4"><h3 class="font-semibold text-gray-800">Status Sokongan × Klasifikasi Umur</h3></div>
                         <div class="relative w-full h-[350px]"><canvas id="stackedBarChart"></canvas></div>
-                    </div>
-                    <!-- N12 SULAMAN CANVAS - Fasa 2 (dipindahkan ke grid utama) -->
-                    <div class="card mt-2">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="font-semibold text-gray-800">N12 Sulaman - Sokongan Mengikut PDM</h3>
-                            <select id="n12PdmFilter" onchange="state.dunN12Pdm=this.value; renderDashboard()" class="w-auto text-sm">
-                                <option value="">Semua PDM N12</option>
-                                ${PDM_BY_DUN['N12'].map(pdm => `<option value="${pdm}" ${state.dunN12Pdm===pdm?'selected':''}>${pdm}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div class="flex flex-col md:flex-row items-center gap-6">
-                            <div class="w-full md:w-64 min-h-[250px]"><canvas id="n12SokonganChart"></canvas></div>
-                            <div class="flex-1 w-full">
-                                <table>
-                                    <thead><tr><th class="pl-0">Status</th><th>Jumlah</th><th>Peratusan</th></tr></thead>
-                                    <tbody>
-                                        <tr><td class="pl-0"><span class="badge badge-putih">Putih</span></td><td>${n12Putih.toLocaleString()}</td><td>${pctN12(n12Putih)}%</td></tr>
-                                        <tr><td class="pl-0"><span class="badge badge-atas">Atas Pagar</span></td><td>${n12Atas.toLocaleString()}</td><td>${pctN12(n12Atas)}%</td></tr>
-                                        <tr><td class="pl-0"><span class="badge badge-hitam">Hitam</span></td><td>${n12Hitam.toLocaleString()}</td><td>${pctN12(n12Hitam)}%</td></tr>
-                                        <tr><td class="pl-0"><span class="badge badge-tiada">${n12Lain}</span></td><td>${n12TotLain.toLocaleString()}</td><td>${pctN12(n12TotLain)}%</td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
                     </div>
                 </div>
                 <div class="flex flex-col gap-4">
