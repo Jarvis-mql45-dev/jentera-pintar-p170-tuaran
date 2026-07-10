@@ -1,0 +1,26 @@
+# =====================================================================
+# SYSTEM RULES & SOP DEBUGGING: JENTERA PINTAR P170 TUARAN / N12 SULAMAN
+# =====================================================================
+
+- Aplikasi ini adalah Vanilla JS Single-Page Application (SPA) Monolitik dengan Client-Side Rendering (CSR).
+- 🛑 ZON LARANGAN (ISOLATED ZONE): Fail 'frontend/js/dashboard-layout.js' dan modul Interact.js DILARANG DIUBAH kecuali dengan izin eksplisit. 
+- Sentiasa ingat hasil Bedah Siasat (Seksyen 4.10 README.txt): 'innerHTML' mentah boleh memusnahkan elemen DOM, inline styles, dan event listeners.
+
+- Sebelum memulakan sebarang fungsi baharu atau pembaikan pepijat (bug hunting), anda WAJIB mencipta branch baharu dari main.
+- Format penamaan branch: debug/nama-isu atau feature/nama-ciri.
+- Sahkan kedudukan branch di terminal menggunakan 'git branch' sebelum menulis sebarang kod.
+
+- HENTIKAN TEKNIK SUNTIKAN LAMBAKAN 'console.log()' YANG MENYEMAKKAN FAIL.
+- Anda WAJIB menggunakan konfigurasi VS Code Debugger ('.vscode/launch.json') untuk menguji kod di persekitaran Localhost terlebih dahulu.
+- LANGKAH MENANGANI BUG:
+  1. Letakkan Breakpoints pada fasa kritikal (cth: tepat sebelum innerHTML atau panggilan API Supabase).
+  2. Gunakan 'Watch Panel' untuk memantau state kritikal seperti `localStorage.getItem("dashboardInteractLayout")`.
+  3. Gunakan 'Debug Console' untuk menguji manipulasi DOM/objek secara dinamik sebelum menulis kod kekal.
+- Ambil perhatian ralat 'Race Condition / Timing Bug': Pelayar memerlukan masa untuk melukis elemen (layout cycle). Pastikan inisialisasi pihak ketiga (Chart.js / Interact.js) diikat (bound) menggunakan 'requestAnimationFrame()' atau hook penyejaliran yang tepat selepas innerHTML selesai ditulis.
+
+- Semua data sensitif, URL pangkalan data, dan API Keys WAJIB disimpan di dalam `.env.local` untuk persekitaran local dan DILARANG di-push ke GitHub.
+- Pengurusan State: Sebelum merender sebarang data daripada API Supabase, lakukan semakan defensif seperti 'if (data == null)'.
+- Pastikan operasi 'localStorage.removeItem()' dilakukan secara bersasaran. DILARANG menggunakan 'localStorage.clear()' yang boleh memadamkan data tetapan layout pengguna secara tidak sengaja semasa logout.
+
+- SELEPAS pepijat disahkan hilang di VS Code Debugger Localhost, jalankan deployment ke Vercel sebagai PREVIEW URL sahaja menggunakan 'npx vercel'.
+- DILARANG menggunakan flag '--prod' atau melakukan push ke branch 'main' secara meluru.
