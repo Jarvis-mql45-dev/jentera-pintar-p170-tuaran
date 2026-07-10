@@ -75,12 +75,10 @@
         .dashboard-edit-mode .card { cursor: grab; user-select: none; }
         .dashboard-edit-mode .card:active { cursor: grabbing; opacity: 0.85; }
         .dashboard-edit-mode .card.drag-over { border: 2px dashed #2563eb; transform: scale(1.02); }
-        .dashboard-item { transition: transform 0.15s, box-shadow 0.15s; }
-        .dashboard-item.resizable-card { resize: both; overflow: auto; min-height: 100px; min-width: 200px; }
-        .dashboard-item.resizable-card canvas { max-width: 100%; height: auto !important; }
-        .resize-handle { width: 12px; height: 12px; background: #2563eb; border-radius: 2px; position: absolute; bottom: 4px; right: 4px; cursor: nwse-resize; opacity: 0; transition: opacity 0.2s; }
-        .dashboard-edit-mode .resize-handle { opacity: 0.6; }
-        .dashboard-item { position: relative; }
+        .dashboard-item { position: relative; transition: transform 0.15s, box-shadow 0.15s; }
+        .dashboard-item.resizable-card { resize: both !important; overflow: auto !important; min-height: 150px; min-width: 250px; padding-bottom: 20px; }
+        .dashboard-item.resizable-card canvas { max-width: 100%; height: auto !important; pointer-events: none; }
+        .dashboard-item[draggable="true"]:active { cursor: grabbing; }
         .layout-toggle-btn { transition: all 0.2s; }
         .layout-toggle-btn:hover { transform: scale(1.05); }
     </style>
@@ -1082,6 +1080,8 @@ function toggleDashboardEditMode() {
     // Enable/disable resize on all dashboard-item cards
     document.querySelectorAll('.dashboard-item').forEach(el => {
         el.classList.toggle('resizable-card', state.dashboardEditMode);
+        // Set draggable attribute for HTML5 drag to work
+        el.draggable = state.dashboardEditMode;
     });
     showToast(state.dashboardEditMode ? '✏️ Mod Ubah Susunan Diaktifkan' : '🔒 Susunan Dikunci');
     if (!state.dashboardEditMode) saveDashboardLayout();
