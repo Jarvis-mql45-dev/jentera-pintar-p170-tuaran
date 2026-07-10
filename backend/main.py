@@ -70,6 +70,8 @@ class PengundiCreate(BaseModel):
     no_telefon: Optional[str] = None
     status_sokongan: Optional[str] = None
     status_fizikal: Optional[str] = "Hidup"
+    ketua_keluarga_id: Optional[int] = None
+    pegawai_penyelaras_id: Optional[int] = None
 
 
 class PengundiUpdate(BaseModel):
@@ -82,6 +84,8 @@ class PengundiUpdate(BaseModel):
     status_sokongan: Optional[str] = None
     status_fizikal: Optional[str] = None
     adalah_pemilik_apps: Optional[bool] = None
+    ketua_keluarga_id: Optional[int] = None
+    pegawai_penyelaras_id: Optional[int] = None
 
 
 class PenggunaCreate(BaseModel):
@@ -459,7 +463,8 @@ def get_pengundi(
     offset = (page - 1) * per_page
     cursor.execute(f"""
         SELECT id, no_kp, nama_penuh, jantina, tahun_lahir, dm, lokaliti,
-               no_telefon, status_sokongan, status_fizikal, adalah_pemilik_apps, status_rekod, sumber_pdm
+               no_telefon, status_sokongan, status_fizikal, adalah_pemilik_apps, status_rekod, sumber_pdm,
+               ketua_keluarga_id, pegawai_penyelaras_id
         FROM pengundi {where}
         ORDER BY id
         LIMIT ? OFFSET ?
@@ -503,6 +508,43 @@ def get_filter_options(user=Depends(get_current_user)):
         "lokaliti": lokaliti_list,
         "sokongan": sokongan_list
     }
+
+
+# Endpoint carian pengundi untuk searchable dropdown (Ketua Keluarga/Pegawai Penyelaras)
+@app.get("/api/pengundi/search")
+def search_pengundi_dropdown(
+    q: str = "",
+    page: int = 1,
+    per_page: int = 20,
+    user=Depends(get_current_user)
+):
+    """Cari pengundi untuk dropdown pilihan — return id + nama_penuh sahaja."""
+    db = get_db()
+    cursor = db.cursor()
+    
+    params = [f"%{q}%", f"%{q}%"]
+    offset = (page - 1) * per_page
+    
+    cursor.execute("""
+        SELECT id, no_kp, nama_penuh, dm, lokaliti
+        FROM pengundi
+        WHERE (nama_penuh LIKE ? OR no_kp LIKE ?)
+          AND status_fizikal = 'Hidup' AND status_rekod = 'Sah'
+        ORDER BY nama_penuh ASC
+        LIMIT ? OFFSET ?
+    """, params + [per_page, offset])
+    
+    results = [dict(row) for row in cursor.fetchall()]
+    
+    cursor.execute("""
+        SELECT COUNT(*) FROM pengundi
+        WHERE (nama_penuh LIKE ? OR no_kp LIKE ?)
+          AND status_fizikal = 'Hidup' AND status_rekod = 'Sah'
+    """, params)
+    total = cursor.fetchone()[0]
+    
+    db.close()
+    return {"data": results, "total": total, "page": page, "per_page": per_page}
 
 
 # ===== ENDPOINT IMPORT EXCEL (Admin sahaja) =====
@@ -713,13 +755,15 @@ def create_pengundi(request: Request, data: PengundiCreate, user=Depends(get_cur
     cursor.execute("""
         INSERT INTO pengundi
         (no_kp, nama_penuh, jantina, tahun_lahir, dm, lokaliti, no_telefon,
-         status_sokongan, status_fizikal, adalah_pemilik_apps, status_rekod, sumber_pdm, dicipta_pada)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         status_sokongan, status_fizikal, adalah_pemilik_apps, status_rekod, sumber_pdm, dicipta_pada,
+         ketua_keluarga_id, pegawai_penyelaras_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         data.no_kp, data.nama_penuh, data.jantina, data.tahun_lahir,
         data.dm, data.lokaliti, data.no_telefon,
         data.status_sokongan, data.status_fizikal, 0,
-        status_rekod, f"Didaftar oleh {user['username']}", datetime.now().isoformat()
+        status_rekod, f"Didaftar oleh {user['username']}", datetime.now().isoformat(),
+        data.ketua_keluarga_id, data.pegawai_penyelaras_id
     ))
     db.commit()
     new_id = cursor.lastrowid

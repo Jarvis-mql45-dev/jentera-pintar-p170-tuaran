@@ -551,6 +551,37 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_audit_logs_dicipta ON audit_logs(dicipta_pada)
         """)
 
+        # 13. Migrasi: Tambah kolum ketua_keluarga_id & pegawai_penyelaras_id jika belum wujud
+        try:
+            # SQLite: ALTER TABLE akan gagal jika kolum sudah wujud — kita balut dalam try
+            if USE_POSTGRES:
+                cursor.execute("""
+                    ALTER TABLE pengundi
+                    ADD COLUMN IF NOT EXISTS ketua_keluarga_id INTEGER REFERENCES pengundi(id)
+                """)
+                cursor.execute("""
+                    ALTER TABLE pengundi
+                    ADD COLUMN IF NOT EXISTS pegawai_penyelaras_id INTEGER REFERENCES pengundi(id)
+                """)
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_pengundi_ketua_keluarga ON pengundi(ketua_keluarga_id)
+                """)
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_pengundi_pegawai_penyelaras ON pengundi(pegawai_penyelaras_id)
+                """)
+            else:
+                # SQLite — guna try/except kerana tiada IF NOT EXISTS untuk ADD COLUMN
+                try:
+                    cursor.execute("ALTER TABLE pengundi ADD COLUMN ketua_keluarga_id INTEGER REFERENCES pengundi(id)")
+                except Exception:
+                    pass  # Kolum mungkin sudah wujud
+                try:
+                    cursor.execute("ALTER TABLE pengundi ADD COLUMN pegawai_penyelaras_id INTEGER REFERENCES pengundi(id)")
+                except Exception:
+                    pass  # Kolum mungkin sudah wujud
+        except Exception as e:
+            print(f"⚠️ Migrasi kolum ketua_keluarga/pegawai_penyelaras gagal (mungkin sudah wujud): {e}")
+
         db.commit()
         db.close()
     except Exception as e:
