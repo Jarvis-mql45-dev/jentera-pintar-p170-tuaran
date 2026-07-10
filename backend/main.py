@@ -6,9 +6,10 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from backend.database import get_db, init_db
-from backend.auth import (
+from backend.auth import get_current_user
+from backend.secure_auth import (
     hash_kata_laluan, sahkan_kata_laluan, create_access_token,
-    get_current_user, get_pengguna_dari_db
+    get_pengguna_dari_db, login_endpoint
 )
 from backend.config import settings
 import sqlite3
@@ -180,33 +181,10 @@ def check_peranan(user: dict, peranan_dibenarkan: list):
         )
 
 
-# ===== ENDPOINT LOGIN =====
+# ===== ENDPOINT LOGIN (diimport dari secure_auth.py — JANGAN UBAH) =====
 @app.post("/api/login")
 def login(req: LoginRequest):
-    user = get_pengguna_dari_db(req.username)
-    if not user:
-        raise HTTPException(status_code=401, detail="Nama pengguna tidak wujud")
-
-    if not sahkan_kata_laluan(req.kata_laluan, user["kata_laluan"]):
-        raise HTTPException(status_code=401, detail="Kata laluan salah")
-
-    token = create_access_token({
-        "sub": user["username"],
-        "peranan": user["peranan"],
-        "user_id": user["id"]
-    })
-
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "user": {
-            "id": user["id"],
-            "username": user["username"],
-            "nama_penuh": user["nama_penuh"],
-            "peranan": user["peranan"],
-            "dm": user["dm"]
-        }
-    }
+    return login_endpoint(req.username, req.kata_laluan)
 
 
 # ===== ENDPOINT PENGUNDI =====
