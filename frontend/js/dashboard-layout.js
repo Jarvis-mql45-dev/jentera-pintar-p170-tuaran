@@ -7,33 +7,39 @@
  * perbincangan dengan pentadbir sistem.
  * 
  * Fungsi:
- * - initDashboardInteract()  — restore layout + apply interact
- * - applyInteractToCards()   — draggable + resizable dengan Interact.js
+ * - applySavedStyles()       — baca localStorage, inject inline CSS terus ke DOM
+ * - initDashboardInteract()  — apply interact.js (draggable + resizable)
+ * - applyInteractToCards()   — pasang interact listeners
  * - saveInteractLayout()     — simpan x, y, width, height ke localStorage
- * - toggleDashboardEditMode()  — butang toggle edit mode
+ * - toggleDashboardEditMode() — butang toggle edit mode
  * 
- * Kebergantungan: Interact.js CDN (dimuatkan di index.html head)
- *                 State global `state` (dari index.html)
+ * Kebergantungan: Interact.js CDN, State global `state`
  */
 
-function initDashboardInteract() {
-    // Restore saved positions from localStorage
+function applySavedStyles() {
     const saved = localStorage.getItem('dashboardInteractLayout');
-    if (saved) {
-        try {
-            const layout = JSON.parse(saved);
-            Object.keys(layout).forEach(id => {
-                const el = document.getElementById(id);
-                if (el && layout[id]) {
-                    el.style.transform = `translate(${layout[id].x}px, ${layout[id].y}px)`;
-                    if (layout[id].width) el.style.width = layout[id].width;
-                    if (layout[id].height) el.style.height = layout[id].height;
-                }
-            });
-        } catch(e) {}
+    if (!saved) return;
+    try {
+        const layout = JSON.parse(saved);
+        Object.keys(layout).forEach(id => {
+            const el = document.getElementById(id);
+            if (!el || !layout[id]) return;
+            const data = layout[id];
+            // SUNTIK TERUS INLINE CSS
+            if (data.w) el.style.width = data.w;
+            if (data.h) el.style.height = data.h;
+            if (data.transform) el.style.transform = data.transform;
+            // Simpan dataset untuk Interact.js
+            if (data.x !== undefined) el.dataset.x = data.x;
+            if (data.y !== undefined) el.dataset.y = data.y;
+        });
+    } catch(e) {
+        console.warn('applySavedStyles error:', e);
     }
-    
-    // Apply interact.js
+}
+
+function initDashboardInteract() {
+    applySavedStyles();
     applyInteractToCards();
 }
 
@@ -41,16 +47,13 @@ function applyInteractToCards() {
     const cards = document.querySelectorAll('#dashboardContainer .card');
     if (cards.length === 0) return;
     
-    // Get container for restriction
     const container = document.getElementById('dashboardContainer');
     
     cards.forEach(card => {
-        // Generate unique ID if not exist
         if (!card.id) {
             card.id = 'card-' + Math.random().toString(36).substr(2, 9);
         }
         
-        // Enable dragging with restriction
         interact(card).draggable({
             enabled: state.dashboardEditMode,
             inertia: true,
@@ -75,7 +78,6 @@ function applyInteractToCards() {
             }
         });
         
-        // Enable resize
         interact(card).resizable({
             enabled: state.dashboardEditMode,
             edges: { right: true, bottom: true, bottomRight: true },
@@ -85,33 +87,27 @@ function applyInteractToCards() {
                     let x = parseFloat(target.dataset.x) || 0;
                     let y = parseFloat(target.dataset.y) || 0;
                     
-                    // Update width
                     if (event.rect.width > 100) {
                         target.style.width = event.rect.width + 'px';
                     }
-                    // Update height
                     if (event.rect.height > 80) {
                         target.style.height = event.rect.height + 'px';
                     }
                     
-                    // Update position
                     x += event.deltaRect.left;
                     y += event.deltaRect.top;
                     target.style.transform = `translate(${x}px, ${y}px)`;
                     target.dataset.x = x;
                     target.dataset.y = y;
                     
-                    // Resize all charts inside this card
+                    // Resize charts inside card
                     const canvases = target.querySelectorAll('canvas');
                     canvases.forEach(canvas => {
-                        const chartId = canvas.id;
-                        if (chartId) {
-                            Object.values(state.charts).forEach(chart => {
-                                if (chart && chart.canvas && chart.canvas.id === chartId) {
-                                    chart.resize();
-                                }
-                            });
-                        }
+                        Object.values(state.charts).forEach(chart => {
+                            if (chart && chart.canvas && chart.canvas.id === canvas.id) {
+                                chart.resize();
+                            }
+                        });
                     });
                 },
                 end(event) {
@@ -128,11 +124,13 @@ function saveInteractLayout() {
     cards.forEach(card => {
         const id = card.id;
         if (id) {
-            const x = parseFloat(card.dataset.x) || 0;
-            const y = parseFloat(card.dataset.y) || 0;
-            const width = card.style.width;
-            const height = card.style.height;
-            layout[id] = { x, y, width, height };
+            layout[id] = {
+                x: parseFloat(card.dataset.x) || 0,
+                y: parseFloat(card.dataset.y) || 0,
+                w: card.style.width || '',
+                h: card.style.height || '',
+                transform: card.style.transform || ''
+            };
         }
     });
     localStorage.setItem('dashboardInteractLayout', JSON.stringify(layout));
@@ -143,7 +141,6 @@ function toggleDashboardEditMode() {
     
     const cards = document.querySelectorAll('#dashboardContainer .card');
     cards.forEach(card => {
-        // Update draggable and resizable state
         interact(card).draggable(state.dashboardEditMode);
         interact(card).resizable(state.dashboardEditMode);
         card.classList.toggle('interact-draggable', state.dashboardEditMode);
