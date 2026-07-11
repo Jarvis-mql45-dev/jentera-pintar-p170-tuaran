@@ -1236,7 +1236,9 @@ function toggleFilterDropdown(type) {
     if (!btn) return;
     
     const rect = btn.getBoundingClientRect();
-    const items = filterOptions ? filterOptions[type === 'pdm' ? 'pdm' : type === 'lokaliti' ? 'lokaliti' : 'sokongan'] : [];
+    // Akses secara selamat — guna fallback array kosong jika undefined atau null
+    const filterKey = type === 'pdm' ? 'pdm' : type === 'lokaliti' ? 'lokaliti' : 'sokongan';
+    const items = (filterOptions && Array.isArray(filterOptions[filterKey])) ? filterOptions[filterKey] : [];
     
     const dropdown = document.createElement('div');
     dropdown.id = 'filterDropdown';
@@ -1274,11 +1276,22 @@ function toggleFilterDropdown(type) {
 
 function closeFilterDropdown(e) {
     const dd = document.getElementById('filterDropdown');
-    if (dd && !dd.contains(e.target)) {
+    // Jadikan ia kalis terhadap klik pada butang filter itu sendiri (guna event.target.closest)
+    const isFilterBtnClick = !!e.target.closest('#filterBtnPdm, #filterBtnLokaliti, #filterBtnSokongan');
+    
+    // Jika dropdown masih wujud
+    if (dd && document.body.contains(dd)) {
+        // Jangan tutup jika klik pada dropdown ATAU pada mana-mana butang filter
+        if (dd.contains(e.target) || isFilterBtnClick) {
+            document.addEventListener('click', closeFilterDropdown, { once: true });
+            return;
+        }
+        // Klik di luar dropdown dan bukan pada butang filter → tutup
         dd.remove();
         activeFilterDropdown = null;
     } else {
-        document.addEventListener('click', closeFilterDropdown, { once: true });
+        // Dropdown sudah tiada dalam DOM (kemungkinan telah di-overwrite oleh innerHTML)
+        activeFilterDropdown = null;
     }
 }
 
@@ -1302,7 +1315,13 @@ async function renderPengundi() {
     
     try {
         if (!filterOptions) {
-            filterOptions = await api('/api/pengundi/filter-options');
+            const rawOptions = await api('/api/pengundi/filter-options');
+            // Semakan defensif: pastikan setiap kategori adalah array
+            filterOptions = {
+                pdm: Array.isArray(rawOptions?.pdm) ? rawOptions.pdm : [],
+                lokaliti: Array.isArray(rawOptions?.lokaliti) ? rawOptions.lokaliti : [],
+                sokongan: Array.isArray(rawOptions?.sokongan) ? rawOptions.sokongan : []
+            };
             if (!state.pdmList.length) state.pdmList = filterOptions.pdm;
         }
         if (!state.pdmList.length && !filterOptions) state.pdmList = await api('/api/pdm');
