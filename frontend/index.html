@@ -1324,6 +1324,16 @@ async function renderPengundi() {
         const totalFilters = (selectedFilters.pdm?.length||0) + (selectedFilters.lokaliti?.length||0) + (selectedFilters.sokongan?.length||0);
         
         content.innerHTML = `
+            <!-- SUNTIK KOD BUTANG BARU DI SINI -->
+            <div class="mb-4">
+                <button onclick="navigate('dashboard')" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium text-xs flex items-center gap-1 transition-colors border border-gray-200 shadow-sm">
+                    ‹ Kembali ke Dashboard
+                </button>
+            </div>
+
+            <!-- KOD ASAL TUAN BERMULA DI SINI (Jangan ubah apa-apa di bawah) -->
+            <div class="card">
+                <div class="flex flex-col md:flex-row gap-2 mb-4">
             <div class="card">
                 <div class="flex flex-col md:flex-row gap-2 mb-4">
                     <div class="flex-1"><input type="text" id="searchInput" placeholder="Cari No. KP atau Nama..." value="${state.pengundiSearch}" onkeyup="if(event.key==='Enter'){ state.pengundiSearch=this.value; state.pengundiPage=1; renderPengundi(); }" class="w-full"></div>
