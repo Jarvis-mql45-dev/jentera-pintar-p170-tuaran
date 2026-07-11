@@ -1232,7 +1232,11 @@ function toggleFilterDropdown(type) {
     if (activeFilterDropdown === type) { activeFilterDropdown = null; return; }
     activeFilterDropdown = type;
     
-    const btn = document.getElementById(`filterBtn${type.charAt(0).toUpperCase() + type.slice(1)}`);
+    // Mapping khas untuk jenis dengan underscore — padankan ID CamelCase dalam HTML
+    const idSuffix = type === 'ketua_keluarga' ? 'KetuaKeluarga' : 
+                     type === 'pegawai_penyelaras' ? 'PegawaiPenyelaras' : 
+                     type.charAt(0).toUpperCase() + type.slice(1);
+    const btn = document.getElementById(`filterBtn${idSuffix}`);
     if (!btn) return;
     
     const rect = btn.getBoundingClientRect();
