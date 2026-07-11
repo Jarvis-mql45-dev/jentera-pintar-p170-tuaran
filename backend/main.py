@@ -726,12 +726,20 @@ def import_excel(request: Request, file: UploadFile = File(...), user=Depends(ge
     }
 
 
-# Dapatkan pengundi by ID
+# Dapatkan pengundi by ID (sertakan nama ketua_keluarga & pegawai_penyelaras)
 @app.get("/api/pengundi/{pengundi_id}")
 def get_pengundi_by_id(request: Request, pengundi_id: int, user=Depends(get_current_user)):
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT * FROM pengundi WHERE id = ?", (pengundi_id,))
+    cursor.execute("""
+        SELECT p.*, 
+               kk.nama_penuh AS ketua_keluarga_nama, 
+               pp.nama_penuh AS pegawai_penyelaras_nama
+        FROM pengundi p
+        LEFT JOIN pengundi kk ON p.ketua_keluarga_id = kk.id
+        LEFT JOIN pengundi pp ON p.pegawai_penyelaras_id = pp.id
+        WHERE p.id = ?
+    """, (pengundi_id,))
     p = cursor.fetchone()
     db.close()
     if not p:
@@ -792,13 +800,17 @@ def update_pengundi(request: Request, pengundi_id: int, data: PengundiUpdate, us
         db.close()
         raise HTTPException(status_code=404, detail="Pengundi tidak ditemui")
 
-    # Build update
+    # Build update — allow null for ketua_keluarga_id & pegawai_penyelaras_id
     update_fields = {}
-    for field, value in data.model_dump(exclude_unset=True).items():
+    raw_data = data.model_dump(exclude_unset=True)
+    for field, value in raw_data.items():
         if value is not None:
             update_fields[field] = value
+        elif field in ('ketua_keluarga_id', 'pegawai_penyelaras_id'):
+            # Explicit null: user wants to clear the field
+            update_fields[field] = None
 
-    if not update_fields:
+    if not update_fields and not any(f in raw_data for f in ('ketua_keluarga_id', 'pegawai_penyelaras_id')):
         db.close()
         return {"message": "Tiada perubahan dibuat"}
 

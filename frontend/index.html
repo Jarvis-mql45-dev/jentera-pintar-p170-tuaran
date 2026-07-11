@@ -77,6 +77,9 @@
         .card.interact-resizable { resize: none !important; } /* override any native resize */
         .layout-toggle-btn { transition: all 0.2s; }
         .layout-toggle-btn:hover { transform: scale(1.05); }
+        /* Smooth Loading Overlay - mencegah flashbang putih */
+        .smooth-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.85); z-index: 40; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s ease; pointer-events: none; }
+        .smooth-overlay.active { opacity: 1; pointer-events: auto; }
     </style>
     <!-- Interact.js CDN untuk Drag & Resize -->
     <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
@@ -99,6 +102,13 @@
     </div>
 </div>
 <div id="toast" class="toast hidden"></div>
+<!-- Smooth Loading Overlay - untuk refresh dropdown tanpa flashbang -->
+<div id="smoothOverlay" class="smooth-overlay">
+    <div class="flex items-center gap-3 bg-white px-6 py-4 rounded-xl shadow-lg">
+        <div class="loading-spinner"></div>
+        <span class="text-gray-600 font-medium">Memuatkan data...</span>
+    </div>
+</div>
 
 <script>
 // ============================================================
@@ -121,7 +131,8 @@ const state = {
     surveyEditId: null,
     surveyQuestions: [],
     charts: {},  // Chart.js instances untuk update tanpa destroy
-    dunN12Pdm: '',  // PDM filter untuk N12 Sulaman
+    dunChartDun: 'N12',  // DUN dipilih untuk graf DUN dinamik (N12/N13/N14/N15)
+    dunChartPdm: '',  // PDM filter untuk graf DUN dinamik
     dashboardEditMode: false,  // Toggle for drag & resize mode
     dashboardLayout: JSON.parse(localStorage.getItem('dashboardLayout_v2') || 'null'),  // Saved positions
     dashboardItems: [],  // DOM order array
@@ -892,6 +903,79 @@ async function submitSurveyForm(event, surveyId) {
     }
 }
 
+// ========= DASHBOARD - Smooth Update (tanpa flashbang putih) =========
+async function dashboardSmoothRefresh(fetchDun, fetchPdm) {
+    const overlay = document.getElementById('smoothOverlay');
+    if (overlay) overlay.classList.add('active');
+    try {
+        // Fetch data P170 pie + stacked bar
+        const selectedDun = state.dashboardDm || '';
+        const data = await api(`/api/dashboard${selectedDun ? `?dun=${selectedDun}` : ''}`);
+        state.dashboardData = data;
+        const { sokongan, jantina, fizikal, lokaliti_teratas, jumlah_pengundi } = data;
+        const totalSokongan = Object.values(sokongan).reduce((a, b) => a + b, 0);
+        const putih = sokongan['Putih'] || 0;
+        const hitam = sokongan['Hitam'] || 0;
+        const atasPagar = sokongan['Atas Pagar'] || 0;
+        const kategoriLain = Object.entries(sokongan).filter(([k]) => !['Putih','Hitam','Atas Pagar'].includes(k)).reduce((acc, [k, v]) => { acc[k] = v; return acc; }, {});
+        const totalLain = Object.values(kategoriLain).reduce((a, b) => a + b, 0);
+        const labelLain = Object.keys(kategoriLain)[0] || 'Tiada';
+
+        // Fetch data untuk GRAF DUN DINAMIK
+        const dunChartDun = state.dunChartDun || 'N12';
+        const dunChartPdm = state.dunChartPdm || '';
+        const dunChartData = await api(`/api/dashboard/dun/${dunChartDun}${dunChartPdm ? `?dm=${encodeURIComponent(dunChartPdm)}` : ''}`);
+        const dunChartSok = dunChartData.sokongan || {};
+        const dunChartPutih = dunChartSok['Putih'] || 0;
+        const dunChartHitam = dunChartSok['Hitam'] || 0;
+        const dunChartAtas = dunChartSok['Atas Pagar'] || 0;
+        const dunChartTotLain = Object.entries(dunChartSok).filter(([k]) => !['Putih','Hitam','Atas Pagar'].includes(k)).reduce((a, [,v]) => a + v, 0);
+
+        // Update PIE chart
+        const pieCtx = document.getElementById('sokonganChart');
+        if (pieCtx) {
+            if (state.chart?.destroy) state.chart.destroy();
+            state.chart = null;
+            state.chart = new Chart(pieCtx, { type:'pie', data:{ labels:['Putih','Atas Pagar','Hitam',labelLain], datasets:[{ data:[putih,atasPagar,hitam,totalLain], backgroundColor:['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth:2, borderColor:'#fff' }] }, options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{ display:false } } } });
+        }
+
+        // Update GRAF DUN DINAMIK chart
+        const dunCtx = document.getElementById('dunChartCanvas');
+        if (dunCtx) {
+            const dunLabelLain = Object.keys(dunChartSok).filter(k => !['Putih','Hitam','Atas Pagar'].includes(k))[0] || 'Tiada';
+            const dunDataArr = [dunChartPutih, dunChartAtas, dunChartHitam, dunChartTotLain];
+            const dunLabelsArr = ['Putih','Atas Pagar','Hitam', dunLabelLain];
+            if (state.charts['dunChart']?.destroy) state.charts['dunChart'].destroy();
+            state.charts['dunChart'] = null;
+            state.charts['dunChart'] = new Chart(dunCtx, { type:'doughnut', data:{ labels:dunLabelsArr, datasets:[{ data:dunDataArr, backgroundColor:['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth:2, borderColor:'#fff' }] }, options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{ display:false } } } });
+        }
+
+        // Update stacked bar chart
+        const barCtx = document.getElementById('stackedBarChart');
+        if (barCtx) {
+            const su = data.sokongan_ikut_umur || {};
+            const umurDisplayLabels = ['Belia (18-30 thn)','Dewasa (31-59 thn)','Warga Emas (60+ thn)','Tidak Diketahui'];
+            const umurKeyMap = {'Belia (18-30 thn)':'Belia','Dewasa (31-59 thn)':'Dewasa','Warga Emas (60+ thn)':'Warga Emas','Tidak Diketahui':'Tidak Diketahui'};
+            const sokonganSet = new Set();
+            Object.values(su).forEach(inner => { Object.keys(inner).forEach(k => sokonganSet.add(k)); });
+            const sokonganLabels = Array.from(sokonganSet);
+            const sokonganDisplayLabels = sokonganLabels.map(l => l==='Tiada'?'Tidak Dikenal Pasti':l);
+            const sokonganWarnaMap = { 'Putih':'#22c55e', 'Atas Pagar':'#eab308', 'Hitam':'#ef4444' };
+            const defaultColours = ['#94a3b8','#818cf8','#f472b6','#34d399','#fbbf24','#a78bfa'];
+            if (state.charts['stackedBar']?.destroy) state.charts['stackedBar'].destroy();
+            state.charts['stackedBar'] = null;
+            state.charts['stackedBar'] = new Chart(barCtx, { type:'bar', data:{ labels:umurDisplayLabels, datasets:sokonganLabels.map((label,i)=>({ label:sokonganDisplayLabels[i], data:umurDisplayLabels.map(displayLabel=>{ const key=umurKeyMap[displayLabel]||displayLabel; return (su[key]&&su[key][label])||0; }), backgroundColor:sokonganWarnaMap[label]||defaultColours[i%defaultColours.length], borderRadius:4, stack:'stack1' })) }, options:{ responsive:true, maintainAspectRatio:false, interaction:{ mode:'nearest', axis:'xy', intersect:false }, scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, grid:{ color:'#f1f5f9' } } }, plugins:{ legend:{ position:'top', labels:{ boxWidth:12, padding:12 } }, tooltip:{ enabled:true, mode:'nearest', axis:'xy', intersect:false, callbacks:{ label:function(context){ return (context.dataset.label||'')+': '+(context.parsed.y||0); } } } } } });
+        }
+    } catch (e) {
+        console.error('Smooth refresh error:', e);
+        showToast('Gagal memuatkan data', 'error');
+    } finally {
+        if (overlay) {
+            setTimeout(() => overlay.classList.remove('active'), 100);
+        }
+    }
+}
+
 // ========= DASHBOARD =========
 async function renderDashboard() {
     const content = document.getElementById('contentArea');
@@ -937,16 +1021,23 @@ async function renderDashboard() {
         // Paparkan label pertama dari kategori lain atau 'Tiada' jika kosong
         const labelLain = Object.keys(kategoriLain)[0] || 'Tiada';
 
-        // Fetch N12 data untuk canvas Sulaman (Fasa 2)
-        const n12Data = await api(`/api/dashboard/dun/N12${state.dunN12Pdm ? `?dm=${encodeURIComponent(state.dunN12Pdm)}` : ''}`);
-        const n12Sok = n12Data.sokongan || {};
-        const n12Putih = n12Sok['Putih'] || 0;
-        const n12Hitam = n12Sok['Hitam'] || 0;
-        const n12Atas = n12Sok['Atas Pagar'] || 0;
-        const n12Lain = Object.keys(n12Sok).filter(k => !['Putih','Hitam','Atas Pagar'].includes(k))[0] || 'Tiada';
-        const n12TotLain = Object.entries(n12Sok).filter(([k]) => !['Putih','Hitam','Atas Pagar'].includes(k)).reduce((a, [,v]) => a + v, 0);
-        const n12TotalSok = Object.values(n12Sok).reduce((a, b) => a + b, 0);
-        const pctN12 = (v) => n12TotalSok ? ((v/n12TotalSok)*100).toFixed(1) : 0;
+        // Fetch data untuk GRAF DUN DINAMIK (dari state.dunChartDun)
+        const dunChartDun = state.dunChartDun || 'N12';
+        const dunChartPdm = state.dunChartPdm || '';
+        const dunChartData = await api(`/api/dashboard/dun/${dunChartDun}${dunChartPdm ? `?dm=${encodeURIComponent(dunChartPdm)}` : ''}`);
+        const dunChartSok = dunChartData.sokongan || {};
+        const dunChartPutih = dunChartSok['Putih'] || 0;
+        const dunChartHitam = dunChartSok['Hitam'] || 0;
+        const dunChartAtas = dunChartSok['Atas Pagar'] || 0;
+        const dunChartLain = Object.keys(dunChartSok).filter(k => !['Putih','Hitam','Atas Pagar'].includes(k))[0] || 'Tiada';
+        const dunChartTotLain = Object.entries(dunChartSok).filter(([k]) => !['Putih','Hitam','Atas Pagar'].includes(k)).reduce((a, [,v]) => a + v, 0);
+        const dunChartTotalSok = Object.values(dunChartSok).reduce((a, b) => a + b, 0);
+        const pctDunChart = (v) => dunChartTotalSok ? ((v/dunChartTotalSok)*100).toFixed(1) : 0;
+        // Nama DUN untuk paparan tajuk
+        const DUN_NAMES = {'N12':'N12 Sulaman','N13':'N13 Pantai Dalit','N14':'N14 Tamparuli','N15':'N15 Kiulu'};
+        const dunChartTitle = DUN_NAMES[dunChartDun] || 'DUN';
+        // Senarai PDM untuk dropdown — di-filter mengikut DUN yang dipilih
+        const dunChartPdmList = PDM_BY_DUN[dunChartDun] || [];
 
         // Add layout toggle button at top
         const isEditMode = state.dashboardEditMode;
@@ -967,7 +1058,7 @@ async function renderDashboard() {
             </div>
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="lg:col-span-2 flex flex-col gap-6">
-                    <div class="card"><div class="flex items-center justify-between mb-4"><h3 class="font-semibold text-gray-800">P170 Tuaran - Sokongan Mengikut DUN</h3><select id="dmFilter" onchange="state.dashboardDm=this.value; renderDashboard()" class="w-auto text-sm"><option value="">Semua DUN</option><option value="N12" ${selectedDun==='N12'?'selected':''}>N12 Sulaman</option><option value="N13" ${selectedDun==='N13'?'selected':''}>N13 Pantai Dalit</option><option value="N14" ${selectedDun==='N14'?'selected':''}>N14 Tamparuli</option><option value="N15" ${selectedDun==='N15'?'selected':''}>N15 Kiulu</option></select></div>
+                    <div class="card"><div class="flex items-center justify-between mb-4"><h3 class="font-semibold text-gray-800">P170 Tuaran - Sokongan Mengikut DUN</h3><select id="dmFilter" onchange="state.dashboardDm=this.value; dashboardSmoothRefresh()()" class="w-auto text-sm"><option value="">Semua DUN</option><option value="N12" ${selectedDun==='N12'?'selected':''}>N12 Sulaman</option><option value="N13" ${selectedDun==='N13'?'selected':''}>N13 Pantai Dalit</option><option value="N14" ${selectedDun==='N14'?'selected':''}>N14 Tamparuli</option><option value="N15" ${selectedDun==='N15'?'selected':''}>N15 Kiulu</option></select></div>
                         <div class="flex flex-col md:flex-row items-center gap-6"><div class="w-full md:w-64 h-64"><canvas id="sokonganChart"></canvas></div>
                             <div class="flex-1 w-full"><table><thead><tr><th class="pl-0">Status</th><th>Jumlah</th><th>Peratusan</th></tr></thead>
                             <tbody><tr><td class="pl-0"><span class="badge badge-putih">Putih</span></td><td>${putih.toLocaleString()}</td><td>${totalSokongan?((putih/totalSokongan)*100).toFixed(1):0}%</td></tr>
@@ -978,26 +1069,34 @@ async function renderDashboard() {
                 </div>
             </div>
 
-            <!-- N12 SULAMAN CANVAS - Baris penuh di bawah P170 -->
+            <!-- 🆕 GRAF DUN DINAMIK - Sokongan Mengikut PDM -->
             <div class="w-full mt-6">
                 <div class="card">
                     <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-semibold text-gray-800">N12 Sulaman - Sokongan Mengikut PDM</h3>
-                        <select id="n12PdmFilter" onchange="state.dunN12Pdm=this.value; renderDashboard()" class="w-auto text-sm">
-                            <option value="">Semua PDM N12</option>
-                            ${PDM_BY_DUN['N12'].map(pdm => `<option value="${pdm}" ${state.dunN12Pdm===pdm?'selected':''}>${pdm}</option>`).join('')}
+                        <div class="flex items-center gap-3">
+                            <h3 id="dunChartTitle" class="font-semibold text-gray-800">${dunChartTitle} - Sokongan Mengikut PDM</h3>
+                            <select id="dunChartDunSelect" onchange="state.dunChartDun=this.value; state.dunChartPdm=''; dashboardSmoothRefresh()" class="w-auto text-sm border rounded-lg px-2 py-1">
+                                <option value="N12" ${dunChartDun==='N12'?'selected':''}>N12 Sulaman</option>
+                                <option value="N13" ${dunChartDun==='N13'?'selected':''}>N13 Pantai Dalit</option>
+                                <option value="N14" ${dunChartDun==='N14'?'selected':''}>N14 Tamparuli</option>
+                                <option value="N15" ${dunChartDun==='N15'?'selected':''}>N15 Kiulu</option>
+                            </select>
+                        </div>
+                            <select id="dunChartPdmSelect" onchange="state.dunChartPdm=this.value; dashboardSmoothRefresh()" class="w-auto text-sm">
+                            <option value="">Semua PDM ${dunChartTitle}</option>
+                            ${dunChartPdmList.map(pdm => `<option value="${pdm}" ${dunChartPdm===pdm?'selected':''}>${pdm}</option>`).join('')}
                         </select>
                     </div>
                     <div class="flex flex-col md:flex-row items-center gap-6">
-                        <div class="w-full md:w-64 h-64"><canvas id="n12SokonganChart"></canvas></div>
+                        <div class="w-full md:w-64 h-64"><canvas id="dunChartCanvas"></canvas></div>
                         <div class="flex-1 w-full">
                             <table>
                                 <thead><tr><th class="pl-0">Status</th><th>Jumlah</th><th>Peratusan</th></tr></thead>
                                 <tbody>
-                                    <tr><td class="pl-0"><span class="badge badge-putih">Putih</span></td><td>${n12Putih.toLocaleString()}</td><td>${pctN12(n12Putih)}%</td></tr>
-                                    <tr><td class="pl-0"><span class="badge badge-atas">Atas Pagar</span></td><td>${n12Atas.toLocaleString()}</td><td>${pctN12(n12Atas)}%</td></tr>
-                                    <tr><td class="pl-0"><span class="badge badge-hitam">Hitam</span></td><td>${n12Hitam.toLocaleString()}</td><td>${pctN12(n12Hitam)}%</td></tr>
-                                    <tr><td class="pl-0"><span class="badge badge-tiada">${n12Lain}</span></td><td>${n12TotLain.toLocaleString()}</td><td>${pctN12(n12TotLain)}%</td></tr>
+                                    <tr><td class="pl-0"><span class="badge badge-putih">Putih</span></td><td>${dunChartPutih.toLocaleString()}</td><td>${pctDunChart(dunChartPutih)}%</td></tr>
+                                    <tr><td class="pl-0"><span class="badge badge-atas">Atas Pagar</span></td><td>${dunChartAtas.toLocaleString()}</td><td>${pctDunChart(dunChartAtas)}%</td></tr>
+                                    <tr><td class="pl-0"><span class="badge badge-hitam">Hitam</span></td><td>${dunChartHitam.toLocaleString()}</td><td>${pctDunChart(dunChartHitam)}%</td></tr>
+                                    <tr><td class="pl-0"><span class="badge badge-tiada">${dunChartLain}</span></td><td>${dunChartTotLain.toLocaleString()}</td><td>${pctDunChart(dunChartTotLain)}%</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -1091,29 +1190,29 @@ async function renderDashboard() {
                 }
             } catch (e) { console.error('Stacked bar chart error:', e); }
             
-            // 🛠️ CHART.JS LIFECYCLE: N12 Sulaman Chart - Destroy & recreate pattern (SAMA seperti P170)
+            // 🛠️ CHART.JS LIFECYCLE: GRAF DUN DINAMIK - Destroy & recreate pattern (P170 stable pattern)
             try {
-                const n12Ctx = document.getElementById('n12SokonganChart');
-                if (n12Ctx) {
-                    const n12LabelLain = Object.keys(n12Sok).filter(k => !['Putih','Hitam','Atas Pagar'].includes(k))[0] || 'Tiada';
-                    const n12ChartData = [n12Putih, n12Atas, n12Hitam, n12TotLain];
-                    const n12ChartLabels = ['Putih','Atas Pagar','Hitam', n12LabelLain];
+                const dunCtx = document.getElementById('dunChartCanvas');
+                if (dunCtx) {
+                    const dunLabelLain = Object.keys(dunChartSok).filter(k => !['Putih','Hitam','Atas Pagar'].includes(k))[0] || 'Tiada';
+                    const dunChartData = [dunChartPutih, dunChartAtas, dunChartHitam, dunChartTotLain];
+                    const dunChartLabels = ['Putih','Atas Pagar','Hitam', dunLabelLain];
                     // Destroy instans lama jika ada (sama pattern macam P170)
-                    if (state.charts['n12'] && typeof state.charts['n12'].destroy === 'function') {
-                        state.charts['n12'].destroy();
+                    if (state.charts['dunChart'] && typeof state.charts['dunChart'].destroy === 'function') {
+                        state.charts['dunChart'].destroy();
                     }
-                    state.charts['n12'] = null;
-                    // Recreate pada ctx yang SAMA (tiada replaceChild)
-                    state.charts['n12'] = new Chart(n12Ctx, {
+                    state.charts['dunChart'] = null;
+                    // Recreate pada ctx yang SAMA
+                    state.charts['dunChart'] = new Chart(dunCtx, {
                         type: 'doughnut',
                         data: {
-                            labels: n12ChartLabels,
-                            datasets: [{ data: n12ChartData, backgroundColor: ['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth: 2, borderColor: '#fff' }]
+                            labels: dunChartLabels,
+                            datasets: [{ data: dunChartData, backgroundColor: ['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth: 2, borderColor: '#fff' }]
                         },
                         options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } } }
                     });
                 }
-            } catch (e) { console.error('N12 chart error:', e); }
+            } catch (e) { console.error('Graf DUN chart error:', e); }
         }, 50);  // setTimeout tutup
         });  // requestAnimationFrame tutup
         }, 100);  // setTimeout luar tutup
@@ -1259,21 +1358,260 @@ async function renderPengundi() {
     }
 }
 
-function showTambahPengundi() { /* Add voter modal - simplified */
+// ============================================================
+// SEARCHABLE DROPDOWN & AUTO-CALCULATE KP FUNCTIONS
+// ============================================================
+
+/**
+ * initSearchableDropdown(containerId, inputId, hiddenId, dropdownId, options)
+ * options: { placeholder, prefix, onSelect, excludeId }
+ * Fungsi ini membuat searchable dropdown dengan fetch ke API /api/pengundi/search?q=
+ */
+function initSearchableDropdown(containerId, inputId, hiddenId, dropdownId, options = {}) {
+    const prefix = options.prefix || '';
+    const placeholder = options.placeholder || 'Cari nama atau no. KP...';
+    const excludeId = options.excludeId || null;
+    let searchTimeout = null;
+    let selectedItem = null;
+
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    // Pastikan container punya position relative untuk dropdown positioning
+    container.style.position = 'relative';
+
+    const input = document.createElement('input');
+    input.id = prefix + inputId;
+    input.type = 'text';
+    input.autocomplete = 'off';
+    input.placeholder = placeholder;
+    input.className = 'w-full';
+    input.style.paddingRight = '30px';
+
+    const hidden = document.createElement('input');
+    hidden.id = prefix + hiddenId;
+    hidden.type = 'hidden';
+    hidden.value = '';
+
+    const dropdown = document.createElement('div');
+    dropdown.id = prefix + dropdownId;
+    dropdown.className = 'hidden absolute z-50 bg-white border border-gray-200 rounded-xl shadow-xl mt-1 max-h-48 overflow-y-auto';
+    dropdown.style.width = '100%';
+    dropdown.style.top = '100%';
+    dropdown.style.left = '0';
+
+    // Clear button
+    const clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.innerHTML = '&times;';
+    clearBtn.className = 'absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg leading-none bg-transparent border-0 cursor-pointer';
+    clearBtn.style.display = 'none';
+    clearBtn.onclick = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        input.value = '';
+        hidden.value = '';
+        selectedItem = null;
+        dropdown.classList.add('hidden');
+        clearBtn.style.display = 'none';
+        if (options.onSelect) options.onSelect(null);
+    };
+
+    // Container input wrapper for clear button
+    const inputWrapper = document.createElement('div');
+    inputWrapper.style.position = 'relative';
+    inputWrapper.appendChild(input);
+    inputWrapper.appendChild(clearBtn);
+    inputWrapper.appendChild(hidden);
+
+    // Empty state
+    const emptyMsg = document.createElement('div');
+    emptyMsg.className = 'text-sm text-gray-400 text-center py-3 px-2';
+    emptyMsg.textContent = 'Tiada keputusan';
+    dropdown.appendChild(emptyMsg);
+
+    container.appendChild(inputWrapper);
+    container.appendChild(dropdown);
+
+    // Fungsi render hasil carian
+    function renderResults(results) {
+        dropdown.innerHTML = '';
+        
+        // Pilihan "Tiada / Kosong" - hantar null
+        const kosongItem = document.createElement('div');
+        kosongItem.className = 'px-3 py-2.5 text-sm text-gray-500 border-b border-gray-100 cursor-pointer hover:bg-gray-50 flex items-center gap-2';
+        kosongItem.innerHTML = '<span class="text-gray-400 font-medium">✕ Tiada / Kosong</span>';
+        kosongItem.onclick = function() {
+            input.value = 'Tiada';
+            hidden.value = '';
+            selectedItem = null;
+            dropdown.classList.add('hidden');
+            clearBtn.style.display = 'block';
+            if (options.onSelect) options.onSelect(null);
+        };
+        dropdown.appendChild(kosongItem);
+
+        if (results.length === 0) {
+            const emptyEl = document.createElement('div');
+            emptyEl.className = 'text-sm text-gray-400 text-center py-3 px-2';
+            emptyEl.textContent = 'Tiada keputusan';
+            dropdown.appendChild(emptyEl);
+        } else {
+            results.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'px-3 py-2.5 text-sm border-b border-gray-100 cursor-pointer hover:bg-blue-50 flex items-center gap-2';
+                div.innerHTML = `<span class="font-medium text-gray-800">${item.nama_penuh}</span><span class="text-xs text-gray-400">${item.no_kp}</span><span class="text-xs text-gray-300 ml-auto">${item.dm || ''}</span>`;
+                div.onclick = function() {
+                    input.value = item.nama_penuh + ' (' + item.no_kp + ')';
+                    hidden.value = item.id;
+                    selectedItem = item;
+                    dropdown.classList.add('hidden');
+                    clearBtn.style.display = 'block';
+                    if (options.onSelect) options.onSelect(item);
+                };
+                dropdown.appendChild(div);
+            });
+        }
+    }
+
+    // Event listener: search on keyup
+    input.addEventListener('input', function() {
+        const q = this.value.trim();
+        if (q.length === 0) {
+            dropdown.classList.add('hidden');
+            clearBtn.style.display = 'none';
+            hidden.value = '';
+            selectedItem = null;
+            if (options.onSelect) options.onSelect(null);
+            return;
+        }
+        
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(async () => {
+            try {
+                const result = await api(`/api/pengundi/search?q=${encodeURIComponent(q)}&per_page=15`);
+                const data = result.data || [];
+                // Filter out excludeId if specified
+                const filtered = excludeId ? data.filter(d => d.id != excludeId) : data;
+                renderResults(filtered);
+                dropdown.classList.remove('hidden');
+            } catch (err) {
+                console.error('Search error:', err);
+            }
+        }, 300);
+    });
+
+    // Hide dropdown on click outside
+    document.addEventListener('click', function(e) {
+        if (!container.contains(e.target)) {
+            dropdown.classList.add('hidden');
+        }
+    });
+
+    // Return object untuk akses dari luar
+    return {
+        setValue: function(id, displayText) {
+            hidden.value = id || '';
+            if (id) {
+                input.value = displayText || 'Dipilih';
+                selectedItem = { id: parseInt(id), nama_penuh: displayText };
+                clearBtn.style.display = 'block';
+            } else {
+                input.value = 'Tiada';
+                selectedItem = null;
+                clearBtn.style.display = 'block';
+            }
+        },
+        getValue: function() {
+            return hidden.value ? parseInt(hidden.value) : null;
+        },
+        clear: function() {
+            input.value = '';
+            hidden.value = '';
+            selectedItem = null;
+            dropdown.classList.add('hidden');
+            clearBtn.style.display = 'none';
+        },
+        getSelectedItem: function() {
+            return selectedItem;
+        }
+    };
+}
+
+/** 
+ * setupAutoKiraKp(inputId, jantinaId, tahunLahirId, prefix)
+ * Auto-calculate tahun_lahir & jantina dari no_kp (12 digit)
+ * Digit 1-2 = tahun lahir (prefix 20 or 19)
+ * Digit terakhir: ganjil = L, genap = P
+ */
+function setupAutoKiraKp(inputId, jantinaId, tahunLahirId, prefix = '') {
+    const input = document.getElementById(prefix + inputId);
+    const jantina = document.getElementById(prefix + jantinaId);
+    const tahun = document.getElementById(prefix + tahunLahirId);
+    if (!input) return;
+
+    input.addEventListener('input', function() {
+        const kp = this.value.replace(/\D/g, ''); // buang non-digit
+        if (kp.length >= 12) {
+            const duaDigitPertama = parseInt(kp.substring(0, 2));
+            const digitTerakhir = parseInt(kp.charAt(kp.length - 1));
+            
+            // Auto-set tahun lahir
+            let tahunLahir = null;
+            if (duaDigitPertama >= 0 && duaDigitPertama <= 25) {
+                tahunLahir = 2000 + duaDigitPertama;
+            } else {
+                tahunLahir = 1900 + duaDigitPertama;
+            }
+            if (tahun) tahun.value = tahunLahir;
+
+            // Auto-set jantina
+            if (jantina) {
+                jantina.value = (digitTerakhir % 2 === 1) ? 'L' : 'P';
+            }
+        }
+    });
+}
+
+// ============================================================
+// TAMBAH PENGUNDI MODAL
+// ============================================================
+function showTambahPengundi() {
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-    modal.innerHTML = `<div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4"><h3 class="text-lg font-bold mb-4">Tambah Pengundi Baru</h3>
+    modal.innerHTML = `<div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"><h3 class="text-lg font-bold mb-4">Tambah Pengundi Baru</h3>
         <div class="space-y-3">
-            <div><label class="block text-sm font-medium mb-1">No. KP *</label><input id="fNoKp" required></div>
+            <div><label class="block text-sm font-medium mb-1">No. KP *</label><input id="fNoKp" required maxlength="14" placeholder="12 digit no. KP"></div>
             <div><label class="block text-sm font-medium mb-1">Nama Penuh *</label><input id="fNama" required></div>
-            <div class="grid grid-cols-2 gap-3"><div><label class="block text-sm font-medium mb-1">Jantina</label><select id="fJantina"><option value="">Pilih</option><option value="L">Lelaki</option><option value="P">Perempuan</option></select></div><div><label class="block text-sm font-medium mb-1">Tahun Lahir</label><input id="fLahir" type="number"></div></div>
+            <div class="grid grid-cols-2 gap-3"><div><label class="block text-sm font-medium mb-1">Jantina</label><select id="fJantina"><option value="">Pilih (auto)</option><option value="L">Lelaki</option><option value="P">Perempuan</option></select></div><div><label class="block text-sm font-medium mb-1">Tahun Lahir</label><input id="fLahir" type="number" placeholder="Auto dari KP"></div></div>
             <div><label class="block text-sm font-medium mb-1">PDM *</label><select id="fDm" required><option value="">Pilih PDM</option>${state.pdmList.map(p=>`<option value="${p}">${p}</option>`).join('')}</select></div>
             <div><label class="block text-sm font-medium mb-1">Lokaliti</label><input id="fLokaliti"></div>
             <div><label class="block text-sm font-medium mb-1">No. Telefon</label><input id="fTelefon"></div>
             <div><label class="block text-sm font-medium mb-1">Status Sokongan</label><select id="fSokongan"><option value="">Pilih</option><option value="Putih">Putih</option><option value="Atas Pagar">Atas Pagar</option><option value="Hitam">Hitam</option><option value="Tidak Kenal">Tidak Kenal</option></select></div>
+            <!-- Ketua Keluarga - Searchable Dropdown -->
+            <div><label class="block text-sm font-medium mb-1">Ketua Keluarga</label><div id="fKetuaContainer"></div></div>
+            <!-- Pegawai Penyelaras - Searchable Dropdown -->
+            <div><label class="block text-sm font-medium mb-1">Pegawai Penyelaras</label><div id="fPegawaiContainer"></div></div>
         </div>
         <div class="flex gap-3 mt-6 justify-end"><button onclick="this.closest('.fixed').remove()" class="btn btn-outline">Batal</button><button onclick="submitPengundi()" class="btn btn-primary">Simpan</button></div></div>`;
     document.body.appendChild(modal);
+
+    // Init searchable dropdowns
+    const fKetuaDD = initSearchableDropdown('fKetuaContainer', 'fKetuaInput', 'fKetuaId', 'fKetuaDropdown', {
+        prefix: '',
+        placeholder: 'Cari Ketua Keluarga...'
+    });
+    const fPegawaiDD = initSearchableDropdown('fPegawaiContainer', 'fPegawaiInput', 'fPegawaiId', 'fPegawaiDropdown', {
+        prefix: '',
+        placeholder: 'Cari Pegawai Penyelaras...'
+    });
+
+    // Simpan referensi untuk submit
+    modal._ketuaDD = fKetuaDD;
+    modal._pegawaiDD = fPegawaiDD;
+
+    // Auto-calculate KP
+    setupAutoKiraKp('fNoKp', 'fJantina', 'fLahir', '');
 }
 
 async function submitPengundi() {
@@ -1281,32 +1619,88 @@ async function submitPengundi() {
     const nama = document.getElementById('fNama').value.trim();
     const dm = document.getElementById('fDm').value;
     if (!no_kp || !nama || !dm) { showToast('Sila isi ruangan bertanda *', 'error'); return; }
+    
+    const modal = document.querySelector('.fixed');
+    const ketuaId = modal && modal._ketuaDD ? modal._ketuaDD.getValue() : null;
+    const pegawaiId = modal && modal._pegawaiDD ? modal._pegawaiDD.getValue() : null;
+
     try {
-        await api('/api/pengundi', { method:'POST', body:JSON.stringify({ no_kp, nama_penuh:nama, jantina:document.getElementById('fJantina').value||null, tahun_lahir:document.getElementById('fLahir').value?parseInt(document.getElementById('fLahir').value):null, dm, lokaliti:document.getElementById('fLokaliti').value||null, no_telefon:document.getElementById('fTelefon').value||null, status_sokongan:document.getElementById('fSokongan').value||null }) });
-        document.querySelector('.fixed')?.remove();
+        await api('/api/pengundi', {
+            method:'POST',
+            body:JSON.stringify({
+                no_kp,
+                nama_penuh:nama,
+                jantina:document.getElementById('fJantina').value||null,
+                tahun_lahir:document.getElementById('fLahir').value?parseInt(document.getElementById('fLahir').value):null,
+                dm,
+                lokaliti:document.getElementById('fLokaliti').value||null,
+                no_telefon:document.getElementById('fTelefon').value||null,
+                status_sokongan:document.getElementById('fSokongan').value||null,
+                ketua_keluarga_id: ketuaId,
+                pegawai_penyelaras_id: pegawaiId
+            })
+        });
+        modal?.remove();
         showToast('Pengundi berjaya didaftarkan!');
         renderPengundi();
     } catch (err) { showToast(err.message, 'error'); }
 }
 
+// ============================================================
+// EDIT PENGUNDI MODAL
+// ============================================================
 async function editPengundi(id) {
     try {
         const p = await api(`/api/pengundi/${id}`);
         const modal = document.createElement('div');
         modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-        modal.innerHTML = `<div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4"><h3 class="text-lg font-bold mb-4">Edit Pengundi</h3>
+        modal.innerHTML = `<div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"><h3 class="text-lg font-bold mb-4">Edit Pengundi</h3>
             <div class="space-y-3">
                 <div><label class="block text-sm font-medium mb-1">No. KP</label><input id="eNoKp" value="${p.no_kp||''}" readonly class="bg-gray-100 cursor-not-allowed"></div>
                 <div><label class="block text-sm font-medium mb-1">Nama Penuh</label><input id="eNama" value="${p.nama_penuh||''}"></div>
-                <div class="grid grid-cols-2 gap-3"><div><label class="block text-sm font-medium mb-1">Jantina</label><select id="eJantina"><option value="">Pilih</option><option value="L" ${p.jantina==='L'?'selected':''}>Lelaki</option><option value="P" ${p.jantina==='P'?'selected':''}>Perempuan</option></select></div><div><label class="block text-sm font-medium mb-1">Tahun Lahir</label><input id="eLahir" type="number" value="${p.tahun_lahir||''}"></div></div>
+                <div class="grid grid-cols-2 gap-3"><div><label class="block text-sm font-medium mb-1">Jantina</label><select id="eJantina"><option value="">Pilih (auto)</option><option value="L" ${p.jantina==='L'?'selected':''}>Lelaki</option><option value="P" ${p.jantina==='P'?'selected':''}>Perempuan</option></select></div><div><label class="block text-sm font-medium mb-1">Tahun Lahir</label><input id="eLahir" type="number" value="${p.tahun_lahir||''}"></div></div>
                 <div><label class="block text-sm font-medium mb-1">PDM</label><select id="eDm"><option value="">Pilih PDM</option>${state.pdmList.map(dm=>`<option value="${dm}" ${p.dm===dm?'selected':''}>${dm}</option>`).join('')}</select></div>
                 <div><label class="block text-sm font-medium mb-1">Lokaliti</label><input id="eLokaliti" value="${p.lokaliti||''}"></div>
                 <div><label class="block text-sm font-medium mb-1">No. Telefon</label><input id="eTelefon" value="${p.no_telefon||''}"></div>
                 <div><label class="block text-sm font-medium mb-1">Status Sokongan</label><select id="eSokongan"><option value="">Pilih</option><option value="Putih" ${p.status_sokongan==='Putih'?'selected':''}>Putih</option><option value="Atas Pagar" ${p.status_sokongan==='Atas Pagar'?'selected':''}>Atas Pagar</option><option value="Hitam" ${p.status_sokongan==='Hitam'?'selected':''}>Hitam</option><option value="Tidak Kenal" ${p.status_sokongan==='Tidak Kenal'?'selected':''}>Tidak Kenal</option></select></div>
                 <div><label class="block text-sm font-medium mb-1">Status Fizikal</label><select id="eFizikal"><option value="Hidup" ${p.status_fizikal==='Hidup'?'selected':''}>Hidup</option><option value="Meninggal Dunia" ${p.status_fizikal==='Meninggal Dunia'?'selected':''}>Meninggal Dunia</option></select></div>
+                <!-- Ketua Keluarga - Searchable Dropdown -->
+                <div><label class="block text-sm font-medium mb-1">Ketua Keluarga</label><div id="eKetuaContainer"></div></div>
+                <!-- Pegawai Penyelaras - Searchable Dropdown -->
+                <div><label class="block text-sm font-medium mb-1">Pegawai Penyelaras</label><div id="ePegawaiContainer"></div></div>
             </div>
             <div class="flex gap-3 mt-6 justify-end"><button onclick="this.closest('.fixed').remove()" class="btn btn-outline">Batal</button><button onclick="submitEditPengundi(${id})" class="btn btn-primary">Simpan Perubahan</button></div></div>`;
         document.body.appendChild(modal);
+
+        // Init searchable dropdowns dengan pre-select
+        const eKetuaDD = initSearchableDropdown('eKetuaContainer', 'eKetuaInput', 'eKetuaId', 'eKetuaDropdown', {
+            prefix: '',
+            placeholder: 'Cari Ketua Keluarga...',
+            excludeId: id  // exclude diri sendiri
+        });
+        const ePegawaiDD = initSearchableDropdown('ePegawaiContainer', 'ePegawaiInput', 'ePegawaiId', 'ePegawaiDropdown', {
+            prefix: '',
+            placeholder: 'Cari Pegawai Penyelaras...',
+            excludeId: id  // exclude diri sendiri
+        });
+
+        // Pre-select jika ada nilai
+        if (p.ketua_keluarga_id) {
+            const displayName = p.ketua_keluarga_nama || `ID ${p.ketua_keluarga_id}`;
+            eKetuaDD.setValue(p.ketua_keluarga_id, displayName);
+        }
+        if (p.pegawai_penyelaras_id) {
+            const displayName = p.pegawai_penyelaras_nama || `ID ${p.pegawai_penyelaras_id}`;
+            ePegawaiDD.setValue(p.pegawai_penyelaras_id, displayName);
+        }
+
+        // Simpan referensi
+        modal._ketuaDD = eKetuaDD;
+        modal._pegawaiDD = ePegawaiDD;
+
+        // Auto-calculate KP (readonly, tapi still boleh guna untuk reference)
+        setupAutoKiraKp('eNoKp', 'eJantina', 'eLahir', '');
+
     } catch (err) { showToast(err.message, 'error'); }
 }
 
@@ -1328,10 +1722,18 @@ async function submitEditPengundi(id) {
     if (telefon) data.no_telefon = telefon;
     if (sokongan) data.status_sokongan = sokongan;
     if (fizikal) data.status_fizikal = fizikal;
+
+    // Dapatkan nilai searchable dropdown dari modal
+    const modal = document.querySelector('.fixed');
+    const ketuaId = modal && modal._ketuaDD ? modal._ketuaDD.getValue() : null;
+    const pegawaiId = modal && modal._pegawaiDD ? modal._pegawaiDD.getValue() : null;
+    data.ketua_keluarga_id = ketuaId;
+    data.pegawai_penyelaras_id = pegawaiId;
+
     if (Object.keys(data).length === 0) { showToast('Tiada perubahan', 'error'); return; }
     try {
         await api(`/api/pengundi/${id}`, { method:'PUT', body:JSON.stringify(data) });
-        document.querySelector('.fixed')?.remove();
+        modal?.remove();
         showToast('Pengundi berjaya dikemaskini!');
         renderPengundi();
     } catch (err) { showToast(err.message, 'error'); }
