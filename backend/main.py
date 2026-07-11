@@ -399,6 +399,8 @@ def get_pengundi(
     lokaliti: Optional[str] = Query(None, alias="lokaliti[]"),
     sokongan: Optional[str] = Query(None, alias="sokongan[]"),
     status_rekod: Optional[str] = None,
+    ketua_keluarga: Optional[str] = Query(None, alias="ketua_keluarga[]"),
+    pegawai_penyelaras: Optional[str] = Query(None, alias="pegawai_penyelaras[]"),
     user=Depends(get_current_user)
 ):
     db = get_db()
@@ -408,7 +410,7 @@ def get_pengundi(
     params = []
 
     if search:
-        where_parts.append("(no_kp LIKE ? OR nama_penuh LIKE ?)")
+        where_parts.append("(p.no_kp LIKE ? OR p.nama_penuh LIKE ?)")
         params.extend([f"%{search}%", f"%{search}%"])
 
     # Multi-select dm filter
@@ -420,7 +422,7 @@ def get_pengundi(
             dm_list = [d.strip() for d in dm if d.strip()]
     if dm_list:
         placeholders = ', '.join(['?'] * len(dm_list))
-        where_parts.append(f"dm IN ({placeholders})")
+        where_parts.append(f"p.dm IN ({placeholders})")
         params.extend(dm_list)
 
     # Multi-select lokaliti filter
@@ -432,7 +434,7 @@ def get_pengundi(
             lokaliti_list = [l.strip() for l in lokaliti if l.strip()]
     if lokaliti_list:
         placeholders = ', '.join(['?'] * len(lokaliti_list))
-        where_parts.append(f"lokaliti IN ({placeholders})")
+        where_parts.append(f"p.lokaliti IN ({placeholders})")
         params.extend(lokaliti_list)
 
     # Multi-select sokongan filter
@@ -444,12 +446,36 @@ def get_pengundi(
             sokongan_list = [s.strip() for s in sokongan if s.strip()]
     if sokongan_list:
         placeholders = ', '.join(['?'] * len(sokongan_list))
-        where_parts.append(f"status_sokongan IN ({placeholders})")
+        where_parts.append(f"p.status_sokongan IN ({placeholders})")
         params.extend(sokongan_list)
 
     if status_rekod:
-        where_parts.append("status_rekod = ?")
+        where_parts.append("p.status_rekod = ?")
         params.append(status_rekod)
+
+    # Multi-select ketua_keluarga filter (ID)
+    ketua_list = []
+    if ketua_keluarga:
+        if isinstance(ketua_keluarga, str):
+            ketua_list = [int(k.strip()) for k in ketua_keluarga.split(',') if k.strip().isdigit()]
+        elif isinstance(ketua_keluarga, list):
+            ketua_list = [int(k) for k in ketua_keluarga if str(k).strip().isdigit()]
+    if ketua_list:
+        placeholders = ', '.join(['?'] * len(ketua_list))
+        where_parts.append(f"p.ketua_keluarga_id IN ({placeholders})")
+        params.extend(ketua_list)
+
+    # Multi-select pegawai_penyelaras filter (ID)
+    pegawai_list = []
+    if pegawai_penyelaras:
+        if isinstance(pegawai_penyelaras, str):
+            pegawai_list = [int(p.strip()) for p in pegawai_penyelaras.split(',') if p.strip().isdigit()]
+        elif isinstance(pegawai_penyelaras, list):
+            pegawai_list = [int(p) for p in pegawai_penyelaras if str(p).strip().isdigit()]
+    if pegawai_list:
+        placeholders = ', '.join(['?'] * len(pegawai_list))
+        where_parts.append(f"p.pegawai_penyelaras_id IN ({placeholders})")
+        params.extend(pegawai_list)
 
     where = ""
     if where_parts:
@@ -507,11 +533,29 @@ def get_filter_options(user=Depends(get_current_user)):
     lokaliti_list = [r[0] for r in cursor.fetchall()]
     cursor.execute("SELECT DISTINCT status_sokongan FROM pengundi WHERE status_sokongan IS NOT NULL AND status_sokongan != '' ORDER BY status_sokongan")
     sokongan_list = [r[0] for r in cursor.fetchall()]
+    # Senarai pengundi yang menjadi Ketua Keluarga (dirujuk oleh orang lain)
+    cursor.execute("""
+        SELECT DISTINCT p.id, p.nama_penuh
+        FROM pengundi p
+        WHERE p.id IN (SELECT DISTINCT ketua_keluarga_id FROM pengundi WHERE ketua_keluarga_id IS NOT NULL)
+        ORDER BY p.nama_penuh
+    """)
+    ketua_keluarga_list = [{"id": r[0], "nama": r[1]} for r in cursor.fetchall()]
+    # Senarai pengundi yang menjadi Pegawai Penyelaras
+    cursor.execute("""
+        SELECT DISTINCT p.id, p.nama_penuh
+        FROM pengundi p
+        WHERE p.id IN (SELECT DISTINCT pegawai_penyelaras_id FROM pengundi WHERE pegawai_penyelaras_id IS NOT NULL)
+        ORDER BY p.nama_penuh
+    """)
+    pegawai_penyelaras_list = [{"id": r[0], "nama": r[1]} for r in cursor.fetchall()]
     db.close()
     return {
         "pdm": pdm_list,
         "lokaliti": lokaliti_list,
-        "sokongan": sokongan_list
+        "sokongan": sokongan_list,
+        "ketua_keluarga": ketua_keluarga_list,
+        "pegawai_penyelaras": pegawai_penyelaras_list
     }
 
 
