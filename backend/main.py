@@ -462,11 +462,16 @@ def get_pengundi(
     # Get page data
     offset = (page - 1) * per_page
     cursor.execute(f"""
-        SELECT id, no_kp, nama_penuh, jantina, tahun_lahir, dm, lokaliti,
-               no_telefon, status_sokongan, status_fizikal, adalah_pemilik_apps, status_rekod, sumber_pdm,
-               ketua_keluarga_id, pegawai_penyelaras_id
-        FROM pengundi {where}
-        ORDER BY id
+        SELECT p.id, p.no_kp, p.nama_penuh, p.jantina, p.tahun_lahir, p.dm, p.lokaliti,
+               p.no_telefon, p.status_sokongan, p.status_fizikal, p.adalah_pemilik_apps, p.status_rekod, p.sumber_pdm,
+               p.ketua_keluarga_id, p.pegawai_penyelaras_id,
+               kk.nama_penuh AS ketua_keluarga_nama,
+               pp.nama_penuh AS pegawai_penyelaras_nama
+        FROM pengundi p
+        LEFT JOIN pengundi kk ON p.ketua_keluarga_id = kk.id
+        LEFT JOIN pengundi pp ON p.pegawai_penyelaras_id = pp.id
+        {where}
+        ORDER BY p.id
         LIMIT ? OFFSET ?
     """, params + [per_page, offset])
 

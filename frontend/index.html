@@ -1402,13 +1402,15 @@ async function renderPengundi() {
                                 <th>PDM</th>
                                 <th>Lokaliti</th>
                                 <th>Sokongan</th>
+                                <th>Ketua Keluarga</th>
+                                <th>Pegawai Penyelaras</th>
                                 <th>Status</th>
                                 ${['Admin','Petugas Padang'].includes(state.user?.peranan)?'<th>Tindakan</th>':''}
                             </tr>
                         </thead>
                         <tbody>
                             ${data.data.length === 0 ? `
-                                <tr><td colspan="8" class="text-center py-8 text-gray-400">Tiada data pengundi</td></tr>
+                                <tr><td colspan="10" class="text-center py-8 text-gray-400">Tiada data pengundi</td></tr>
                             ` : data.data.map(p => `
                                 <tr>
                                     <td class="text-sm font-mono">${p.no_kp||'-'}</td>
@@ -1417,6 +1419,8 @@ async function renderPengundi() {
                                     <td class="text-sm">${p.dm||'-'}</td>
                                     <td class="text-sm">${p.lokaliti||'-'}</td>
                                     <td><span class="badge ${p.status_sokongan==='Putih'?'badge-putih':p.status_sokongan==='Hitam'?'badge-hitam':p.status_sokongan==='Atas Pagar'?'badge-atas':'badge-tiada'}">${p.status_sokongan||'Tiada'}</span></td>
+                                    <td class="text-sm">${p.ketua_keluarga_nama||'-'}</td>
+                                    <td class="text-sm">${p.pegawai_penyelaras_nama||'-'}</td>
                                     <td><span class="badge ${p.status_rekod==='Sah'?'badge-sah':'badge-menunggu'}">${p.status_rekod||'-'}</span></td>
                                     ${['Admin','Petugas Padang'].includes(state.user?.peranan) ? `
                                         <td>
