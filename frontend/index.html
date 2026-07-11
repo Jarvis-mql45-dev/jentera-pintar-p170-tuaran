@@ -1376,6 +1376,8 @@ function initSearchableDropdown(containerId, inputId, hiddenId, dropdownId, opti
 
     const container = document.getElementById(containerId);
     if (!container) return;
+    // Kosongkan container sebelum init semula (elakkan double rendering)
+    container.innerHTML = '';
 
     // Pastikan container punya position relative untuk dropdown positioning
     container.style.position = 'relative';
