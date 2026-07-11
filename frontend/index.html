@@ -1652,23 +1652,27 @@ async function submitPengundi() {
 // EDIT PENGUNDI MODAL
 // ============================================================
 async function editPengundi(id) {
-    try {
-        // =========================================================================
-        // PEMBERSIH UTAMA: Padam modal lama jika ada sebelum buat yang baharu!
-        // Ini akan menghalang isu borang berlapis & skrin hitam secara total.
-        // =========================================================================
-        const existingModal = document.getElementById('editPengundiModal');
-        if (existingModal) {
-            existingModal.remove();
-        }
+    // 1. PEMBERSIH SERTA-MERTA: Padam modal lama jika ada (SINKRONUS)
+    const existingModal = document.getElementById('editPengundiModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
 
+    // 2. LOCK POSISI: Cipta kontainer modal serta-merta sebelum panggil API
+    // Langkah ini menghalang klik berturut-turut daripada melapiskan modal
+    const modal = document.createElement('div');
+    modal.id = 'editPengundiModal'; 
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    
+    // Paparkan text loading ringkas sementara menunggu data API
+    modal.innerHTML = `<div class="bg-white rounded-xl p-6 text-center shadow-lg font-medium">Memuatkan data pengundi...</div>`;
+    document.body.appendChild(modal);
+
+    try {
+        // 3. Ambil data dari API (Sambil kontainer sudah selamat dikunci di dalam DOM)
         const p = await api(`/api/pengundi/${id}`);
-        const modal = document.createElement('div');
         
-        // Tetapkan ID pada modal supaya fungsi pembersih di atas boleh mengesannya
-        modal.id = 'editPengundiModal'; 
-        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-        
+        // 4. Masukkan struktur borang sebenar ke dalam kontainer yang sama
         modal.innerHTML = `<div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"><h3 class="text-lg font-bold mb-4">Edit Pengundi</h3>
             <div class="space-y-3">
                 <div><label class="block text-sm font-medium mb-1">No. KP</label><input id="eNoKp" value="${p.no_kp||''}" readonly class="bg-gray-100 cursor-not-allowed"></div>
@@ -1685,18 +1689,17 @@ async function editPengundi(id) {
                 <div><label class="block text-sm font-medium mb-1">Pegawai Penyelaras</label><div id="ePegawaiContainer"></div></div>
             </div>
             <div class="flex gap-3 mt-6 justify-end"><button onclick="this.closest('.fixed').remove()" class="btn btn-outline">Batal</button><button onclick="submitEditPengundi(${id})" class="btn btn-primary">Simpan Perubahan</button></div></div>`;
-        document.body.appendChild(modal);
 
         // Init searchable dropdowns dengan pre-select
         const eKetuaDD = initSearchableDropdown('eKetuaContainer', 'eKetuaInput', 'eKetuaId', 'eKetuaDropdown', {
             prefix: '',
             placeholder: 'Cari Ketua Keluarga...',
-            excludeId: id  // exclude diri sendiri
+            excludeId: id  
         });
         const ePegawaiDD = initSearchableDropdown('ePegawaiContainer', 'ePegawaiInput', 'ePegawaiId', 'ePegawaiDropdown', {
             prefix: '',
             placeholder: 'Cari Pegawai Penyelaras...',
-            excludeId: id  // exclude diri sendiri
+            excludeId: id  
         });
 
         // Pre-select jika ada nilai
@@ -1713,10 +1716,13 @@ async function editPengundi(id) {
         modal._ketuaDD = eKetuaDD;
         modal._pegawaiDD = ePegawaiDD;
 
-        // Auto-calculate KP (readonly, tapi still boleh guna untuk reference)
+        // Auto-calculate KP
         setupAutoKiraKp('eNoKp', 'eJantina', 'eLahir', '');
 
-    } catch (err) { showToast(err.message, 'error'); }
+    } catch (err) { 
+        modal.remove(); // Padam semula loading modal jika sambungan API gagal
+        showToast(err.message, 'error'); 
+    }
 }
 async function submitEditPengundi(id) {
     const data = {};
