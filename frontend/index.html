@@ -1653,9 +1653,22 @@ async function submitPengundi() {
 // ============================================================
 async function editPengundi(id) {
     try {
+        // =========================================================================
+        // PEMBERSIH UTAMA: Padam modal lama jika ada sebelum buat yang baharu!
+        // Ini akan menghalang isu borang berlapis & skrin hitam secara total.
+        // =========================================================================
+        const existingModal = document.getElementById('editPengundiModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
         const p = await api(`/api/pengundi/${id}`);
         const modal = document.createElement('div');
+        
+        // Tetapkan ID pada modal supaya fungsi pembersih di atas boleh mengesannya
+        modal.id = 'editPengundiModal'; 
         modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        
         modal.innerHTML = `<div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"><h3 class="text-lg font-bold mb-4">Edit Pengundi</h3>
             <div class="space-y-3">
                 <div><label class="block text-sm font-medium mb-1">No. KP</label><input id="eNoKp" value="${p.no_kp||''}" readonly class="bg-gray-100 cursor-not-allowed"></div>
@@ -1705,7 +1718,6 @@ async function editPengundi(id) {
 
     } catch (err) { showToast(err.message, 'error'); }
 }
-
 async function submitEditPengundi(id) {
     const data = {};
     const nama = document.getElementById('eNama').value.trim();
