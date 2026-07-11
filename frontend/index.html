@@ -1236,40 +1236,111 @@ function toggleFilterDropdown(type) {
     if (!btn) return;
     
     const rect = btn.getBoundingClientRect();
-    // Akses secara selamat — guna fallback array kosong jika undefined atau null
     const isObjectItem = type === 'ketua_keluarga' || type === 'pegawai_penyelaras';
     const filterKey = type === 'pdm' ? 'pdm' : type === 'lokaliti' ? 'lokaliti' : type === 'sokongan' ? 'sokongan' : type;
     const rawItems = (filterOptions && Array.isArray(filterOptions[filterKey])) ? filterOptions[filterKey] : [];
-    // Untuk object items ({id, nama}), kita simpan sebagai array of names untuk dropdown display
-    const items = isObjectItem ? rawItems.map(i => i.nama) : rawItems;
+    
+    // State untuk carian
+    let searchText = '';
+    const selected = selectedFilters[type] || [];
+    
+    const labelMap = {
+        'pdm': 'PDM', 'lokaliti': 'Lokaliti', 'sokongan': 'Sokongan',
+        'ketua_keluarga': 'Ketua Keluarga', 'pegawai_penyelaras': 'Peg. Penyelaras'
+    };
+    const label = labelMap[type] || type;
     
     const dropdown = document.createElement('div');
     dropdown.id = 'filterDropdown';
-    dropdown.className = 'fixed z-50 bg-white border border-gray-200 rounded-xl shadow-xl p-3 max-h-60 overflow-y-auto';
-    dropdown.style.minWidth = '200px';
+    dropdown.className = 'fixed z-50 bg-white border border-gray-200 rounded-xl shadow-xl p-3 max-h-80 overflow-y-auto';
+    dropdown.style.minWidth = '240px';
     dropdown.style.top = (rect.bottom + 5) + 'px';
-    dropdown.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
+    dropdown.style.left = Math.min(rect.left, window.innerWidth - 260) + 'px';
     
-    const selected = selectedFilters[type] || [];
+    // Fungsi untuk render senarai checkbox (dengan filter carian)
+    function renderCheckboxes(container, search) {
+        const s = search.toLowerCase().trim();
+        // Filter items berdasarkan carian
+        let filtered;
+        if (isObjectItem) {
+            filtered = s ? rawItems.filter(item => item.nama.toLowerCase().includes(s)) : rawItems;
+        } else {
+            filtered = s ? rawItems.filter(item => item.toLowerCase().includes(s)) : rawItems;
+        }
+        
+        if (filtered.length === 0) {
+            container.innerHTML = '<p class="text-sm text-gray-400 text-center py-2">Tiada pilihan</p>';
+            return;
+        }
+        
+        container.innerHTML = filtered.map(item => {
+            const itemValue = isObjectItem ? item.nama : item;
+            const isChecked = selected.includes(itemValue);
+            const checkedAttr = isChecked ? 'checked' : '';
+            const escaped = itemValue.replace(/'/g, "\\'");
+            return `<label class="flex items-center gap-2 py-1.5 px-1 hover:bg-gray-50 rounded cursor-pointer">
+                <input type="checkbox" value="${escaped}" ${checkedAttr} onchange="toggleFilterItem('${type}','${escaped}',this.checked)" class="w-4 h-4 text-blue-600">
+                <span class="text-sm text-gray-700">${itemValue}</span>
+            </label>`;
+        }).join('');
+    }
+    
+    let itemsHtml = '';
+    if (isObjectItem) {
+        itemsHtml = rawItems.map(item => {
+            const isChecked = selected.includes(item.nama);
+            const checkedAttr = isChecked ? 'checked' : '';
+            const escaped = item.nama.replace(/'/g, "\\'");
+            return `<label class="flex items-center gap-2 py-1.5 px-1 hover:bg-gray-50 rounded cursor-pointer">
+                <input type="checkbox" value="${escaped}" ${checkedAttr} onchange="toggleFilterItem('${type}','${escaped}',this.checked)" class="w-4 h-4 text-blue-600">
+                <span class="text-sm text-gray-700">${item.nama}</span>
+            </label>`;
+        }).join('');
+    } else if (rawItems.length === 0) {
+        itemsHtml = '<p class="text-sm text-gray-400 text-center py-2">Tiada pilihan</p>';
+    } else {
+        itemsHtml = rawItems.map(item => {
+            const isChecked = selected.includes(item);
+            const checkedAttr = isChecked ? 'checked' : '';
+            const escaped = item.replace(/'/g, "\\'");
+            return `<label class="flex items-center gap-2 py-1.5 px-1 hover:bg-gray-50 rounded cursor-pointer">
+                <input type="checkbox" value="${escaped}" ${checkedAttr} onchange="toggleFilterItem('${type}','${escaped}',this.checked)" class="w-4 h-4 text-blue-600">
+                <span class="text-sm text-gray-700">${item}</span>
+            </label>`;
+        }).join('');
+    }
+    
+    // Untuk jenis object, tambah input carian di atas. Untuk string biasa dengan banyak items > 8, tambah juga.
+    const showSearch = isObjectItem || rawItems.length > 8;
     
     dropdown.innerHTML = `
         <div class="flex items-center justify-between mb-2 border-b pb-2">
-            <span class="text-sm font-semibold text-gray-700">${type === 'pdm' ? 'PDM' : type === 'lokaliti' ? 'Lokaliti' : 'Sokongan'}</span>
+            <span class="text-sm font-semibold text-gray-700">${label}</span>
             <button onclick="event.stopPropagation(); selectedFilters['${type}'] = []; toggleFilterDropdown('${type}'); applyFilters();" class="text-xs text-blue-600 hover:text-blue-800">Kosongkan</button>
         </div>
-        ${items.length === 0 ? '<p class="text-sm text-gray-400 text-center py-2">Tiada pilihan</p>' :
-        items.map(item => {
-            const checked = selected.includes(item) ? 'checked' : '';
-            return `<label class="flex items-center gap-2 py-1.5 px-1 hover:bg-gray-50 rounded cursor-pointer">
-                <input type="checkbox" value="${item}" ${checked} onchange="toggleFilterItem('${type}','${item.replace(/'/g,"\\'")}',this.checked)" class="w-4 h-4 text-blue-600">
-                <span class="text-sm text-gray-700">${item}</span>
-            </label>`;
-        }).join('')}
+        ${showSearch ? `
+        <div class="mb-2 relative">
+            <input type="text" id="filterSearchInput" placeholder="🔍 Cari ${label.toLowerCase()}..." class="w-full text-sm pl-2 pr-2 py-1.5 border border-gray-200 rounded-lg focus:border-blue-400 focus:ring-1 focus:ring-blue-200">
+        </div>` : ''}
+        <div id="filterCheckboxContainer" class="space-y-0 max-h-48 overflow-y-auto">
+            ${itemsHtml}
+        </div>
         <div class="mt-2 pt-2 border-t">
             <button onclick="toggleFilterDropdown('${type}')" class="btn btn-primary text-xs w-full py-1.5">Tutup</button>
         </div>`;
     
     document.body.appendChild(dropdown);
+    
+    // Init search input jika ada
+    const searchInput = document.getElementById('filterSearchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            searchText = this.value;
+            const container = document.getElementById('filterCheckboxContainer');
+            if (container) renderCheckboxes(container, searchText);
+        });
+        setTimeout(() => searchInput.focus(), 50);
+    }
     
     // Close on outside click
     setTimeout(() => {
@@ -1323,7 +1394,9 @@ async function renderPengundi() {
             filterOptions = {
                 pdm: Array.isArray(rawOptions?.pdm) ? rawOptions.pdm : [],
                 lokaliti: Array.isArray(rawOptions?.lokaliti) ? rawOptions.lokaliti : [],
-                sokongan: Array.isArray(rawOptions?.sokongan) ? rawOptions.sokongan : []
+                sokongan: Array.isArray(rawOptions?.sokongan) ? rawOptions.sokongan : [],
+                ketua_keluarga: Array.isArray(rawOptions?.ketua_keluarga) ? rawOptions.ketua_keluarga : [],
+                pegawai_penyelaras: Array.isArray(rawOptions?.pegawai_penyelaras) ? rawOptions.pegawai_penyelaras : []
             };
             if (!state.pdmList.length) state.pdmList = filterOptions.pdm;
         }
