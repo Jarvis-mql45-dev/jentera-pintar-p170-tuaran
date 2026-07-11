@@ -1042,13 +1042,13 @@ async function renderDashboard() {
         // Add layout toggle button at top
         const isEditMode = state.dashboardEditMode;
         content.innerHTML = `
-            <div class="flex items-center justify-between mb-4">
-                <div></div>
-                <button id="layoutToggleBtn" onclick="toggleDashboardEditMode()" class="btn ${isEditMode ? 'btn-success' : 'btn-outline'} layout-toggle-btn text-sm flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-                    ${isEditMode ? '🔒 Kunci Susunan' : '✏️ Ubah Susunan'}
-                </button>
-            </div>
+    <div class="flex items-center justify-between mb-4">
+        <div></div>
+        <button id="layoutToggleBtn" onclick="toggleDashboardEditMode()" class="btn ${isEditMode ? 'btn-success' : 'btn-outline'} layout-toggle-btn text-sm flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            ${isEditMode ? '🔒 Kunci Susunan' : '✏️ Ubah Susunan'}
+        </button>
+    </div>
             <div id="dashboardContainer" class="${isEditMode ? 'dashboard-edit-mode' : ''}">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <div class="card"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-500">Jumlah Pengundi</p><p class="text-2xl font-bold text-gray-800">${jumlah_pengundi.toLocaleString()}</p></div><div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div></div><div class="mt-2 flex items-center gap-1 text-xs text-gray-500"><span class="text-green-600 font-medium">✓ ${fizikal?.Hidup || 0} Hidup</span><span>·</span><span class="text-red-600">✗ ${fizikal?.['Meninggal Dunia'] || 0} Meninggal</span></div></div>
@@ -1223,7 +1223,7 @@ async function renderDashboard() {
 
 // ========= PENGUNDI LIST =========
 let filterOptions = null;
-let selectedFilters = { pdm: [], lokaliti: [], sokongan: [] };
+let selectedFilters = { pdm: [], lokaliti: [], sokongan: [], ketua_keluarga: [], pegawai_penyelaras: [] };
 let activeFilterDropdown = null;
 
 function toggleFilterDropdown(type) {
@@ -1237,8 +1237,11 @@ function toggleFilterDropdown(type) {
     
     const rect = btn.getBoundingClientRect();
     // Akses secara selamat — guna fallback array kosong jika undefined atau null
-    const filterKey = type === 'pdm' ? 'pdm' : type === 'lokaliti' ? 'lokaliti' : 'sokongan';
-    const items = (filterOptions && Array.isArray(filterOptions[filterKey])) ? filterOptions[filterKey] : [];
+    const isObjectItem = type === 'ketua_keluarga' || type === 'pegawai_penyelaras';
+    const filterKey = type === 'pdm' ? 'pdm' : type === 'lokaliti' ? 'lokaliti' : type === 'sokongan' ? 'sokongan' : type;
+    const rawItems = (filterOptions && Array.isArray(filterOptions[filterKey])) ? filterOptions[filterKey] : [];
+    // Untuk object items ({id, nama}), kita simpan sebagai array of names untuk dropdown display
+    const items = isObjectItem ? rawItems.map(i => i.nama) : rawItems;
     
     const dropdown = document.createElement('div');
     dropdown.id = 'filterDropdown';
@@ -1277,7 +1280,7 @@ function toggleFilterDropdown(type) {
 function closeFilterDropdown(e) {
     const dd = document.getElementById('filterDropdown');
     // Jadikan ia kalis terhadap klik pada butang filter itu sendiri (guna event.target.closest)
-    const isFilterBtnClick = !!e.target.closest('#filterBtnPdm, #filterBtnLokaliti, #filterBtnSokongan');
+    const isFilterBtnClick = !!e.target.closest('#filterBtnPdm, #filterBtnLokaliti, #filterBtnSokongan, #filterBtnKetuaKeluarga, #filterBtnPegawaiPenyelaras');
     
     // Jika dropdown masih wujud
     if (dd && document.body.contains(dd)) {
@@ -1332,11 +1335,30 @@ async function renderPengundi() {
         (selectedFilters.pdm || []).forEach(v => params.append('dm[]', v));
         (selectedFilters.lokaliti || []).forEach(v => params.append('lokaliti[]', v));
         (selectedFilters.sokongan || []).forEach(v => params.append('sokongan[]', v));
+        // Untuk ketua_keluarga dan pegawai_penyelaras, kita ada simpan nama dalam selectedFilters
+        // Tapi backend jangka ID. Jadi kita perlu cari ID dari filterOptions berdasarkan nama.
+        // Buat mapping nama->id
+        if (filterOptions?.ketua_keluarga && selectedFilters.ketua_keluarga?.length) {
+            const namaToId = {};
+            filterOptions.ketua_keluarga.forEach(item => { namaToId[item.nama] = item.id; });
+            selectedFilters.ketua_keluarga.forEach(nama => {
+                const id = namaToId[nama];
+                if (id) params.append('ketua_keluarga[]', id);
+            });
+        }
+        if (filterOptions?.pegawai_penyelaras && selectedFilters.pegawai_penyelaras?.length) {
+            const namaToId = {};
+            filterOptions.pegawai_penyelaras.forEach(item => { namaToId[item.nama] = item.id; });
+            selectedFilters.pegawai_penyelaras.forEach(nama => {
+                const id = namaToId[nama];
+                if (id) params.append('pegawai_penyelaras[]', id);
+            });
+        }
         
         const data = await api(`/api/pengundi?${params}`);
         state.pengundiData = data;
         
-        const totalFilters = (selectedFilters.pdm?.length||0) + (selectedFilters.lokaliti?.length||0) + (selectedFilters.sokongan?.length||0);
+        const totalFilters = (selectedFilters.pdm?.length||0) + (selectedFilters.lokaliti?.length||0) + (selectedFilters.sokongan?.length||0) + (selectedFilters.ketua_keluarga?.length||0) + (selectedFilters.pegawai_penyelaras?.length||0);
         
         // Sediakan bahagian HTML Pagination secara berasingan untuk elakkan konflik backtick
         let paginationHtml = `<div class="text-center text-sm text-gray-400 mt-4">${data.total} rekod</div>`;
@@ -1386,7 +1408,13 @@ async function renderPengundi() {
                         <button id="filterBtnSokongan" onclick="toggleFilterDropdown('sokongan')" class="btn btn-outline text-sm flex items-center gap-1.5">
                             Sokongan ${selectedFilters.sokongan?.length ? `<span class="bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">${selectedFilters.sokongan.length}</span>` : '▾'}
                         </button>
-                        ${totalFilters > 0 ? `<button onclick="selectedFilters={pdm:[],lokaliti:[],sokongan:[]}; applyFilters()" class="btn btn-danger text-xs">✕ Kosongkan</button>` : ''}
+                        <button id="filterBtnKetuaKeluarga" onclick="toggleFilterDropdown('ketua_keluarga')" class="btn btn-outline text-sm flex items-center gap-1.5">
+                            Ketua Keluarga ${selectedFilters.ketua_keluarga?.length ? `<span class="bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">${selectedFilters.ketua_keluarga.length}</span>` : '▾'}
+                        </button>
+                        <button id="filterBtnPegawaiPenyelaras" onclick="toggleFilterDropdown('pegawai_penyelaras')" class="btn btn-outline text-sm flex items-center gap-1.5">
+                            Peg. Penyelaras ${selectedFilters.pegawai_penyelaras?.length ? `<span class="bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">${selectedFilters.pegawai_penyelaras.length}</span>` : '▾'}
+                        </button>
+                        ${totalFilters > 0 ? `<button onclick="selectedFilters={pdm:[],lokaliti:[],sokongan:[],ketua_keluarga:[],pegawai_penyelaras:[]}; applyFilters()" class="btn btn-danger text-xs">✕ Kosongkan</button>` : ''}
                     </div>
                     <button onclick="state.pengundiSearch=document.getElementById('searchInput').value; state.pengundiPage=1; renderPengundi()" class="btn btn-primary">Cari</button>
                     ${['Admin','Petugas Padang'].includes(state.user?.peranan)?`<button onclick="showTambahPengundi()" class="btn btn-success">+ Tambah Baru</button>`:''}
