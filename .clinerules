@@ -2,14 +2,45 @@
 # SYSTEM RULES & SOP DEBUGGING: JENTERA PINTAR P170 TUARAN / N12 SULAMAN
 # =====================================================================
 
+# ---------------------------------------------------------------------
+# 1. ARSITEKTUR APLIKASI
+# ---------------------------------------------------------------------
 - Aplikasi ini adalah Vanilla JS Single-Page Application (SPA) Monolitik dengan Client-Side Rendering (CSR).
-- 🛑 ZON LARANGAN (ISOLATED ZONE): Fail 'frontend/js/dashboard-layout.js' dan modul Interact.js DILARANG DIUBAH kecuali dengan izin eksplisit. 
+- 🛑 ZON LARANGAN (ISOLATED ZONE): Fail 'frontend/js/dashboard-layout.js' dan modul Interact.js DILARANG DIUBAH kecuali dengan izin eksplisit.
 - Sentiasa ingat hasil Bedah Siasat (Seksyen 4.10 README.txt): 'innerHTML' mentah boleh memusnahkan elemen DOM, inline styles, dan event listeners.
 
+# ---------------------------------------------------------------------
+# 2. BRANCHING & GIT DISCIPLINE
+# ---------------------------------------------------------------------
 - Sebelum memulakan sebarang fungsi baharu atau pembaikan pepijat (bug hunting), anda WAJIB mencipta branch baharu dari main.
 - Format penamaan branch: debug/nama-isu atau feature/nama-ciri.
 - Sahkan kedudukan branch di terminal menggunakan 'git branch' sebelum menulis sebarang kod.
+- DILARANG menggunakan flag '--prod' atau melakukan push ke branch 'main' secara meluru.
 
+# ---------------------------------------------------------------------
+# 3. 🛑 PANTANGAN TERMINAL & POWERSHELL TABOO
+# ---------------------------------------------------------------------
+- DILARANG SAMA SEKALI menggunakan operator rantaian && atau ; dalam satu baris arahan terminal.
+- Persekitaran Windows PowerShell di mesin Admin akan mengalami kegagalan parsing (ParserError / InvalidEndOfLine) jika menerima operator rantaian ala-Linux.
+- SOP ARAHAN TERMINAL: Semua arahan Git, Vercel, dan NPM wajib ditaip dan dieksekusi satu per satu (baris demi baris) untuk mengelakkan proses tergantung (stalled/sleeping pipeline).
+
+# ---------------------------------------------------------------------
+# 4. 🛑 PANTANGAN RE-BINDING & EVENT LISTENER LIFECYCLE
+# ---------------------------------------------------------------------
+- DILARANG memanggil fungsi inisialisasi peristiwa (seperti applyInteractToCards()) secara berulang kali tanpa pembersihan total.
+- Ini bagi mengelakkan pepijat lambakan listener (listener stacking bug) yang merosakkan pengiraan koordinat delta.
+- SOP PEMBERSIHAN DOM: Sebelum memasang listener baharu pada elemen DOM, wajib panggil fungsi penanggalan seperti interact(card).unset() terlebih dahulu demi menjaga integriti memori pelayar web.
+
+# ---------------------------------------------------------------------
+# 5. 🛑 PANTANGAN KONFIGURASI DATABASE & PORT
+# ---------------------------------------------------------------------
+- DILARANG menukar konfigurasi DATABASE_URL kembali ke Port Direct 5432 semasa deployment.
+- Infrastruktur Vercel Serverless tidak menyokong sambungan IPv6 asli secara lalai.
+- SOP PORT DATABASE: Sentiasa kekalkan penggunaan Transaction Pooler (Port 6543) dengan parameter wajib ?sslmode=require untuk mengelakkan ralat handshake dan kerosakan JSON parsing pada fungsi FastAPI.
+
+# ---------------------------------------------------------------------
+# 6. DEBUGGING: LARANGAN console.log() & WAJIB GUNA VS CODE DEBUGGER
+# ---------------------------------------------------------------------
 - HENTIKAN TEKNIK SUNTIKAN LAMBAKAN 'console.log()' YANG MENYEMAKKAN FAIL.
 - Anda WAJIB menggunakan konfigurasi VS Code Debugger ('.vscode/launch.json') untuk menguji kod di persekitaran Localhost terlebih dahulu.
 - LANGKAH MENANGANI BUG:
@@ -17,10 +48,17 @@
   2. Gunakan 'Watch Panel' untuk memantau state kritikal seperti `localStorage.getItem("dashboardInteractLayout")`.
   3. Gunakan 'Debug Console' untuk menguji manipulasi DOM/objek secara dinamik sebelum menulis kod kekal.
 - Ambil perhatian ralat 'Race Condition / Timing Bug': Pelayar memerlukan masa untuk melukis elemen (layout cycle). Pastikan inisialisasi pihak ketiga (Chart.js / Interact.js) diikat (bound) menggunakan 'requestAnimationFrame()' atau hook penyejaliran yang tepat selepas innerHTML selesai ditulis.
+- SELEPAS pepijat disahkan hilang di VS Code Debugger Localhost, barulah jalankan deployment ke Vercel sebagai PREVIEW URL sahaja menggunakan 'npx vercel'.
 
+# ---------------------------------------------------------------------
+# 7. KESELAMATAN DATA & PENGURUSAN STATE
+# ---------------------------------------------------------------------
 - Semua data sensitif, URL pangkalan data, dan API Keys WAJIB disimpan di dalam `.env.local` untuk persekitaran local dan DILARANG di-push ke GitHub.
 - Pengurusan State: Sebelum merender sebarang data daripada API Supabase, lakukan semakan defensif seperti 'if (data == null)'.
 - Pastikan operasi 'localStorage.removeItem()' dilakukan secara bersasaran. DILARANG menggunakan 'localStorage.clear()' yang boleh memadamkan data tetapan layout pengguna secara tidak sengaja semasa logout.
 
+# ---------------------------------------------------------------------
+# 8. DEPLOYMENT PROTOCOL
+# ---------------------------------------------------------------------
 - SELEPAS pepijat disahkan hilang di VS Code Debugger Localhost, jalankan deployment ke Vercel sebagai PREVIEW URL sahaja menggunakan 'npx vercel'.
 - DILARANG menggunakan flag '--prod' atau melakukan push ke branch 'main' secara meluru.
