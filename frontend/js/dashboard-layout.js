@@ -2,34 +2,42 @@
  * 🛑 ISOLATED ZONE: DO NOT TOUCH UNLESS EXPLICITLY PERMITTED
  * 
  * dashboard-layout.js — Interact.js Drag & Resize untuk Dashboard
- * Fail ini DIASINGKAN dari frontend/index.html untuk mengelakkan
- * regresi keselamatan dan visual. Sebarang perubahan mesti melalui
- * perbincangan dengan pentadbir sistem.
+ * 
+ * SEJARAH BUG:
+ *  - 🔴 4.10 README: CSS Grid vs Transform conflict (point b)
+ *  - 🔴 Listener Stacking Bug: Setiap kali init/panggil semula, Interact.js
+ *    melampirkan listeners baru tanpa buang yang lama. Delta koordinat berganda.
+ * 
+ * SOLUSI MUTLAK:
+ *  1. interact(card).unset() — buang semua listeners lama sebelum init
+ *  2. applyInteractToCards() dipanggil SEKALI sahaja
+ *  3. toggleDashboardEditMode() hanya enable/disable, tidak pasang semula
  * 
  * Fungsi:
- * - applySavedStyles()       — baca localStorage, inject inline CSS terus ke DOM
- * - initDashboardInteract()  — apply interact.js (draggable + resizable)
- * - applyInteractToCards()   — pasang interact listeners
- * - saveInteractLayout()     — simpan x, y, width, height ke localStorage
- * - toggleDashboardEditMode() — butang toggle edit mode
- * 
- * Kebergantungan: Interact.js CDN, State global `state`
+ * - applySavedStyles()        — restore saved left/top/width/height
+ * - enterEditMode()           — semua card → position:absolute + left/top
+ * - exitEditMode()            — semua card → position:relative + reset
+ * - initDashboardInteract()   — clean reset + init interact.js (panggil SEKALI)
+ * - applyInteractToCards()    — pasang draggable + resizable listeners
+ * - saveInteractLayout()      — simpan left/top/width/height
+ * - toggleDashboardEditMode() — toggle enable/disable SAHAJA
  */
 
 function applySavedStyles() {
     const saved = localStorage.getItem('dashboardInteractLayout');
     if (!saved) return;
+    if (!state.dashboardEditMode) return;
     try {
         const layout = JSON.parse(saved);
         Object.keys(layout).forEach(id => {
             const el = document.getElementById(id);
             if (!el || !layout[id]) return;
             const data = layout[id];
-            // SUNTIK TERUS INLINE CSS
-            if (data.w) el.style.width = data.w;
-            if (data.h) el.style.height = data.h;
-            if (data.transform) el.style.transform = data.transform;
-            // Simpan dataset untuk Interact.js
+            el.style.position = 'absolute';
+            if (data.left !== undefined) el.style.left = data.left;
+            if (data.top !== undefined) el.style.top = data.top;
+            if (data.width) el.style.width = data.width;
+            if (data.height) el.style.height = data.height;
             if (data.x !== undefined) el.dataset.x = data.x;
             if (data.y !== undefined) el.dataset.y = data.y;
         });
@@ -38,19 +46,85 @@ function applySavedStyles() {
     }
 }
 
-function initDashboardInteract() {
-    // Step 1: Set ID konsisten berdasarkan indeks SEBELUM restore styles
+function enterEditMode() {
+    const container = document.getElementById('dashboardContainer');
+    if (!container) return;
+    const containerRect = container.getBoundingClientRect();
+    container.style.position = 'relative';
+    
     const cards = document.querySelectorAll('#dashboardContainer .card');
-    cards.forEach((card, index) => {
+    cards.forEach(card => {
+        const rect = card.getBoundingClientRect();
+        const left = rect.left - containerRect.left;
+        const top = rect.top - containerRect.top;
+        card.dataset.x = left;
+        card.dataset.y = top;
+        card.style.position = 'absolute';
+        card.style.left = left + 'px';
+        card.style.top = top + 'px';
+        card.style.width = card.offsetWidth + 'px';
+        card.style.height = card.offsetHeight + 'px';
+        card.style.margin = '0';
+        card.classList.add('interact-draggable');
+    });
+}
+
+function exitEditMode() {
+    const cards = document.querySelectorAll('#dashboardContainer .card');
+    cards.forEach(card => {
+        card.style.position = '';
+        card.style.left = '';
+        card.style.top = '';
+        card.style.width = '';
+        card.style.height = '';
+        card.style.transform = '';
+        card.style.margin = '';
+        card.classList.remove('interact-draggable');
+    });
+    const container = document.getElementById('dashboardContainer');
+    if (container) container.style.position = '';
+}
+
+function initDashboardInteract() {
+    // 🛡️ SAFETY: Force reset sebarang absolute positioning yang rosak
+    // akibat localStorage corrupted dari eksperimen lama
+    exitEditMode();
+    
+    // 🟢 SAFETY: Validate localstorage — jika data rosak/corrupted, buang
+    // Format baru guna left/top/width/height. Format lama guna x/y/transform.
+    try {
+        const savedRaw = localStorage.getItem('dashboardInteractLayout');
+        if (savedRaw) {
+            const saved = JSON.parse(savedRaw);
+            const keys = Object.keys(saved);
+            if (keys.length > 0) {
+                const first = saved[keys[0]];
+                // Jika tidak ada left DAN top dalam format, ia corrupted
+                if (first.left === undefined || first.top === undefined) {
+                    localStorage.removeItem('dashboardInteractLayout');
+                    console.log('dashboardInteractLayout cleared: corrupted format');
+                }
+            }
+        }
+    } catch(e) {
+        localStorage.removeItem('dashboardInteractLayout');
+        console.log('dashboardInteractLayout cleared: parse error');
+    }
+    
+    // 🔴 LANGKAH KRITIKAL: Buang SEMUA Interact listeners LAMA
+    const oldCards = document.querySelectorAll('#dashboardContainer .card');
+    oldCards.forEach(card => {
+        try { interact(card).unset(); } catch(e) { /* ignore */ }
+    });
+    
+    // Set ID konsisten
+    oldCards.forEach((card, index) => {
         if (!card.id || card.id.startsWith('card-')) {
             card.id = 'card-' + index;
         }
     });
     
-    // Step 2: Restore saved styles (inject inline CSS terus)
     applySavedStyles();
-    
-    // Step 3: Apply interact.js
     applyInteractToCards();
 }
 
@@ -76,7 +150,8 @@ function applyInteractToCards() {
                     const target = event.target;
                     const x = (parseFloat(target.dataset.x) || 0) + event.dx;
                     const y = (parseFloat(target.dataset.y) || 0) + event.dy;
-                    target.style.transform = `translate(${x}px, ${y}px)`;
+                    target.style.left = x + 'px';
+                    target.style.top = y + 'px';
                     target.dataset.x = x;
                     target.dataset.y = y;
                 },
@@ -104,11 +179,11 @@ function applyInteractToCards() {
                     
                     x += event.deltaRect.left;
                     y += event.deltaRect.top;
-                    target.style.transform = `translate(${x}px, ${y}px)`;
+                    target.style.left = x + 'px';
+                    target.style.top = y + 'px';
                     target.dataset.x = x;
                     target.dataset.y = y;
                     
-                    // Resize charts inside card
                     const canvases = target.querySelectorAll('canvas');
                     canvases.forEach(canvas => {
                         Object.values(state.charts).forEach(chart => {
@@ -135,9 +210,10 @@ function saveInteractLayout() {
             layout[id] = {
                 x: parseFloat(card.dataset.x) || 0,
                 y: parseFloat(card.dataset.y) || 0,
-                w: card.style.width || '',
-                h: card.style.height || '',
-                transform: card.style.transform || ''
+                left: card.style.left || '',
+                top: card.style.top || '',
+                width: card.style.width || '',
+                height: card.style.height || ''
             };
         }
     });
@@ -147,15 +223,21 @@ function saveInteractLayout() {
 function toggleDashboardEditMode() {
     state.dashboardEditMode = !state.dashboardEditMode;
     
+    if (state.dashboardEditMode) {
+        enterEditMode();
+        applySavedStyles();
+    } else {
+        exitEditMode();
+        saveInteractLayout();
+    }
+    
     const cards = document.querySelectorAll('#dashboardContainer .card');
     cards.forEach(card => {
-        interact(card).draggable(state.dashboardEditMode);
-        interact(card).resizable(state.dashboardEditMode);
-        card.classList.toggle('interact-draggable', state.dashboardEditMode);
+        try {
+            interact(card).draggable(state.dashboardEditMode);
+            interact(card).resizable(state.dashboardEditMode);
+        } catch(e) { console.warn('toggle error:', card.id, e); }
     });
     
     showToast(state.dashboardEditMode ? '✏️ Mod Ubah Susunan Diaktifkan' : '🔒 Susunan Dikunci');
-    if (!state.dashboardEditMode) {
-        saveInteractLayout();
-    }
 }
