@@ -287,9 +287,14 @@
 // ============================================================
 // STATE MANAGEMENT
 // ============================================================
+// 🛡️ Helper: safe JSON parse — jangan crash kalau localStorage corrupted
+function safeParse(str, fallback = null) {
+    try { return JSON.parse(str); } catch(e) { return fallback; }
+}
+
 const state = {
     token: localStorage.getItem('token') || null,
-    user: JSON.parse(localStorage.getItem('user') || 'null'),
+    user: safeParse(localStorage.getItem('user'), null),
     currentPage: 'dashboard',
     dashboardDm: '',
     pengundiSearch: '',
