@@ -1049,6 +1049,31 @@ async function renderDashboard() {
             ${isEditMode ? '🔒 Kunci Susunan' : '✏️ Ubah Susunan'}
         </button>
     </div>
+            <!-- 🆕 PANEL STRATEGI PILIHAN RAYA P170 TUARAN -->
+            <div class="card mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-bold text-gray-800">PANEL STRATEGI PILIHAN RAYA P170 TUARAN</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="pl-0">DUN</th>
+                                <th>Jumlah Pengundi</th>
+                                <th>Putih</th>
+                                <th>Atas Pagar</th>
+                                <th>Hitam</th>
+                                <th>Belum Dikenal Pasti</th>
+                                <th>Ketua Keluarga</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ringkasanTableBody">
+                            <tr><td colspan="7" class="text-center py-4 text-gray-400">Memuatkan data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <div id="dashboardContainer" class="${isEditMode ? 'dashboard-edit-mode' : ''}">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <div class="card"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-500">Jumlah Pengundi</p><p class="text-2xl font-bold text-gray-800">${jumlah_pengundi.toLocaleString()}</p></div><div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div></div><div class="mt-2 flex items-center gap-1 text-xs text-gray-500"><span class="text-green-600 font-medium">✓ ${fizikal?.Hidup || 0} Hidup</span><span>·</span><span class="text-red-600">✗ ${fizikal?.['Meninggal Dunia'] || 0} Meninggal</span></div></div>
@@ -1215,9 +1240,47 @@ async function renderDashboard() {
             } catch (e) { console.error('Graf DUN chart error:', e); }
         }, 50);  // setTimeout tutup
         });  // requestAnimationFrame tutup
-        }, 100);  // setTimeout luar tutup
+        // 🆕 FETCH DATA UNTUK PANEL STRATEGI - populate ringkasan table (di luar setTimeout)
+        fetchRingkasanData().then(ringkasan => {
+            const tbody = document.getElementById('ringkasanTableBody');
+            if (!tbody || !ringkasan) return;
+            const dunList = ringkasan.dun || [];
+            const total = ringkasan.jumlah_keseluruhan || {};
+            let rows = '';
+            dunList.forEach(d => {
+                const belumDikenal = d.tidak_dikenali || 0;
+                rows += `<tr>
+                    <td class="font-medium">${d.dun_nama}</td>
+                    <td>${(d.jumlah_berdaftar || 0).toLocaleString()}</td>
+                    <td><span class="badge badge-putih">${(d.putih || 0).toLocaleString()}</span></td>
+                    <td><span class="badge badge-atas">${(d.atas_pagar || 0).toLocaleString()}</span></td>
+                    <td><span class="badge badge-hitam">${(d.hitam || 0).toLocaleString()}</span></td>
+                    <td><span class="badge badge-tiada">${belumDikenal.toLocaleString()}</span></td>
+                    <td>${(d.jumlah_ketua_keluarga || 0).toLocaleString()}</td>
+                </tr>`;
+            });
+            rows += `<tr class="bg-gray-50 font-semibold">
+                <td class="font-bold">JUMLAH</td>
+                <td>${(total.jumlah_berdaftar || 0).toLocaleString()}</td>
+                <td><span class="badge badge-putih">${(total.putih || 0).toLocaleString()}</span></td>
+                <td><span class="badge badge-atas">${(total.atas_pagar || 0).toLocaleString()}</span></td>
+                <td><span class="badge badge-hitam">${(total.hitam || 0).toLocaleString()}</span></td>
+                <td><span class="badge badge-tiada">${(total.tidak_dikenali || 0).toLocaleString()}</span></td>
+                <td>${(total.jumlah_ketua_keluarga || 0).toLocaleString()}</td>
+            </tr>`;
+            tbody.innerHTML = rows;
+        }).catch(e => console.error('Ringkasan panel error:', e));
     } catch (err) {
         content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`;
+    }
+}
+
+async function fetchRingkasanData() {
+    try {
+        return await api('/api/dashboard/ringkasan');
+    } catch (e) {
+        console.error('Gagal fetch ringkasan:', e);
+        return null;
     }
 }
 
