@@ -312,7 +312,7 @@ const state = {
     dunChartDun: 'N12',  // DUN dipilih untuk graf DUN dinamik (N12/N13/N14/N15)
     dunChartPdm: '',  // PDM filter untuk graf DUN dinamik
     dashboardEditMode: false,  // Toggle for drag & resize mode
-    dashboardLayout: JSON.parse(localStorage.getItem('dashboardLayout_v2') || 'null'),  // Saved positions
+    dashboardLayout: safeParse(localStorage.getItem('dashboardLayout_v2'), null),  // Saved positions
     dashboardItems: [],  // DOM order array
 };
 
