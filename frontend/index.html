@@ -87,14 +87,16 @@
 <body>
 
 <div id="app" class="flex min-h-screen">
-    <nav id="sidebar" class="sidebar closed fixed md:static h-full bg-white shadow-lg z-50"></nav>
+    <!-- 🛡️ SAFETY: Sidebar mulanya hidden — hanya muncul selepas auth berjaya -->
+    <nav id="sidebar" class="sidebar closed fixed md:static h-full bg-white shadow-lg z-50 hidden"></nav>
     <div class="flex-1 p-4 md:p-6">
         <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-3">
                 <button id="menuToggle" class="md:hidden p-2 rounded-lg hover:bg-gray-100">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
-                <h1 id="pageTitle" class="text-xl md:text-2xl font-bold text-gray-800">Dashboard Utama</h1>
+                <!-- 🛡️ SAFETY: Default title "Log Masuk" — jika JS gagal, user nampak login page, bukan dashboard kosong -->
+                <h1 id="pageTitle" class="text-xl md:text-2xl font-bold text-gray-800">Log Masuk</h1>
             </div>
             <div id="userInfo" class="flex items-center gap-3"></div>
         </div>
@@ -2240,7 +2242,26 @@ function toggleSidebar() {
 }
 
 document.getElementById('menuToggle')?.addEventListener('click', toggleSidebar);
-renderApp();
+// 🛡️ SAFETY: Balut renderApp() dalam try/catch — jika gagal, kita tutup dashboard dan show login fallback dalam catch
+try {
+    renderApp();
+} catch(e) {
+    console.error('[CRITICAL] renderApp() crashed:', e);
+    // Fallback: pastikan login page kelihatan walau apa pun
+    document.getElementById('sidebar')?.classList.add('hidden');
+    document.getElementById('pageTitle').textContent = 'Log Masuk';
+    document.getElementById('userInfo').innerHTML = '';
+    document.getElementById('contentArea').innerHTML = `<div class="flex items-center justify-center min-h-[70vh]">
+        <div class="card w-full max-w-md p-8 text-center">
+            <div class="w-16 h-16 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+            </div>
+            <h2 class="text-lg font-bold text-gray-800 mb-2">Ralat Aplikasi</h2>
+            <p class="text-sm text-gray-500 mb-4">Aplikasi mengalami masalah teknikal. Sila muat semula halaman.</p>
+            <button onclick="location.reload()" class="btn btn-primary">Muat Semula</button>
+        </div>
+    </div>`;
+}
 setInterval(() => { if (state.user?.peranan==='Admin' && state.token) updateApprovalBadge(); }, 30000);
 document.addEventListener('click', (e) => {
     const sidebar = document.getElementById('sidebar');
