@@ -1,14 +1,16 @@
 // Nama cache dan versi - tukar versi untuk paksa refresh cache
-const CACHE_NAME = 'pengundi-p170-v3';
+// 🔴 v4: BUST CACHE — index.html lama yang broken dulu masih disimpan oleh SW v3
+//          Tukar versi paksa SW lama dibuang dan HTML baru diambil dari network.
+const CACHE_NAME = 'pengundi-p170-v4';
 
-// Fail statik yang akan di-cache semasa pemasangan
+// Fail statik yang akan di-cache semasa pemasangan (guna sebagai fallback offline)
 // NOTA: Jangan masukkan CDN URLs (tailwind, chart.js) — ia perlu di-fetch dari network
 //       kerana cache.addAll akan gagal jika mana-mana CDN tidak reachable.
 const STATIC_ASSETS = [
-    './index.html',
     './manifest.json',
     './logo.png',
     './js/dashboard-layout.js'
+    // 🛡️ index.html TIDAK dimasukkan — guna network-first supaya deploy baru selalu dapat HTML terkini
 ];
 
 // ===== INSTALL: Cache static assets =====
@@ -48,7 +50,13 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Untuk font, CDN, dan fail statik - Cache First
+    // Untuk HTML documents - Network First (supaya selalu dapat deploy terkini)
+    if (event.request.mode === 'navigate') {
+        event.respondWith(networkFirst(event.request));
+        return;
+    }
+
+    // Untuk font, CDN, dan fail statik lain - Cache First
     event.respondWith(cacheFirst(event.request));
 });
 
