@@ -1083,7 +1083,7 @@ async function renderDashboard() {
             </div>
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="lg:col-span-2 flex flex-col gap-6">
-                    <div class="card"><div class="flex items-center justify-between mb-4"><h3 class="font-semibold text-gray-800">P170 Tuaran - Sokongan Mengikut DUN</h3><select id="dmFilter" onchange="state.dashboardDm=this.value; dashboardSmoothRefresh()()" class="w-auto text-sm"><option value="">Semua DUN</option><option value="N12" ${selectedDun==='N12'?'selected':''}>N12 Sulaman</option><option value="N13" ${selectedDun==='N13'?'selected':''}>N13 Pantai Dalit</option><option value="N14" ${selectedDun==='N14'?'selected':''}>N14 Tamparuli</option><option value="N15" ${selectedDun==='N15'?'selected':''}>N15 Kiulu</option></select></div>
+                    <div class="card"><div class="flex items-center justify-between mb-4"><h3 class="font-semibold text-gray-800">P170 Tuaran - Sokongan Mengikut DUN</h3><select id="dmFilter" onchange="state.dashboardDm=this.value; dashboardSmoothRefresh()" class="w-auto text-sm"><option value="">Semua DUN</option><option value="N12" ${selectedDun==='N12'?'selected':''}>N12 Sulaman</option><option value="N13" ${selectedDun==='N13'?'selected':''}>N13 Pantai Dalit</option><option value="N14" ${selectedDun==='N14'?'selected':''}>N14 Tamparuli</option><option value="N15" ${selectedDun==='N15'?'selected':''}>N15 Kiulu</option></select></div>
                         <div class="flex flex-col md:flex-row items-center gap-6"><div class="w-full md:w-64 h-64"><canvas id="sokonganChart"></canvas></div>
                             <div class="flex-1 w-full"><table><thead><tr><th class="pl-0">Status</th><th>Jumlah</th><th>Peratusan</th></tr></thead>
                             <tbody><tr><td class="pl-0"><span class="badge badge-putih">Putih</span></td><td>${putih.toLocaleString()}</td><td>${totalSokongan?((putih/totalSokongan)*100).toFixed(1):0}%</td></tr>
@@ -1158,7 +1158,7 @@ async function renderDashboard() {
         
         setTimeout(() => {
             // Apply saved layout styles - panggil sekali dalam setTimeout dan sekali dalam requestAnimationFrame
-            initDashboardInteract();
+            try { initDashboardInteract(); } catch(e) { console.error('initDashboardInteract error:', e); }
             // Second pass: ensure styles are applied after browser layout
             requestAnimationFrame(() => {
                 const saved = localStorage.getItem('dashboardInteractLayout');

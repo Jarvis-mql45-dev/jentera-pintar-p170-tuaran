@@ -129,75 +129,84 @@ function initDashboardInteract() {
 }
 
 function applyInteractToCards() {
+    // 🛡️ SAFETY: Pastikan Interact.js telah dimuatkan sebelum guna
+    if (typeof interact === 'undefined') {
+        console.warn('[Layout] Interact.js not loaded — skipping drag/resize init');
+        return;
+    }
+    
     const cards = document.querySelectorAll('#dashboardContainer .card');
     if (cards.length === 0) return;
     
     const container = document.getElementById('dashboardContainer');
     
     cards.forEach(card => {
-        
-        interact(card).draggable({
-            enabled: state.dashboardEditMode,
-            inertia: true,
-            modifiers: [
-                interact.modifiers.restrictRect({
-                    restriction: container || 'parent',
-                    endOnly: true
-                })
-            ],
-            listeners: {
-                move(event) {
-                    const target = event.target;
-                    const x = (parseFloat(target.dataset.x) || 0) + event.dx;
-                    const y = (parseFloat(target.dataset.y) || 0) + event.dy;
-                    target.style.left = x + 'px';
-                    target.style.top = y + 'px';
-                    target.dataset.x = x;
-                    target.dataset.y = y;
-                },
-                end(event) {
-                    saveInteractLayout();
+        try {
+            interact(card).draggable({
+                enabled: state.dashboardEditMode,
+                inertia: true,
+                modifiers: [
+                    interact.modifiers.restrictRect({
+                        restriction: container || 'parent',
+                        endOnly: true
+                    })
+                ],
+                listeners: {
+                    move(event) {
+                        const target = event.target;
+                        const x = (parseFloat(target.dataset.x) || 0) + event.dx;
+                        const y = (parseFloat(target.dataset.y) || 0) + event.dy;
+                        target.style.left = x + 'px';
+                        target.style.top = y + 'px';
+                        target.dataset.x = x;
+                        target.dataset.y = y;
+                    },
+                    end(event) {
+                        saveInteractLayout();
+                    }
                 }
-            }
-        });
-        
-        interact(card).resizable({
-            enabled: state.dashboardEditMode,
-            edges: { right: true, bottom: true, bottomRight: true },
-            listeners: {
-                move(event) {
-                    const target = event.target;
-                    let x = parseFloat(target.dataset.x) || 0;
-                    let y = parseFloat(target.dataset.y) || 0;
-                    
-                    if (event.rect.width > 100) {
-                        target.style.width = event.rect.width + 'px';
-                    }
-                    if (event.rect.height > 80) {
-                        target.style.height = event.rect.height + 'px';
-                    }
-                    
-                    x += event.deltaRect.left;
-                    y += event.deltaRect.top;
-                    target.style.left = x + 'px';
-                    target.style.top = y + 'px';
-                    target.dataset.x = x;
-                    target.dataset.y = y;
-                    
-                    const canvases = target.querySelectorAll('canvas');
-                    canvases.forEach(canvas => {
-                        Object.values(state.charts).forEach(chart => {
-                            if (chart && chart.canvas && chart.canvas.id === canvas.id) {
-                                chart.resize();
-                            }
+            });
+            
+            interact(card).resizable({
+                enabled: state.dashboardEditMode,
+                edges: { right: true, bottom: true, bottomRight: true },
+                listeners: {
+                    move(event) {
+                        const target = event.target;
+                        let x = parseFloat(target.dataset.x) || 0;
+                        let y = parseFloat(target.dataset.y) || 0;
+                        
+                        if (event.rect.width > 100) {
+                            target.style.width = event.rect.width + 'px';
+                        }
+                        if (event.rect.height > 80) {
+                            target.style.height = event.rect.height + 'px';
+                        }
+                        
+                        x += event.deltaRect.left;
+                        y += event.deltaRect.top;
+                        target.style.left = x + 'px';
+                        target.style.top = y + 'px';
+                        target.dataset.x = x;
+                        target.dataset.y = y;
+                        
+                        const canvases = target.querySelectorAll('canvas');
+                        canvases.forEach(canvas => {
+                            Object.values(state.charts).forEach(chart => {
+                                if (chart && chart.canvas && chart.canvas.id === canvas.id) {
+                                    chart.resize();
+                                }
+                            });
                         });
-                    });
-                },
-                end(event) {
-                    saveInteractLayout();
+                    },
+                    end(event) {
+                        saveInteractLayout();
+                    }
                 }
-            }
-        });
+            });
+        } catch(e) {
+            console.warn('[Layout] interact() init error for card:', card.id, e);
+        }
     });
 }
 
