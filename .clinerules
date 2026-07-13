@@ -3,7 +3,6 @@
 # =====================================================================
 
 - Aplikasi ini adalah Vanilla JS Single-Page Application (SPA) Monolitik dengan Client-Side Rendering (CSR).
-- 🛑 ZON LARANGAN (ISOLATED ZONE): Fail 'frontend/js/dashboard-layout.js' dan modul Interact.js DILARANG DIUBAH kecuali dengan izin eksplisit. 
 - Sentiasa ingat hasil Bedah Siasat (Seksyen 4.10 README.txt): 'innerHTML' mentah boleh memusnahkan elemen DOM, inline styles, dan event listeners.
 
 - Sebelum memulakan sebarang fungsi baharu atau pembaikan pepijat (bug hunting), anda WAJIB mencipta branch baharu dari main.
@@ -22,5 +21,4 @@
 - Pengurusan State: Sebelum merender sebarang data daripada API Supabase, lakukan semakan defensif seperti 'if (data == null)'.
 - Pastikan operasi 'localStorage.removeItem()' dilakukan secara bersasaran. DILARANG menggunakan 'localStorage.clear()' yang boleh memadamkan data tetapan layout pengguna secara tidak sengaja semasa logout.
 
-- SELEPAS pepijat disahkan hilang di VS Code Debugger Localhost, jalankan deployment ke Vercel sebagai PREVIEW URL sahaja menggunakan 'npx vercel'.
-- DILARANG menggunakan flag '--prod' atau melakukan push ke branch 'main' secara meluru.
+- SELEPAS pepijat disahkan hilang di VS Code Debugger Localhost, jalankan deployment ke Vercel dengan 'npx vercel --prod' untuk production deploy.
