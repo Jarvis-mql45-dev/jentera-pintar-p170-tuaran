@@ -1296,6 +1296,80 @@ def delete_survey(request: Request, survey_id: int, user=Depends(get_current_use
     return {"message": "Survey dipadamkan"}
 
 
+
+# Dashboard Ringkasan Parlimen — data agregat untuk 4 DUN
+@app.get("/api/dashboard/ringkasan")
+def get_dashboard_ringkasan(user=Depends(get_current_user)):
+    """Pulangkan data ringkasan untuk setiap 4 DUN."""
+    try:
+        db = get_db()
+        cursor = db.cursor()
+
+        cursor.execute("""
+            SELECT 
+                d.kod, d.nama,
+                COUNT(p.id) AS jumlah_berdaftar,
+                SUM(CASE WHEN p.status_sokongan = 'Putih' THEN 1 ELSE 0 END) AS putih,
+                SUM(CASE WHEN p.status_sokongan = 'Atas Pagar' THEN 1 ELSE 0 END) AS atas_pagar,
+                SUM(CASE WHEN p.status_sokongan = 'Hitam' THEN 1 ELSE 0 END) AS hitam,
+                SUM(CASE WHEN p.status_sokongan IS NULL OR p.status_sokongan NOT IN ('Putih', 'Atas Pagar', 'Hitam') THEN 1 ELSE 0 END) AS tidak_dikenali,
+                SUM(CASE WHEN p.status_fizikal = 'Meninggal Dunia' THEN 1 ELSE 0 END) AS meninggal,
+                COUNT(DISTINCT p.ketua_keluarga_id) AS jumlah_ketua_keluarga
+            FROM pengundi p
+            JOIN dun d ON p.dun_id = d.id
+            WHERE d.parlimen_id = (SELECT id FROM parlimen WHERE kod = 'P170')
+            GROUP BY d.kod, d.nama
+            ORDER BY d.kod
+        """)
+        
+        dun_list = []
+        for row in cursor.fetchall():
+            dun_list.append({
+                "dun_kod": row["kod"],
+                "dun_nama": f"DUN {row['kod']} {row['nama']}",
+                "jumlah_berdaftar": row["jumlah_berdaftar"],
+                "putih": row["putih"],
+                "atas_pagar": row["atas_pagar"],
+                "hitam": row["hitam"],
+                "tidak_dikenali": row["tidak_dikenali"],
+                "meninggal": row["meninggal"],
+                "jumlah_ketua_keluarga": row["jumlah_ketua_keluarga"]
+            })
+        
+        cursor.execute("""
+            SELECT 
+                COUNT(*) AS jumlah_berdaftar,
+                SUM(CASE WHEN status_sokongan = 'Putih' THEN 1 ELSE 0 END) AS putih,
+                SUM(CASE WHEN status_sokongan = 'Atas Pagar' THEN 1 ELSE 0 END) AS atas_pagar,
+                SUM(CASE WHEN status_sokongan = 'Hitam' THEN 1 ELSE 0 END) AS hitam,
+                SUM(CASE WHEN status_sokongan IS NULL OR status_sokongan NOT IN ('Putih', 'Atas Pagar', 'Hitam') THEN 1 ELSE 0 END) AS tidak_dikenali,
+                COUNT(DISTINCT ketua_keluarga_id) AS jumlah_ketua_keluarga
+            FROM pengundi
+        """)
+        total = cursor.fetchone()
+        
+        db.close()
+
+        return {
+            "success": True,
+            "parlimen": "P170 Tuaran",
+            "dun": dun_list,
+            "jumlah_keseluruhan": {
+                "jumlah_berdaftar": total["jumlah_berdaftar"],
+                "putih": total["putih"],
+                "atas_pagar": total["atas_pagar"],
+                "hitam": total["hitam"],
+                "tidak_dikenali": total["tidak_dikenali"],
+                "jumlah_ketua_keluarga": total["jumlah_ketua_keluarga"]
+            }
+        }
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR /api/dashboard/ringkasan: {type(e).__name__}: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
+
+
 # ===== DIAGNOSTIC DASHBOARD TEST =====
 @app.get("/api/dashboard-test")
 def dashboard_test(user=Depends(get_current_user)):
