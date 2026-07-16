@@ -5,29 +5,9 @@ function safeParse(str, fallback = null) {
     try { return JSON.parse(str); } catch(e) { return fallback; }
 }
 
-const state = {
-    token: localStorage.getItem('token') || null,
-    user: safeParse(localStorage.getItem('user'), null),
-    currentPage: localStorage.getItem('currentPage') || 'dashboard',
-    dashboardDm: '',
-    pengundiSearch: '',
-    pengundiDm: '',
-    pengundiPage: 1,
-    approvalPage: 1,
-    pengundiData: null,
-    dashboardData: null,
-    pdmList: [],
-    chart: null,
-    surveyPage: 'list',
-    surveyEditId: null,
-    surveyQuestions: [],
-    charts: {},
-    dunChartDun: 'N12',
-    dunChartPdm: '',
-    dashboardEditMode: false,
-    dashboardLayout: safeParse(localStorage.getItem('dashboardLayout_v2'), null),
-    dashboardItems: [],
-};
+// NOTE: state is declared in index.html (inline script) — DO NOT redeclare const state here
+// The inline script runs first and defines all 22 properties.
+// See plan: plans/fix-page-persistence-on-refresh.md
 
 // ============================================================
 // PDM-TO-DUN MAPPING untuk P170 Tuaran

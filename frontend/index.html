@@ -295,7 +295,7 @@ function safeParse(str, fallback = null) {
 const state = {
     token: localStorage.getItem('token') || null,
     user: safeParse(localStorage.getItem('user'), null),
-    currentPage: 'dashboard',
+    currentPage: localStorage.getItem('currentPage') || 'dashboard',
     dashboardDm: '',
     pengundiSearch: '',
     pengundiDm: '',
@@ -577,6 +577,7 @@ function renderSidebar() {
 function navigate(page) {
     if (!requiresAuth()) { renderLoginPage(); return; }
     state.currentPage = page;
+    localStorage.setItem('currentPage', page);
     renderSidebar();
     document.getElementById('pageTitle').textContent = 
         page==='dashboard'?'Dashboard Utama':page==='pengundi'?'Senarai Pengundi':
