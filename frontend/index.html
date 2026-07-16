@@ -504,7 +504,7 @@ function renderSidebar() {
         <div class="sidebar-menu p-3">
             <div class="text-xs text-gray-400 uppercase font-semibold mb-2 px-3">Menu Utama</div>
             <button onclick="navigate('dashboard')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='dashboard'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg> Dashboard
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg> Papan Pemuka
             </button>
             <button onclick="navigate('pengundi')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='pengundi'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg> Senarai Pengundi
@@ -580,11 +580,11 @@ function navigate(page) {
     localStorage.setItem('currentPage', page);
     renderSidebar();
     document.getElementById('pageTitle').textContent = 
-        page==='dashboard'?'Dashboard Utama':page==='pengundi'?'Senarai Pengundi':
+        page==='dashboard'?'Papan Pemuka':page==='pengundi'?'Senarai Pengundi':
         page==='approval'?'Kelulusan Data':page==='audit'?'Log Aktiviti':
         page==='users'?'Pengurusan Pengguna':page==='import'?'Import Data Excel':
         page==='survey'?'Senarai Soal Selidik':page==='survey-create'?'Cipta Soal Selidik':
-        page==='survey-view'?'Borang Soal Selidik':'Dashboard Utama';
+        page==='survey-view'?'Borang Soal Selidik':'Papan Pemuka';
     document.getElementById('sidebar').classList.remove('open');
     if (window.innerWidth < 768) {
         document.getElementById('sidebar').classList.add('closed');
@@ -2106,7 +2106,7 @@ function renderComingSoon(page) {
                 <h2 class="text-xl font-bold text-gray-800 mb-2">${titles[page] || 'Ciri Akan Datang'}</h2>
                 <div class="inline-block bg-amber-100 text-amber-800 text-sm font-semibold px-3 py-1 rounded-full mb-4">Akan Datang</div>
                 <p class="text-gray-500 max-w-md mx-auto">Ciri ini sedang dalam pembangunan dan akan dilancarkan dalam fasa akan datang. Sila nantikan!</p>
-                <button onclick="navigate('dashboard')" class="btn btn-primary mt-6">← Kembali ke Dashboard</button>
+                <button onclick="navigate('dashboard')" class="btn btn-primary mt-6">← Kembali ke Papan Pemuka</button>
             </div>
         </div>`;
 }
