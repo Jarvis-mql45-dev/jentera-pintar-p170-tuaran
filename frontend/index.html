@@ -1081,79 +1081,6 @@ async function submitSurveyForm(event, surveyId) {
     }
 }
 
-// ========= DASHBOARD - Smooth Update (tanpa flashbang putih) =========
-async function dashboardSmoothRefresh(fetchDun, fetchPdm) {
-    const overlay = document.getElementById('smoothOverlay');
-    if (overlay) overlay.classList.add('active');
-    try {
-        // Fetch data P170 pie + stacked bar
-        const selectedDun = state.dashboardDm || '';
-        const data = await api(`/api/dashboard${selectedDun ? `?dun=${selectedDun}` : ''}`);
-        state.dashboardData = data;
-        const { sokongan, jantina, fizikal, lokaliti_teratas, jumlah_pengundi } = data;
-        const totalSokongan = Object.values(sokongan).reduce((a, b) => a + b, 0);
-        const putih = sokongan['Putih'] || 0;
-        const hitam = sokongan['Hitam'] || 0;
-        const atasPagar = sokongan['Atas Pagar'] || 0;
-        const kategoriLain = Object.entries(sokongan).filter(([k]) => !['Putih','Hitam','Atas Pagar'].includes(k)).reduce((acc, [k, v]) => { acc[k] = v; return acc; }, {});
-        const totalLain = Object.values(kategoriLain).reduce((a, b) => a + b, 0);
-        const labelLain = Object.keys(kategoriLain)[0] || 'Tiada';
-
-        // Fetch data untuk GRAF DUN DINAMIK
-        const dunChartDun = state.dunChartDun || 'N12';
-        const dunChartPdm = state.dunChartPdm || '';
-        const dunChartData = await api(`/api/dashboard/dun/${dunChartDun}${dunChartPdm ? `?dm=${encodeURIComponent(dunChartPdm)}` : ''}`);
-        const dunChartSok = dunChartData.sokongan || {};
-        const dunChartPutih = dunChartSok['Putih'] || 0;
-        const dunChartHitam = dunChartSok['Hitam'] || 0;
-        const dunChartAtas = dunChartSok['Atas Pagar'] || 0;
-        const dunChartTotLain = Object.entries(dunChartSok).filter(([k]) => !['Putih','Hitam','Atas Pagar'].includes(k)).reduce((a, [,v]) => a + v, 0);
-
-        // Update PIE chart
-        const pieCtx = document.getElementById('sokonganChart');
-        if (pieCtx) {
-            if (state.chart?.destroy) state.chart.destroy();
-            state.chart = null;
-            state.chart = new Chart(pieCtx, { type:'pie', data:{ labels:['Putih','Atas Pagar','Hitam',labelLain], datasets:[{ data:[putih,atasPagar,hitam,totalLain], backgroundColor:['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth:2, borderColor:'#fff' }] }, options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{ display:false } } } });
-        }
-
-        // Update GRAF DUN DINAMIK chart
-        const dunCtx = document.getElementById('dunChartCanvas');
-        if (dunCtx) {
-            const dunLabelLain = Object.keys(dunChartSok).filter(k => !['Putih','Hitam','Atas Pagar'].includes(k))[0] || 'Tiada';
-            const dunDataArr = [dunChartPutih, dunChartAtas, dunChartHitam, dunChartTotLain];
-            const dunLabelsArr = ['Putih','Atas Pagar','Hitam', dunLabelLain];
-            if (state.charts['dunChart']?.destroy) state.charts['dunChart'].destroy();
-            state.charts['dunChart'] = null;
-            state.charts['dunChart'] = new Chart(dunCtx, { type:'doughnut', data:{ labels:dunLabelsArr, datasets:[{ data:dunDataArr, backgroundColor:['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth:2, borderColor:'#fff' }] }, options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{ display:false } } } });
-        }
-
-        // Update stacked bar chart
-        const barCtx = document.getElementById('stackedBarChart');
-        if (barCtx) {
-            const su = data.sokongan_ikut_umur || {};
-            const umurDisplayLabels = ['Belia (18-30 thn)','Dewasa (31-59 thn)','Warga Emas (60+ thn)','Tidak Diketahui'];
-            const umurKeyMap = {'Belia (18-30 thn)':'Belia','Dewasa (31-59 thn)':'Dewasa','Warga Emas (60+ thn)':'Warga Emas','Tidak Diketahui':'Tidak Diketahui'};
-            const sokonganSet = new Set();
-            Object.values(su).forEach(inner => { Object.keys(inner).forEach(k => sokonganSet.add(k)); });
-            const sokonganLabels = Array.from(sokonganSet);
-            const sokonganDisplayLabels = sokonganLabels.map(l => l==='Tiada'?'Tidak Dikenal Pasti':l);
-            const sokonganWarnaMap = { 'Putih':'#22c55e', 'Atas Pagar':'#eab308', 'Hitam':'#ef4444' };
-            const defaultColours = ['#94a3b8','#818cf8','#f472b6','#34d399','#fbbf24','#a78bfa'];
-            if (state.charts['stackedBar']?.destroy) state.charts['stackedBar'].destroy();
-            state.charts['stackedBar'] = null;
-            state.charts['stackedBar'] = new Chart(barCtx, { type:'bar', data:{ labels:umurDisplayLabels, datasets:sokonganLabels.map((label,i)=>({ label:sokonganDisplayLabels[i], data:umurDisplayLabels.map(displayLabel=>{ const key=umurKeyMap[displayLabel]||displayLabel; return (su[key]&&su[key][label])||0; }), backgroundColor:sokonganWarnaMap[label]||defaultColours[i%defaultColours.length], borderRadius:4, stack:'stack1' })) }, options:{ responsive:true, maintainAspectRatio:false, interaction:{ mode:'nearest', axis:'xy', intersect:false }, scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, grid:{ color:'#f1f5f9' } } }, plugins:{ legend:{ position:'top', labels:{ boxWidth:12, padding:12 } }, tooltip:{ enabled:true, mode:'nearest', axis:'xy', intersect:false, callbacks:{ label:function(context){ return (context.dataset.label||'')+': '+(context.parsed.y||0); } } } } } });
-        }
-    } catch (e) {
-        console.error('Smooth refresh error:', e);
-        showToast('Gagal memuatkan data', 'error');
-    } finally {
-        if (overlay) {
-            setTimeout(() => overlay.classList.remove('active'), 100);
-        }
-    }
-}
-
 // ========= DASHBOARD =========
 async function renderDashboard() {
     const content = document.getElementById('contentArea');
@@ -1181,52 +1108,8 @@ async function renderDashboard() {
     });
     content.innerHTML = `<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan dashboard...</span></div>`;
     try {
-        const selectedDun = state.dashboardDm || '';  // Kini simpan KOD DUN, bukan PDM
-        const data = await api(`/api/dashboard${selectedDun ? `?dun=${selectedDun}` : ''}`);
-        state.dashboardData = data;
         if (!state.pdmList.length) state.pdmList = await api('/api/pdm');
-        const { jumlah_pengundi, sokongan, jantina, fizikal, lokaliti_teratas } = data;
-        const totalSokongan = Object.values(sokongan).reduce((a, b) => a + b, 0);
-        // Baca semua status sokongan secara dynamic (termasuk 'Belum Dikenal Pasti')
-        const putih = sokongan['Putih'] || 0;
-        const hitam = sokongan['Hitam'] || 0;
-        const atasPagar = sokongan['Atas Pagar'] || 0;
-        // Ambil semua baki kategori yang tidak termasuk Putih/Hitam/Atas Pagar
-        const kategoriLain = Object.entries(sokongan)
-            .filter(([k]) => !['Putih','Hitam','Atas Pagar'].includes(k))
-            .reduce((acc, [k, v]) => { acc[k] = v; return acc; }, {});
-        const totalLain = Object.values(kategoriLain).reduce((a, b) => a + b, 0);
-        // Paparkan label pertama dari kategori lain atau 'Tiada' jika kosong
-        const labelLain = Object.keys(kategoriLain)[0] || 'Tiada';
-
-        // Fetch data untuk GRAF DUN DINAMIK (dari state.dunChartDun)
-        const dunChartDun = state.dunChartDun || 'N12';
-        const dunChartPdm = state.dunChartPdm || '';
-        const dunChartData = await api(`/api/dashboard/dun/${dunChartDun}${dunChartPdm ? `?dm=${encodeURIComponent(dunChartPdm)}` : ''}`);
-        const dunChartSok = dunChartData.sokongan || {};
-        const dunChartPutih = dunChartSok['Putih'] || 0;
-        const dunChartHitam = dunChartSok['Hitam'] || 0;
-        const dunChartAtas = dunChartSok['Atas Pagar'] || 0;
-        const dunChartLain = Object.keys(dunChartSok).filter(k => !['Putih','Hitam','Atas Pagar'].includes(k))[0] || 'Tiada';
-        const dunChartTotLain = Object.entries(dunChartSok).filter(([k]) => !['Putih','Hitam','Atas Pagar'].includes(k)).reduce((a, [,v]) => a + v, 0);
-        const dunChartTotalSok = Object.values(dunChartSok).reduce((a, b) => a + b, 0);
-        const pctDunChart = (v) => dunChartTotalSok ? ((v/dunChartTotalSok)*100).toFixed(1) : 0;
-        // Nama DUN untuk paparan tajuk
-        const DUN_NAMES = {'N12':'N12 Sulaman','N13':'N13 Pantai Dalit','N14':'N14 Tamparuli','N15':'N15 Kiulu'};
-        const dunChartTitle = DUN_NAMES[dunChartDun] || 'DUN';
-        // Senarai PDM untuk dropdown — di-filter mengikut DUN yang dipilih
-        const dunChartPdmList = PDM_BY_DUN[dunChartDun] || [];
-
-        // Add layout toggle button at top
-        const isEditMode = state.dashboardEditMode;
         content.innerHTML = `
-    <div class="flex items-center justify-between mb-4">
-        <div></div>
-        <button id="layoutToggleBtn" onclick="toggleDashboardEditMode()" class="btn ${isEditMode ? 'btn-success' : 'btn-outline'} layout-toggle-btn text-sm flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-            ${isEditMode ? '🔒 Kunci Susunan' : '✏️ Ubah Susunan'}
-        </button>
-    </div>
             <!-- 🆕 PANEL STRATEGI PILIHAN RAYA P170 TUARAN -->
             <div class="card mb-6">
                 <div class="flex items-center justify-between mb-4">
@@ -1251,174 +1134,10 @@ async function renderDashboard() {
                     </table>
                 </div>
             </div>
-
-            <div id="dashboardContainer" class="${isEditMode ? 'dashboard-edit-mode' : ''}">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div class="card"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-500">Jumlah Pengundi</p><p class="text-2xl font-bold text-gray-800">${jumlah_pengundi.toLocaleString()}</p></div><div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div></div><div class="mt-2 flex items-center gap-1 text-xs text-gray-500"><span class="text-green-600 font-medium">✓ ${fizikal?.Hidup || 0} Hidup</span><span>·</span><span class="text-red-600">✗ ${fizikal?.['Meninggal Dunia'] || 0} Meninggal</span></div></div>
-                <div class="card"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-500">Putih</p><p class="text-2xl font-bold text-green-700">${putih.toLocaleString()}</p></div><div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg></div></div></div>
-                <div class="card"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-500">Hitam</p><p class="text-2xl font-bold text-red-700">${hitam.toLocaleString()}</p></div><div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></div></div></div>
-                <div class="card"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-500">Atas Pagar</p><p class="text-2xl font-bold text-yellow-700">${atasPagar.toLocaleString()}</p></div><div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div></div></div>
-            </div>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-2 flex flex-col gap-6">
-                    <div class="card"><div class="flex items-center justify-between mb-4"><h3 class="font-semibold text-gray-800">P170 Tuaran - Sokongan Mengikut DUN</h3><select id="dmFilter" onchange="state.dashboardDm=this.value; dashboardSmoothRefresh()" class="w-auto text-sm"><option value="">Semua DUN</option><option value="N12" ${selectedDun==='N12'?'selected':''}>N12 Sulaman</option><option value="N13" ${selectedDun==='N13'?'selected':''}>N13 Pantai Dalit</option><option value="N14" ${selectedDun==='N14'?'selected':''}>N14 Tamparuli</option><option value="N15" ${selectedDun==='N15'?'selected':''}>N15 Kiulu</option></select></div>
-                        <div class="flex flex-col md:flex-row items-center gap-6"><div class="w-full md:w-64 h-64"><canvas id="sokonganChart"></canvas></div>
-                            <div class="flex-1 w-full"><table><thead><tr><th class="pl-0">Status</th><th>Jumlah</th><th>Peratusan</th></tr></thead>
-                            <tbody><tr><td class="pl-0"><span class="badge badge-putih">Putih</span></td><td>${putih.toLocaleString()}</td><td>${totalSokongan?((putih/totalSokongan)*100).toFixed(1):0}%</td></tr>
-                            <tr><td class="pl-0"><span class="badge badge-atas">Atas Pagar</span></td><td>${atasPagar.toLocaleString()}</td><td>${totalSokongan?((atasPagar/totalSokongan)*100).toFixed(1):0}%</td></tr>
-                            <tr><td class="pl-0"><span class="badge badge-hitam">Hitam</span></td><td>${hitam.toLocaleString()}</td><td>${totalSokongan?((hitam/totalSokongan)*100).toFixed(1):0}%</td></tr>
-                            <tr><td class="pl-0"><span class="badge badge-tiada">${labelLain}</span></td><td>${totalLain.toLocaleString()}</td><td>${totalSokongan?((totalLain/totalSokongan)*100).toFixed(1):0}%</td></tr></tbody></table></div></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 🆕 GRAF DUN DINAMIK - Sokongan Mengikut PDM -->
-            <div class="w-full mt-6">
-                <div class="card">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center gap-3">
-                            <h3 id="dunChartTitle" class="font-semibold text-gray-800">${dunChartTitle} - Sokongan Mengikut PDM</h3>
-                            <select id="dunChartDunSelect" onchange="state.dunChartDun=this.value; state.dunChartPdm=''; dashboardSmoothRefresh()" class="w-auto text-sm border rounded-lg px-2 py-1">
-                                <option value="N12" ${dunChartDun==='N12'?'selected':''}>N12 Sulaman</option>
-                                <option value="N13" ${dunChartDun==='N13'?'selected':''}>N13 Pantai Dalit</option>
-                                <option value="N14" ${dunChartDun==='N14'?'selected':''}>N14 Tamparuli</option>
-                                <option value="N15" ${dunChartDun==='N15'?'selected':''}>N15 Kiulu</option>
-                            </select>
-                        </div>
-                            <select id="dunChartPdmSelect" onchange="state.dunChartPdm=this.value; dashboardSmoothRefresh()" class="w-auto text-sm">
-                            <option value="">Semua PDM ${dunChartTitle}</option>
-                            ${dunChartPdmList.map(pdm => `<option value="${pdm}" ${dunChartPdm===pdm?'selected':''}>${pdm}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div class="flex flex-col md:flex-row items-center gap-6">
-                        <div class="w-full md:w-64 h-64"><canvas id="dunChartCanvas"></canvas></div>
-                        <div class="flex-1 w-full">
-                            <table>
-                                <thead><tr><th class="pl-0">Status</th><th>Jumlah</th><th>Peratusan</th></tr></thead>
-                                <tbody>
-                                    <tr><td class="pl-0"><span class="badge badge-putih">Putih</span></td><td>${dunChartPutih.toLocaleString()}</td><td>${pctDunChart(dunChartPutih)}%</td></tr>
-                                    <tr><td class="pl-0"><span class="badge badge-atas">Atas Pagar</span></td><td>${dunChartAtas.toLocaleString()}</td><td>${pctDunChart(dunChartAtas)}%</td></tr>
-                                    <tr><td class="pl-0"><span class="badge badge-hitam">Hitam</span></td><td>${dunChartHitam.toLocaleString()}</td><td>${pctDunChart(dunChartHitam)}%</td></tr>
-                                    <tr><td class="pl-0"><span class="badge badge-tiada">${dunChartLain}</span></td><td>${dunChartTotLain.toLocaleString()}</td><td>${pctDunChart(dunChartTotLain)}%</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Grid bawah: Graf Umur + Jantina/Klasifikasi/Lokaliti -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-                <div class="lg:col-span-2 flex flex-col gap-6">
-                    <div class="card"><div class="flex items-center justify-between mb-4"><h3 class="font-semibold text-gray-800">Status Sokongan × Klasifikasi Umur</h3></div>
-                        <div class="relative w-full h-[350px]"><canvas id="stackedBarChart"></canvas></div>
-                    </div>
-                </div>
-                <div class="flex flex-col gap-4">
-                    <div class="card"><h3 class="font-semibold text-gray-800 mb-3">Pengagihan Jantina</h3>
-                        ${jantina?Object.entries(jantina).map(([k,v])=>`<div class="flex items-center justify-between mb-2"><span class="text-sm text-gray-600">${k==='L'?'Lelaki':k==='P'?'Perempuan':k}</span><span class="text-sm font-semibold">${v.toLocaleString()} (${((v/jumlah_pengundi)*100).toFixed(1)}%)</span></div>`).join(''):'<p class="text-sm text-gray-400">Tiada data</p>'}
-                        <div class="mt-4 pt-3 border-t"><div class="text-sm text-gray-500">Purata Umur: <span class="font-semibold text-gray-800">${data.purata_umur||'?'} tahun</span></div></div>
-                    </div>
-                    <div class="card"><h3 class="font-semibold text-gray-800 mb-3">Klasifikasi Umur</h3>
-                        <div class="space-y-3">${[['Belia','🧑','bg-blue-50',' (18-30 thn)'],['Dewasa','👨','bg-green-50',' (31-59 thn)'],['Warga Emas','👴','bg-amber-50',' (60+ thn)']].map(([k,icon,bg,suffix])=>{const info=(data.klasifikasi_umur&&data.klasifikasi_umur[k])||{jumlah:0,lelaki:0,perempuan:0};const pct=jumlah_pengundi>0?((info.jumlah/jumlah_pengundi)*100).toFixed(1):0;return `<div class="flex items-center justify-between p-2 rounded-lg ${bg}"><div><span class="text-lg mr-1">${icon}</span><span class="text-sm font-medium text-gray-700">${k}${suffix}</span></div><div class="text-right"><div class="text-sm font-bold">${info.jumlah.toLocaleString()} (${pct}%)</div><div class="text-xs text-gray-400">👨 ${info.lelaki} · 👩 ${info.perempuan}</div></div></div>`;}).join('')}
-                        ${data.klasifikasi_umur&&data.klasifikasi_umur['Tidak Diketahui']?`<div class="flex items-center justify-between p-2 rounded-lg bg-gray-50"><div><span class="text-sm text-gray-500">Tidak Diketahui</span></div><div class="text-sm font-bold text-gray-500">${data.klasifikasi_umur['Tidak Diketahui'].jumlah}</div></div>`:''}</div>
-                    </div>
-                    <div class="card"><h3 class="font-semibold text-gray-800 mb-3">Lokaliti Teratas</h3>
-                        ${lokaliti_teratas?.slice(0,5).map(l=>`<div class="flex items-center justify-between mb-2"><span class="text-sm text-gray-600">${l.nama||'Tiada'}</span><span class="text-sm font-semibold">${l.jumlah.toLocaleString()}</span></div>`).join('')||'<p class="text-sm text-gray-400">Tiada data</p>'}
-                    </div>
-                </div>
-            </div>
-
-            </div>  <!-- TUTUP dashboardContainer -->
-
-            `;  // <-- TUTUP TEMPLATE LITERAL content.innerHTML
+`;  // <-- TUTUP TEMPLATE LITERAL content.innerHTML
 
         
-        setTimeout(() => {
-            // Apply saved layout styles - panggil sekali dalam setTimeout dan sekali dalam requestAnimationFrame
-            try { initDashboardInteract(); } catch(e) { console.error('initDashboardInteract error:', e); }
-            // Second pass: ensure styles are applied after browser layout
-            requestAnimationFrame(() => {
-                const saved = localStorage.getItem('dashboardInteractLayout');
-                if (saved) {
-                    try {
-                        const layout = JSON.parse(saved);
-                        Object.keys(layout).forEach(id => {
-                            const el = document.getElementById(id);
-                            if (!el || !layout[id]) return;
-                            const d = layout[id];
-                            if (d.w) el.style.width = d.w;
-                            if (d.h) el.style.height = d.h;
-                            if (d.transform) el.style.transform = d.transform;
-                            if (d.x !== undefined) el.dataset.x = d.x;
-                            if (d.y !== undefined) el.dataset.y = d.y;
-                        });
-                    } catch(e) {}
-                }
-            });
-            // 🛠️ CHART.JS LIFECYCLE: Pie Chart (sokonganChart) - Destroy & recreate pattern (P170 stable pattern)
-            requestAnimationFrame(() => { setTimeout(() => {
-            try {
-                const ctx = document.getElementById('sokonganChart');
-                if (ctx) {
-                    // Destroy instans lama jika ada
-                    if (state.chart && typeof state.chart.destroy === 'function') {
-                        state.chart.destroy();
-                    }
-                    state.chart = null;
-                    // Recreate pada ctx yang SAMA (tiada replaceChild)
-                    state.chart = new Chart(ctx, { type:'pie', data:{ labels:['Putih','Atas Pagar','Hitam',labelLain], datasets:[{ data:[putih,atasPagar,hitam,totalLain], backgroundColor:['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth:2, borderColor:'#fff' }] }, options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{ display:false } } } });
-                }
-            } catch (e) { console.error('Pie chart error:', e); }
-            
-            // 🛠️ CHART.JS LIFECYCLE: Stacked Bar Chart - Destroy & recreate pattern
-            try {
-                // Destroy instans lama stacked bar jika ada
-                if (state.charts['stackedBar'] && typeof state.charts['stackedBar'].destroy === 'function') {
-                    state.charts['stackedBar'].destroy();
-                }
-                state.charts['stackedBar'] = null;
-                const ctx3 = document.getElementById('stackedBarChart');
-                if (ctx3) {
-                    const su = data.sokongan_ikut_umur || {};
-                    const umurDisplayLabels = ['Belia (18-30 thn)','Dewasa (31-59 thn)','Warga Emas (60+ thn)','Tidak Diketahui'];
-                    const umurKeyMap = {'Belia (18-30 thn)':'Belia','Dewasa (31-59 thn)':'Dewasa','Warga Emas (60+ thn)':'Warga Emas','Tidak Diketahui':'Tidak Diketahui'};
-                    const sokonganSet = new Set();
-                    Object.values(su).forEach(inner => { Object.keys(inner).forEach(k => sokonganSet.add(k)); });
-                    const sokonganLabels = Array.from(sokonganSet);
-                    const sokonganDisplayLabels = sokonganLabels.map(l => l==='Tiada'?'Tidak Dikenal Pasti':l);
-                    const sokonganWarnaMap = { 'Putih':'#22c55e', 'Atas Pagar':'#eab308', 'Hitam':'#ef4444' };
-                    const defaultColours = ['#94a3b8','#818cf8','#f472b6','#34d399','#fbbf24','#a78bfa'];
-                    state.charts['stackedBar'] = new Chart(ctx3, { type:'bar', data:{ labels:umurDisplayLabels, datasets:sokonganLabels.map((label,i)=>({ label:sokonganDisplayLabels[i], data:umurDisplayLabels.map(displayLabel=>{ const key=umurKeyMap[displayLabel]||displayLabel; return (su[key]&&su[key][label])||0; }), backgroundColor:sokonganWarnaMap[label]||defaultColours[i%defaultColours.length], borderRadius:4, stack:'stack1' })) }, options:{ responsive:true, maintainAspectRatio:false, interaction:{ mode:'nearest', axis:'xy', intersect:false }, scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, grid:{ color:'#f1f5f9' } } }, plugins:{ legend:{ position:'top', labels:{ boxWidth:12, padding:12 } }, tooltip:{ enabled:true, mode:'nearest', axis:'xy', intersect:false, callbacks:{ label:function(context){ return (context.dataset.label||'')+': '+(context.parsed.y||0); } } } } } });
-                }
-            } catch (e) { console.error('Stacked bar chart error:', e); }
-            
-            // 🛠️ CHART.JS LIFECYCLE: GRAF DUN DINAMIK - Destroy & recreate pattern (P170 stable pattern)
-            try {
-                const dunCtx = document.getElementById('dunChartCanvas');
-                if (dunCtx) {
-                    const dunLabelLain = Object.keys(dunChartSok).filter(k => !['Putih','Hitam','Atas Pagar'].includes(k))[0] || 'Tiada';
-                    const dunChartData = [dunChartPutih, dunChartAtas, dunChartHitam, dunChartTotLain];
-                    const dunChartLabels = ['Putih','Atas Pagar','Hitam', dunLabelLain];
-                    // Destroy instans lama jika ada (sama pattern macam P170)
-                    if (state.charts['dunChart'] && typeof state.charts['dunChart'].destroy === 'function') {
-                        state.charts['dunChart'].destroy();
-                    }
-                    state.charts['dunChart'] = null;
-                    // Recreate pada ctx yang SAMA
-                    state.charts['dunChart'] = new Chart(dunCtx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: dunChartLabels,
-                            datasets: [{ data: dunChartData, backgroundColor: ['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth: 2, borderColor: '#fff' }]
-                        },
-                        options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } } }
-                    });
-                }
-            } catch (e) { console.error('Graf DUN chart error:', e); }
-        }, 50);  // setTimeout tutup
-        });  // requestAnimationFrame tutup
-        // 🆕 FETCH DATA UNTUK PANEL STRATEGI - populate ringkasan table (di luar setTimeout)
+        // 🆕 FETCH DATA UNTUK PANEL STRATEGI - populate ringkasan table
         fetchRingkasanData().then(ringkasan => {
             const tbody = document.getElementById('ringkasanTableBody');
             if (!tbody || !ringkasan) return;
@@ -2447,6 +2166,9 @@ document.addEventListener('click', (e) => {
     }
 });
 </script>
+
+<!-- 🚀 ADVANCED DASHBOARD MODULE (app.js) - 5 table layout: 1 Parlimen + 4 DUN PDM -->
+<script src="js/app.js"></script>
 
 <!-- 🛑 ISOLATED ZONE: Dashboard Layout Module (Interact.js) - MUAT SELEPAS semua elemen DOM siap -->
 <script src="js/dashboard-layout.js"></script>

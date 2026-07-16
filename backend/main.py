@@ -223,6 +223,63 @@ def get_pdm_by_dun(dun_kod: str, user=Depends(get_current_user)):
     db.close()
     return pdms
 
+# Dashboard stats per-PDM (untuk 4 PDM table dalam dashboard)
+@app.get("/api/dashboard/pdm/{dun_kod}")
+def get_dashboard_pdm(dun_kod: str, user=Depends(get_current_user)):
+    """Pulangkan data per-PDM untuk sesuatu DUN — digunakan oleh 4 PDM table di frontend."""
+    try:
+        db = get_db()
+        cursor = db.cursor()
+
+        THN_SEMASA = 2026
+        cursor.execute("""
+            SELECT
+                p.dm,
+                COUNT(p.id) AS jumlah,
+                SUM(CASE WHEN p.status_sokongan = 'Putih' THEN 1 ELSE 0 END) AS putih,
+                SUM(CASE WHEN p.status_sokongan = 'Atas Pagar' THEN 1 ELSE 0 END) AS atas_pagar,
+                SUM(CASE WHEN p.status_sokongan = 'Hitam' THEN 1 ELSE 0 END) AS hitam,
+                SUM(CASE WHEN p.status_sokongan IS NULL OR p.status_sokongan NOT IN ('Putih', 'Atas Pagar', 'Hitam') THEN 1 ELSE 0 END) AS tidak_dikenali,
+                SUM(CASE WHEN p.status_fizikal = 'Meninggal Dunia' THEN 1 ELSE 0 END) AS meninggal,
+                SUM(CASE WHEN p.tahun_lahir IS NOT NULL AND (?) - p.tahun_lahir BETWEEN 18 AND 30 THEN 1 ELSE 0 END) AS usia_18_30,
+                SUM(CASE WHEN p.tahun_lahir IS NOT NULL AND (?) - p.tahun_lahir BETWEEN 31 AND 59 THEN 1 ELSE 0 END) AS usia_31_59,
+                SUM(CASE WHEN p.tahun_lahir IS NOT NULL AND (?) - p.tahun_lahir >= 60 THEN 1 ELSE 0 END) AS usia_60plus,
+                COUNT(DISTINCT p.ketua_keluarga_id) AS jumlah_ketua_keluarga
+            FROM pengundi p
+            WHERE p.dun_id = (SELECT id FROM dun WHERE kod = ?)
+              AND p.status_fizikal = 'Hidup'
+              AND p.status_rekod = 'Sah'
+              AND p.dm IS NOT NULL AND p.dm != ''
+            GROUP BY p.dm
+            ORDER BY p.dm
+        """, (THN_SEMASA, THN_SEMASA, THN_SEMASA, dun_kod))
+
+        data = []
+        for row in cursor.fetchall():
+            data.append({
+                "dm": row["dm"],
+                "jumlah": row["jumlah"],
+                "putih": row["putih"],
+                "atas_pagar": row["atas_pagar"],
+                "hitam": row["hitam"],
+                "tidak_dikenali": row["tidak_dikenali"],
+                "meninggal": row["meninggal"],
+                "usia_18_30": row["usia_18_30"],
+                "usia_31_59": row["usia_31_59"],
+                "usia_60plus": row["usia_60plus"],
+                "jumlah_ketua_keluarga": row["jumlah_ketua_keluarga"]
+            })
+
+        db.close()
+        return {"success": True, "dun_kod": dun_kod, "data": data}
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR /api/dashboard/pdm/{dun_kod}: {type(e).__name__}: {str(e)}")
+        traceback.print_exc()
+        # Fallback: pulangkan data kosong
+        return {"success": False, "dun_kod": dun_kod, "data": [], "error": str(e)}
+
+
 # Dashboard stats untuk DUN tertentu (filter ikut PDM dalam DUN)
 @app.get("/api/dashboard/dun/{dun_kod}")
 def get_dashboard_dun(request: Request, dun_kod: str, dm: Optional[str] = None, user=Depends(get_current_user)):

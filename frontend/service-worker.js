@@ -1,7 +1,7 @@
 // Nama cache dan versi - tukar versi untuk paksa refresh cache
-// 🔴 v4: BUST CACHE — index.html lama yang broken dulu masih disimpan oleh SW v3
-//          Tukar versi paksa SW lama dibuang dan HTML baru diambil dari network.
-const CACHE_NAME = 'pengundi-p170-v5';
+// 🔴 v5: BUST CACHE — index.html kini load app.js untuk 5 jadual PDM
+//          Tukar versi paksa SW lama dibuang dan HTML/app.js baru diambil dari network.
+const CACHE_NAME = 'pengundi-p170-v6';
 
 // Fail statik yang akan di-cache semasa pemasangan (guna sebagai fallback offline)
 // NOTA: Jangan masukkan CDN URLs (tailwind, chart.js) — ia perlu di-fetch dari network
@@ -9,7 +9,8 @@ const CACHE_NAME = 'pengundi-p170-v5';
 const STATIC_ASSETS = [
     './manifest.json',
     './logo.png',
-    './js/dashboard-layout.js'
+    './js/dashboard-layout.js',
+    './js/app.js'
     // 🛡️ index.html TIDAK dimasukkan — guna network-first supaya deploy baru selalu dapat HTML terkini
 ];
 
