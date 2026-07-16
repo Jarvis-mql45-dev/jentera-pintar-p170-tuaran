@@ -1,7 +1,7 @@
 // Nama cache dan versi - tukar versi untuk paksa refresh cache
 // 🔴 v4: BUST CACHE — index.html lama yang broken dulu masih disimpan oleh SW v3
 //          Tukar versi paksa SW lama dibuang dan HTML baru diambil dari network.
-const CACHE_NAME = 'pengundi-p170-v4';
+const CACHE_NAME = 'pengundi-p170-v5';
 
 // Fail statik yang akan di-cache semasa pemasangan (guna sebagai fallback offline)
 // NOTA: Jangan masukkan CDN URLs (tailwind, chart.js) — ia perlu di-fetch dari network
