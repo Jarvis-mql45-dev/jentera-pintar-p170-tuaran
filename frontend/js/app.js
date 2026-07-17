@@ -1669,6 +1669,9 @@ async function renderPengundi() {
 }
 
 async function editPengundi(id) {
+    // 🛡️ Guard: cegah modal berlapis akibat klik berturut-turut
+    if (window._editModalBusy) return;
+    window._editModalBusy = true;
     try {
         const p = await api(`/api/pengundi/${id}`);
         const overlay = document.createElement('div');
@@ -1809,6 +1812,9 @@ async function editPengundi(id) {
         document.body.appendChild(overlay);
     } catch (err) {
         showToast('Gagal memuat data pengundi: ' + err.message, 'error');
+    } finally {
+        // 🔓 Reset guard selepas modal siap atau gagal
+        window._editModalBusy = false;
     }
 }
 
