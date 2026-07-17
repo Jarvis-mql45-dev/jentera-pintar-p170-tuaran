@@ -694,6 +694,84 @@ def search_pengundi_dropdown(
     return {"data": results, "total": total, "page": page, "per_page": per_page}
 
 
+# Endpoint carian Ketua Keluarga untuk searchable dropdown — cari pengundi yang menjadi Ketua Keluarga
+@app.get("/api/ketua-keluarga/search")
+def search_ketua_keluarga_dropdown(
+    q: str = "",
+    page: int = 1,
+    per_page: int = 200,
+    user=Depends(get_current_user)
+):
+    """Cari pengundi yang menjadi Ketua Keluarga untuk dropdown pilihan."""
+    db = get_db()
+    cursor = db.cursor()
+    
+    params = [f"%{q}%", f"%{q}%"]
+    offset = (page - 1) * per_page
+    
+    cursor.execute("""
+        SELECT DISTINCT p.id, p.no_kp, p.nama_penuh, p.dm, p.lokaliti
+        FROM pengundi p
+        WHERE p.id IN (SELECT DISTINCT ketua_keluarga_id FROM pengundi WHERE ketua_keluarga_id IS NOT NULL)
+          AND (p.nama_penuh LIKE ? OR p.no_kp LIKE ?)
+          AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
+        ORDER BY p.nama_penuh ASC
+        LIMIT ? OFFSET ?
+    """, params + [per_page, offset])
+    
+    results = [dict(row) for row in cursor.fetchall()]
+    
+    cursor.execute("""
+        SELECT COUNT(*) FROM pengundi p
+        WHERE p.id IN (SELECT DISTINCT ketua_keluarga_id FROM pengundi WHERE ketua_keluarga_id IS NOT NULL)
+          AND (p.nama_penuh LIKE ? OR p.no_kp LIKE ?)
+          AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
+    """, params)
+    total = cursor.fetchone()[0]
+    
+    db.close()
+    return {"data": results, "total": total, "page": page, "per_page": per_page}
+
+
+# Endpoint carian Pegawai Penyelaras untuk searchable dropdown
+@app.get("/api/pegawai-penyelaras/search")
+def search_pegawai_penyelaras_dropdown(
+    q: str = "",
+    page: int = 1,
+    per_page: int = 200,
+    user=Depends(get_current_user)
+):
+    """Cari pengundi yang menjadi Pegawai Penyelaras untuk dropdown pilihan."""
+    db = get_db()
+    cursor = db.cursor()
+    
+    params = [f"%{q}%", f"%{q}%"]
+    offset = (page - 1) * per_page
+    
+    cursor.execute("""
+        SELECT DISTINCT p.id, p.no_kp, p.nama_penuh, p.dm, p.lokaliti
+        FROM pengundi p
+        WHERE p.id IN (SELECT DISTINCT pegawai_penyelaras_id FROM pengundi WHERE pegawai_penyelaras_id IS NOT NULL)
+          AND (p.nama_penuh LIKE ? OR p.no_kp LIKE ?)
+          AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
+        ORDER BY p.nama_penuh ASC
+        LIMIT ? OFFSET ?
+    """, params + [per_page, offset])
+    
+    results = [dict(row) for row in cursor.fetchall()]
+    
+    cursor.execute("""
+        SELECT COUNT(*) FROM pengundi p
+        WHERE p.id IN (SELECT DISTINCT pegawai_penyelaras_id FROM pengundi WHERE pegawai_penyelaras_id IS NOT NULL)
+          AND (p.nama_penuh LIKE ? OR p.no_kp LIKE ?)
+          AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
+    """, params)
+    total = cursor.fetchone()[0]
+    
+    db.close()
+    return {"data": results, "total": total, "page": page, "per_page": per_page}
+
+
 # ===== ENDPOINT IMPORT EXCEL (Admin sahaja) =====
 
 # Muat turun templat Excel kosong
