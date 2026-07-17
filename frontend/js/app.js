@@ -1939,6 +1939,10 @@ async function getLokalitiList() {
 }
 
 async function tambahPengundi() {
+    // 🛡️ Guard: cegah modal berlapis akibat klik berturut-turut
+    if (window._tambahModalBusy) return;
+    window._tambahModalBusy = true;
+    try {
     const overlay = document.createElement('div');
     overlay.id = 'tambahModalOverlay';
     overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
@@ -2074,7 +2078,12 @@ async function tambahPengundi() {
             </div>
         </div>
     `;
-    document.body.appendChild(overlay);
+        document.body.appendChild(overlay);
+    } catch (err) {
+        showToast('Gagal: ' + err.message, 'error');
+    } finally {
+        window._tambahModalBusy = false;
+    }
 }
 
 async function fetchKkOptions(query) {
