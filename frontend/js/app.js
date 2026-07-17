@@ -1349,6 +1349,9 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
     allDunCodes.forEach((kod, idx) => {
         const pdmData = (pdmResults[idx] && pdmResults[idx].data) || [];
         const cleanData = pdmData.filter(p => p.dm !== 'Tidak Diagihkan' && p.dm !== 'ZZ');
+        // jumlah_ketua_keluarga dikira dengan COUNT(DISTINCT ketua_keluarga_id) dari backend
+        // Untuk agregasi parlimen, kita jumlahkan COUNT DISTINCT dari setiap DUN
+        const sumKkTerkini = cleanData.reduce((s, p) => s + (p.jumlah_ketua_keluarga || 0), 0);
         dunAgg[kod] = {
             nama: allDunNames[kod],
             jumlah: cleanData.reduce((s, p) => s + (p.jumlah || 0), 0),
@@ -1359,7 +1362,8 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
             meninggal: cleanData.reduce((s, p) => s + (p.meninggal || 0), 0),
             usia_18_30: cleanData.reduce((s, p) => s + (p.usia_18_30 || 0), 0),
             usia_31_59: cleanData.reduce((s, p) => s + (p.usia_31_59 || 0), 0),
-            usia_60plus: cleanData.reduce((s, p) => s + (p.usia_60plus || 0), 0)
+            usia_60plus: cleanData.reduce((s, p) => s + (p.usia_60plus || 0), 0),
+            jumlah_ketua_keluarga: sumKkTerkini
         };
     });
 
@@ -1382,7 +1386,8 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
         const anggaran = Math.round(jumlah * factor);
         const sasaranUndi = Math.round(anggaran * sasaranUndiMultiplier / 100);
         const sasaranKK = Math.round(sasaranUndi / kkRatio);
-        const kkTerkini = Math.round(jumlah / kkRatio);
+        // kkTerkini diambil terus dari agregasi database (COUNT DISTINCT ketua_keluarga_id)
+        const kkTerkini = agg.jumlah_ketua_keluarga || Math.round(jumlah / kkRatio);
 
         // First row gets PARLIMEN rowspan
         let parlimenCell = '';
