@@ -1228,7 +1228,7 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
         const anggaran = Math.round(jumlah * factor);
         const sasaranUndi = Math.round(anggaran * sasaranUndiMultiplier / 100);
         const sasaranKK = Math.round(sasaranUndi / kkRatio);
-        const kkTerkini = p.jumlah_ketua_keluarga || Math.round(jumlah / kkRatio);
+        const kkTerkini = p.jumlah_ketua_keluarga ?? Math.round(jumlah / kkRatio);
         const putih = p.putih || 0;
         const hitam = p.hitam || 0;
         const atas = p.atas_pagar || 0;
@@ -1387,7 +1387,7 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
         const sasaranUndi = Math.round(anggaran * sasaranUndiMultiplier / 100);
         const sasaranKK = Math.round(sasaranUndi / kkRatio);
         // kkTerkini diambil terus dari agregasi database (COUNT DISTINCT ketua_keluarga_id)
-        const kkTerkini = agg.jumlah_ketua_keluarga || Math.round(jumlah / kkRatio);
+        const kkTerkini = agg.jumlah_ketua_keluarga ?? Math.round(jumlah / kkRatio);
 
         // First row gets PARLIMEN rowspan
         let parlimenCell = '';
