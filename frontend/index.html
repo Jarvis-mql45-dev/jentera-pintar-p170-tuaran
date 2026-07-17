@@ -1553,7 +1553,7 @@ async function renderPengundi() {
                         ${totalFilters > 0 ? `<button onclick="selectedFilters={pdm:[],lokaliti:[],sokongan:[],ketua_keluarga:[],pegawai_penyelaras:[]}; applyFilters()" class="btn btn-danger text-xs">✕ Kosongkan</button>` : ''}
                     </div>
                     <button onclick="state.pengundiSearch=document.getElementById('searchInput').value; state.pengundiPage=1; renderPengundi()" class="btn btn-primary">Cari</button>
-                    ${['Admin','Petugas Padang'].includes(state.user?.peranan)?`<button onclick="showTambahPengundi()" class="btn btn-success">+ Tambah Baru</button>`:''}
+                    ${['Admin','Petugas Padang'].includes(state.user?.peranan)?`<button onclick="tambahPengundi()" class="btn btn-success">+ Tambah Baru</button>`:''}
                 </div>
 
                 <div class="overflow-x-auto">
