@@ -12,45 +12,9 @@ function safeParse(str, fallback = null) {
 // ============================================================
 // PDM-TO-DUN MAPPING untuk P170 Tuaran
 // ============================================================
-const PDM_BY_DUN = {
-    "N12": ["BARU-BARU","BATANGAN","INDAI","KINDU","PENIMBAWAN","SERUSUP","TAMBALANG"],
-    "N13": ["BERUNGIS","GAYANG","MARABAHAI","MENGKABONG","NONGKOULUD","TELIPOK","TUARAN BANDAR"],
-    "N14": ["GAYARATAU","KILANG BATA","MENGKALADOI","RANI","RENGALIS","RUNGUS","SAWAH","TAMPARULI","TELIBONG","TENGHILAN","TOPOKON"],
-    "N15": ["BONGOL","KELAWAT","KIULU","MALANGANG","MANTOB","PAHU","PORING","PUKAK","RANGALAU","SIMPANGAN","TAGINAMBUR","TIONG SIMPODON","TOGOP","TOMIS","TUDAN"]
-};
-
-const PDM_DUN_MAP = {
-    "BARU-BARU": "N12 SULAMAN", "BATANGAN": "N12 SULAMAN",
-    "INDAI": "N12 SULAMAN", "KINDU": "N12 SULAMAN",
-    "PENIMBAWAN": "N12 SULAMAN", "SERUSUP": "N12 SULAMAN",
-    "TAMBALANG": "N12 SULAMAN",
-    "BERUNGIS": "N13 PANTAI DALIT", "GAYANG": "N13 PANTAI DALIT",
-    "MARABAHAI": "N13 PANTAI DALIT", "MENGKABONG": "N13 PANTAI DALIT",
-    "NONGKOULUD": "N13 PANTAI DALIT", "TELIPOK": "N13 PANTAI DALIT",
-    "TUARAN BANDAR": "N13 PANTAI DALIT",
-    "GAYARATAU": "N14 TAMPARULI", "KILANG BATA": "N14 TAMPARULI",
-    "MENGKALADOI": "N14 TAMPARULI", "RANI": "N14 TAMPARULI",
-    "RENGALIS": "N14 TAMPARULI", "RUNGUS": "N14 TAMPARULI",
-    "SAWAH": "N14 TAMPARULI", "TAMPARULI": "N14 TAMPARULI",
-    "TELIBONG": "N14 TAMPARULI", "TENGHILAN": "N14 TAMPARULI",
-    "TOPOKON": "N14 TAMPARULI",
-    "BONGOL": "N15 KIULU", "KELAWAT": "N15 KIULU",
-    "KIULU": "N15 KIULU", "MALANGANG": "N15 KIULU",
-    "MANTOB": "N15 KIULU", "PAHU": "N15 KIULU",
-    "PORING": "N15 KIULU", "PUKAK": "N15 KIULU",
-    "RANGALAU": "N15 KIULU", "SIMPANGAN": "N15 KIULU",
-    "TAGINAMBUR": "N15 KIULU", "TIONG SIMPODON": "N15 KIULU",
-    "TOGOP": "N15 KIULU", "TOMIS": "N15 KIULU", "TUDAN": "N15 KIULU"
-};
-
-function getDunForPdm(pdmName) {
-    const upper = pdmName.toUpperCase().trim();
-    if (PDM_DUN_MAP[upper]) return PDM_DUN_MAP[upper];
-    for (const [key, dun] of Object.entries(PDM_DUN_MAP)) {
-        if (upper.startsWith(key)) return dun;
-    }
-    return null;
-}
+// PDM_BY_DUN, PDM_DUN_MAP, getDunForPdm — diisytiharkan dalam index.html inline script,
+// jadi ia global dan tidak perlu diisytiharkan semula di sini.
+// ============================================================
 
 function groupPdmByDun(pdmList) {
     const groups = {};
@@ -81,11 +45,8 @@ function renderGroupedPdmOptions(pdmList, selectedValue) {
 }
 
 // ============================================================
-// API HELPER
+// API HELPER — API_BASE diisytiharkan dalam index.html inline script (global)
 // ============================================================
-const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '')
-    ? 'http://localhost:8000'
-    : '';
 
 async function api(path, options = {}) {
     const headers = { 'Content-Type': 'application/json' };
@@ -235,7 +196,6 @@ function renderSidebar() {
             </button>
             <button onclick="navigate('kpi')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='kpi'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg> Petunjuk Prestasi Utama (PPU)
-                <span class="ml-auto bg-amber-400 text-amber-900 text-xs px-1.5 py-0.5 rounded-full">Akan Datang</span>
             </button>
             <div class="text-xs text-gray-400 uppercase font-semibold mb-2 mt-2 px-3">Borang Soal Selidik</div>
             <button onclick="navigate('survey')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='survey'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
@@ -290,7 +250,8 @@ function navigate(page) {
         page==='approval'?'Kelulusan Data':page==='audit'?'Log Aktiviti':
         page==='users'?'Pengurusan Pengguna':page==='import'?'Import Data Excel':
         page==='survey'?'Senarai Soal Selidik':page==='survey-create'?'Cipta Soal Selidik':
-        page==='survey-view'?'Borang Soal Selidik':'Papan Pemuka';
+        page==='survey-view'?'Borang Soal Selidik':
+        page==='kpi'?'':'Papan Pemuka';
     document.getElementById('sidebar').classList.remove('open');
     if (window.innerWidth < 768) {
         document.getElementById('sidebar').classList.add('closed');
@@ -314,6 +275,7 @@ function navigate(page) {
     else if (page==='survey') renderSurveyList();
     else if (page==='survey-create') renderCreateSurvey();
     else if (page==='survey-view') renderSurveyView();
+    else if (page==='kpi') renderKpi();
     else renderComingSoon(page);
 }
 
@@ -421,9 +383,8 @@ async function deleteSurvey(id) {
 }
 
 // ========= CREATE SURVEY =========
-let surveyDraftQuestions = [];
-let surveyCreateMode = 'manual';
-let questionIdCounter = 1;
+// NOTE: surveyDraftQuestions, surveyCreateMode, questionIdCounter — diisytiharkan dalam index.html inline script,
+// jadi ia global dan tidak perlu diisytiharkan semula di sini.
 
 function renderCreateSurvey() {
     const content = document.getElementById('contentArea');
@@ -806,9 +767,8 @@ async function renderDashboard() {
         // 🛡️ ELIMINATION TECHNIQUE: Load ALL data in parallel before building any HTML
         const DUN_PDM_CODES = ['N12', 'N13', 'N14', 'N15'];
         const DUN_PDM_NAMES = { 'N12': 'DUN N12 SULAMAN', 'N13': 'DUN N13 PANTAI DALIT', 'N14': 'DUN N14 TAMPARULI', 'N15': 'DUN N15 KIULU' };
-        const [data, ringkasan, ...pdmResults] = await Promise.all([
+        const [data, ...pdmResults] = await Promise.all([
             api(`/api/dashboard${selectedDun ? `?dun=${selectedDun}` : ''}`),
-            api('/api/dashboard/ringkasan').catch(() => null),
             ...DUN_PDM_CODES.map(kod => api(`/api/dashboard/pdm/${kod}`).catch(() => ({ data: [] })))
         ]);
         console.log("[Dashboard Data Fetched]", data);
@@ -832,155 +792,17 @@ async function renderDashboard() {
             pdmTablesHtml += renderPdmTable(kod, pdmDunNames[kod], pdmData);
         });
 
-        // 🛡️ Build PDM age lookup for Ringkasan table (replaces ageBreakdown proportional)
-        const pdmAgeByDun = {};
-        DUN_PDM_CODES.forEach((kod, idx) => {
-            const pdmData = (pdmResults[idx] && pdmResults[idx].data) || [];
-            let total18 = 0, total31 = 0, total60 = 0;
-            pdmData.forEach(p => {
-                total18 += p.usia_18_30 || 0;
-                total31 += p.usia_31_59 || 0;
-                total60 += p.usia_60plus || 0;
-            });
-            pdmAgeByDun[kod] = { belia: total18, dewasa: total31, warga: total60 };
-        });
+        // 🛡️ Build Parlimen Mirror Table (aggregated from 4 DUN PDM data)
+        const parlimenMirrorHtml = renderParlimenMirrorTable(pdmResults, DUN_PDM_CODES, DUN_PDM_NAMES);
 
         content.innerHTML = `
-            <div class="card mb-6" id="panelStrategi">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-bold text-gray-800">PANEL STRATEGI PILIHAN RAYA P170 TUARAN</h3>
-                </div>
-                <div class="overflow-x-auto" style="max-width:100%;">
-                    <table class="w-full text-xs" style="min-width:1400px;border-collapse:collapse;">
-                        <thead>
-                            <!-- Row 1: Main group headers -->
-                            <tr class="bg-gray-100">
-                                <th rowspan="2" class="border border-gray-300 px-2 py-1.5 font-bold text-gray-800 text-center" style="min-width:65px;">PARLIMEN</th>
-                                <th rowspan="2" class="border border-gray-300 px-2 py-1.5 font-bold text-gray-800 text-center sticky left-0 bg-gray-100" style="min-width:100px;">DUN</th>
-                                <th colspan="4" class="border border-gray-300 px-2 py-1.5 font-bold text-center text-green-800" style="background:#dcfce7;">DATA ASAS</th>
-                                <th colspan="8" class="border border-gray-300 px-2 py-1.5 font-bold text-center text-amber-800" style="background:#fef3c7;">SASARAN</th>
-                                <th colspan="3" class="border border-gray-300 px-2 py-1.5 font-bold text-center text-blue-800" style="background:#dbeafe;">PECAHAN PENGUNDI MENGIKUT UMUR</th>
-                            </tr>
-                            <!-- Row 2: Sub-column headers -->
-                            <tr class="bg-gray-50">
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center">Bilangan Pengundi Berdaftar</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center whitespace-nowrap">Anggaran Peratusan Turun Mengundi <input type="number" id="inputTurnoutPercentage" value="75" class="w-12 text-center font-bold text-black border border-gray-300 rounded px-0.5" style="display:inline-block;"></th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center"><input type="text" id="inputElectionCol1" value="PRU15 2022" class="w-28 text-center bg-white border border-gray-300 rounded-lg px-2 py-1 text-sm font-semibold text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center"><input type="text" id="inputElectionCol2" value="PRN 2025" class="w-28 text-center bg-white border border-gray-300 rounded-lg px-2 py-1 text-sm font-semibold text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center whitespace-nowrap">Sasaran UNDI <input type="number" id="inputSasaranUndiMultiplier" value="100" min="0" max="200" class="w-10 text-center font-bold text-black border border-gray-300 rounded px-0.5" style="display:inline-block;">%</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center whitespace-nowrap">Sasaran K.K (1:<input type="number" id="inputKKRatio" value="13" min="1" max="50" class="w-10 text-center font-bold text-black border border-gray-300 rounded px-0.5" style="display:inline-block;">)</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center whitespace-nowrap">Jumlah K.K Terkini</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center text-green-700">PUTIH TERKINI</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center text-yellow-700">Atas Pagar</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center text-red-700">HITAM</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center text-gray-500">Tidak Di Kenali</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center text-gray-500">Meninggal Dunia</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center text-blue-700">18 - 30</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center text-blue-700">31 - 59</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center text-blue-700">60+</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ringkasanTableBody">
-                            <tr><td colspan="17" class="text-center py-4 text-gray-400">Memuatkan data...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            ${parlimenMirrorHtml}
 
             <div id="pdm-tables" class="mt-6">${pdmTablesHtml}</div>
             `;
 
-        // 🛡️ SINGLE BUFFER: Build ringkasan rows string only (pdmTablesHtml already built above)
-        let rRows = '';
-        
-        if (ringkasan) {
-            const dunList = ringkasan.dun || [];
-            const total = ringkasan.jumlah_keseluruhan || {};
-            const PRU15_VALS = { 'N12 Sulaman': 2703, 'N13 Pantai Dalit': 5009, 'N14 Tamparuli': 9952, 'N15 Kiulu': 6899 };
-            const PRN2025_VALS = { 'N12 Sulaman': 0, 'N13 Pantai Dalit': 0, 'N14 Tamparuli': 8247, 'N15 Kiulu': 2736 };
-            const klasUmur = state.dashboardData?.klasifikasi_umur || {};
-            const totalBelia = klasUmur['Belia']?.jumlah || 0;
-            const totalDewasa = klasUmur['Dewasa']?.jumlah || 0;
-            const totalWarga = klasUmur['Warga Emas']?.jumlah || 0;
-            function ageBreakdown(jumlah) {
-                const sum = totalBelia + totalDewasa + totalWarga;
-                if (sum === 0) return { belia: Math.round(jumlah * 0.33), dewasa: Math.round(jumlah * 0.34), warga: Math.round(jumlah * 0.33) };
-                return { belia: Math.round(jumlah * (totalBelia / sum)), dewasa: Math.round(jumlah * (totalDewasa / sum)), warga: Math.round(jumlah * (totalWarga / sum)) };
-            }
-            let firstDun = true;
-            const rSums = { berdaftar: 0, turnout: 0, pru15: 0, prn2025: 0, sasaran_undi: 0, kk: 0, kk_terkini: 0, putih: 0, atas: 0, hitam: 0, tidak: 0, meninggal: 0, belia: 0, dewasa: 0, warga: 0 };
-            const cleanDunList = dunList.filter(d => d.dun_nama !== 'Tidak Diagihkan');
-            cleanDunList.forEach(d => {
-                const jumlah = d.jumlah_berdaftar || 0;
-                const putihVal = d.putih || 0;
-                const hitamVal = d.hitam || 0;
-                const atasPagarVal = d.atas_pagar || 0;
-                const tidakDikenali = d.tidak_dikenali || 0;
-                const meninggal = d.meninggal_dunia || (state.dashboardData?.fizikal?.['Meninggal Dunia'] ? Math.round((state.dashboardData.fizikal['Meninggal Dunia'] * jumlah) / (total.jumlah_berdaftar || 1)) : 0);
-                const dunName = d.dun_nama;
-                const pru15 = PRU15_VALS[dunName] || 0;
-                const prn2025 = PRN2025_VALS[dunName] || 0;
-                // 🛡️ Use actual PDM SQL data instead of proportional ageBreakdown
-                const dunKod = d.dun_kod;
-                const ageData = pdmAgeByDun[dunKod] || { belia: 0, dewasa: 0, warga: 0 };
-                const age = ageData;
-                const anggaran = Math.round(jumlah * 0.75);
-                const sasaranUndiMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
-                const sasaranUndi = Math.round(anggaran * sasaranUndiMultiplier / 100);
-                const kkRatio = parseFloat(document.getElementById('inputKKRatio')?.value) || 13;
-                const sasaranKK = Math.round(sasaranUndi / kkRatio);
-                const kkTerkini = d.jumlah_ketua_keluarga || Math.round(jumlah / kkRatio);
-                rRows += `<tr class="hover:bg-blue-50">`;
-                if (firstDun) { rRows += `<td rowspan="${cleanDunList.length}" class="border border-gray-300 px-2 py-1 font-bold text-center text-gray-800 align-middle">P 170<br>TUARAN</td>`; firstDun = false; }
-                rRows += `<td class="border border-gray-300 px-2 py-1 font-medium text-center align-middle sticky left-0 bg-white">${dunName}</td><td class="border border-gray-300 px-1 py-1 text-center align-middle font-semibold">${jumlah.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center align-middle font-bold text-blue-700">${anggaran.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="${pru15}" class="w-16 text-center text-xs border border-gray-300 rounded px-1 py-0.5 editable-pru"></td><td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="${prn2025}" class="w-16 text-center text-xs border border-gray-300 rounded px-1 py-0.5 editable-prn"></td><td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-undi">${sasaranUndi.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-kk">${sasaranKK.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center align-middle">${kkTerkini.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center align-middle text-green-700 font-medium">${putihVal.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center align-middle text-yellow-700 font-medium">${atasPagarVal.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center align-middle text-red-700 font-medium">${hitamVal.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-500">${tidakDikenali.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-500">${meninggal.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center align-middle text-blue-700">${age.belia.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center align-middle text-blue-700">${age.dewasa.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center align-middle text-blue-700">${age.warga.toLocaleString()}</td></tr>`;
-                rSums.berdaftar += jumlah; rSums.turnout += anggaran; rSums.pru15 += pru15; rSums.prn2025 += prn2025; rSums.sasaran_undi += sasaranUndi; rSums.kk += sasaranKK; rSums.kk_terkini += kkTerkini;
-                rSums.putih += putihVal; rSums.atas += atasPagarVal; rSums.hitam += hitamVal; rSums.tidak += tidakDikenali; rSums.meninggal += meninggal;
-                rSums.belia += age.belia; rSums.dewasa += age.dewasa; rSums.warga += age.warga;
-            });
-            rRows += `<tr class="bg-gray-100 font-semibold"><td colspan="2" class="border border-gray-300 px-2 py-1 font-bold text-gray-800">JUMLAH</td><td class="border border-gray-300 px-1 py-1 text-center">${rSums.berdaftar.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center">${rSums.turnout.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center">${rSums.pru15.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center">${rSums.prn2025.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center">${rSums.sasaran_undi.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center sasaran-kk">${rSums.kk.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center">${rSums.kk_terkini.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center text-green-700">${rSums.putih.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center text-yellow-700">${rSums.atas.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center text-red-700">${rSums.hitam.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center text-gray-500">${rSums.tidak.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center text-gray-500">${rSums.meninggal.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center text-blue-700">${rSums.belia.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center text-blue-700">${rSums.dewasa.toLocaleString()}</td><td class="border border-gray-300 px-1 py-1 text-center text-blue-700">${rSums.warga.toLocaleString()}</td></tr>`;
-        }
-
-        
-        // 🛡️ SINGLE INJECTION: Now bake rRows and pdmTablesHtml into the template
         content.innerHTML = `
-            <div class="card mb-6" id="panelStrategi">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-bold text-gray-800">PANEL STRATEGI PILIHAN RAYA P170 TUARAN</h3>
-                </div>
-                <div class="overflow-x-auto" style="max-width:100%;">
-                    <table class="w-full text-xs" style="min-width:1400px;border-collapse:collapse;">
-                        <thead>
-                            <tr class="bg-gray-100">
-                                <th rowspan="2" class="border border-gray-300 px-2 py-1.5 font-bold text-gray-800 text-center" style="min-width:65px;">PARLIMEN</th>
-                                <th rowspan="2" class="border border-gray-300 px-2 py-1.5 font-bold text-gray-800 text-center sticky left-0 bg-gray-100" style="min-width:100px;">DUN</th>
-                                <th colspan="4" class="border border-gray-300 px-2 py-1.5 font-bold text-center text-green-800" style="background:#dcfce7;">DATA ASAS</th>
-                                <th colspan="8" class="border border-gray-300 px-2 py-1.5 font-bold text-center text-amber-800" style="background:#fef3c7;">SASARAN</th>
-                                <th colspan="3" class="border border-gray-300 px-2 py-1.5 font-bold text-center text-blue-800" style="background:#dbeafe;">PECAHAN PENGUNDI MENGIKUT UMUR</th>
-                            </tr>
-                            <tr class="bg-gray-50">
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center">Bilangan Pengundi Berdaftar</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center whitespace-nowrap">Anggaran Peratusan Turun Mengundi <input type="number" id="inputTurnoutPercentage" value="75" class="w-12 text-center font-bold text-black border border-gray-300 rounded px-0.5" style="display:inline-block;"></th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center"><input type="text" id="inputElectionCol1" value="PRU15 2022" class="w-28 text-center bg-white border border-gray-300 rounded-lg px-2 py-1 text-sm font-semibold text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center"><input type="text" id="inputElectionCol2" value="PRN 2025" class="w-28 text-center bg-white border border-gray-300 rounded-lg px-2 py-1 text-sm font-semibold text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center whitespace-nowrap">Sasaran UNDI <input type="number" id="inputSasaranUndiMultiplier" value="100" min="0" max="200" class="w-10 text-center font-bold text-black border border-gray-300 rounded px-0.5" style="display:inline-block;">%</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center whitespace-nowrap">Sasaran K.K (1:<input type="number" id="inputKKRatio" value="13" min="1" max="50" class="w-10 text-center font-bold text-black border border-gray-300 rounded px-0.5" style="display:inline-block;">)</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center whitespace-nowrap">Jumlah K.K Terkini</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center text-green-700">PUTIH TERKINI</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center text-yellow-700">Atas Pagar</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center text-red-700">HITAM</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center text-gray-500">Tidak Di Kenali</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center text-gray-500">Meninggal Dunia</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center text-blue-700">18 - 30</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center text-blue-700">31 - 59</th>
-                                <th class="border border-gray-300 px-1 py-1 font-semibold text-center text-blue-700">60+</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ringkasanTableBody">
-                            ${rRows}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            ${parlimenMirrorHtml}
 
             <div id="pdm-tables" class="mt-6">${pdmTablesHtml}</div>
             `;
@@ -991,19 +813,17 @@ async function renderDashboard() {
             turnoutInput.addEventListener('input', function() {
                 const pct = parseFloat(this.value) || 0;
                 const factor = pct / 100;
-                document.querySelectorAll('#ringkasanTableBody tr').forEach(tr => {
+                // 🛡️ Parlimen Mirror Table (uses sasaran-undi-pdm / sasaran-kk-pdm classes)
+                document.querySelectorAll('#parlimenMirrorBody tr').forEach(tr => {
                     if (tr.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
                     const cells = tr.children;
                     const hasRowspan = cells[0]?.hasAttribute('rowspan');
-                    // Row with rowspan: [0]=PARLIMEN, [1]=DUN, [2]=berdaftar, [3]=turnout ...
-                    // Row without rowspan: [0]=DUN, [1]=berdaftar, [2]=turnout ...
                     const offset = hasRowspan ? 2 : 1;
                     const daftar = parseInt((cells[offset]?.textContent || '0').replace(/,/g, '')) || 0;
                     const anggaranVal = Math.round(daftar * factor);
                     const kkRatioVal = parseFloat(document.getElementById('inputKKRatio')?.value) || 13;
-                    // Use CSS class selectors to avoid rowspan index shift entirely
-                    const undiCell = tr.querySelector('.sasaran-undi');
-                    const kkCell = tr.querySelector('.sasaran-kk');
+                    const undiCell = tr.querySelector('.sasaran-undi-pdm');
+                    const kkCell = tr.querySelector('.sasaran-kk-pdm');
                     const turnoutCell = cells[hasRowspan ? 3 : 2];
                     const sasaranUndiMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
                     const sasaranUndiVal = Math.round(anggaranVal * sasaranUndiMultiplier / 100);
@@ -1011,25 +831,22 @@ async function renderDashboard() {
                     if (undiCell) undiCell.textContent = sasaranUndiVal.toLocaleString();
                     if (kkCell) kkCell.textContent = Math.round(sasaranUndiVal / kkRatioVal).toLocaleString();
                 });
-                const lastRow = document.querySelector('#ringkasanTableBody tr:last-child');
+                const lastRow = document.querySelector('#parlimenMirrorBody tr:last-child');
                 if (lastRow && lastRow.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) {
                     const lastCells = lastRow.querySelectorAll('td');
                     let sumTurnout = 0, sumSasaran = 0, sumKK = 0;
-                    document.querySelectorAll('#ringkasanTableBody tr:not(:last-child)').forEach(tr => {
-                        // Use CSS class selectors — immune to rowspan index shift
-                        const undiCell = tr.querySelector('.sasaran-undi');
-                        const kkCell = tr.querySelector('.sasaran-kk');
+                    document.querySelectorAll('#parlimenMirrorBody tr:not(:last-child)').forEach(tr => {
+                        const undiCell = tr.querySelector('.sasaran-undi-pdm');
+                        const kkCell = tr.querySelector('.sasaran-kk-pdm');
                         if (undiCell) {
                             const undiVal = parseInt((undiCell.textContent || '0').replace(/,/g, '')) || 0;
-                            sumTurnout += undiVal; // sasaran-undi == turnout value
+                            sumTurnout += undiVal;
                             sumSasaran += undiVal;
                         }
                         if (kkCell) {
                             sumKK += parseInt((kkCell.textContent || '0').replace(/,/g, '')) || 0;
                         }
                     });
-                    // Footer cells: [0]=colspan JUMLAH, [1]=berdaftar, [2]=turnout, [3]=pru15,
-                    // [4]=prn2025, [5]=sasaran_undi, [6]=sasaran-kk, [7]=kk_terkini
                     if (lastCells[2]) lastCells[2].textContent = sumTurnout.toLocaleString();
                     if (lastCells[5]) lastCells[5].textContent = sumSasaran.toLocaleString();
                     if (lastCells[6]) lastCells[6].textContent = sumKK.toLocaleString();
@@ -1065,7 +882,6 @@ async function renderDashboard() {
                         if (undi) sumUndi += parseInt((undi.textContent || '0').replace(/,/g, '')) || 0;
                         if (kk) sumKK += parseInt((kk.textContent || '0').replace(/,/g, '')) || 0;
                     }
-                    // Footer: [0]=colspan JUMLAH, [1]=berdaftar, [2]=turnout, [3]=pru15, [4]=prn2025, [5]=sasaran_undi, [6]=sasaran-kk
                     if (lastCells[5]) lastCells[5].textContent = sumUndi.toLocaleString();
                     if (lastCells[6]) lastCells[6].textContent = sumKK.toLocaleString();
                 });
@@ -1078,21 +894,21 @@ async function renderDashboard() {
             kkRatioInput.addEventListener('input', function() {
                 const ratio = parseFloat(this.value) || 13;
                 
-                // Top Table: recalculate sasaran-kk by CSS class (avoids rowspan index shift)
-                document.querySelectorAll('#ringkasanTableBody .sasaran-kk').forEach(kkCell => {
+                // 🛡️ Parlimen Mirror Table: recalculate sasaran-kk-pdm by CSS class
+                document.querySelectorAll('#parlimenMirrorBody .sasaran-kk-pdm').forEach(kkCell => {
                     const row = kkCell.closest('tr');
                     if (row && row.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
-                    const undiCell = row?.querySelector('.sasaran-undi');
+                    const undiCell = row?.querySelector('.sasaran-undi-pdm');
                     if (undiCell) {
                         const undi = parseInt((undiCell.textContent || '0').replace(/,/g, '')) || 0;
                         kkCell.textContent = Math.round(undi / ratio).toLocaleString();
                     }
                 });
-                const lastRow = document.querySelector('#ringkasanTableBody tr:last-child');
+                const lastRow = document.querySelector('#parlimenMirrorBody tr:last-child');
                 if (lastRow && lastRow.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) {
-                    const lastKKCell = lastRow.querySelector('.sasaran-kk');
+                    const lastKKCell = lastRow.querySelector('.sasaran-kk-pdm');
                     let sumKK = 0;
-                    document.querySelectorAll('#ringkasanTableBody tr:not(:last-child) .sasaran-kk').forEach(kkCell => {
+                    document.querySelectorAll('#parlimenMirrorBody tr:not(:last-child) .sasaran-kk-pdm').forEach(kkCell => {
                         sumKK += parseInt((kkCell.textContent || '0').replace(/,/g, '')) || 0;
                     });
                     if (lastKKCell) lastKKCell.textContent = sumKK.toLocaleString();
@@ -1134,8 +950,8 @@ async function renderDashboard() {
                 const tFactor = pct / 100;
                 const kkRatioVal = parseFloat(document.getElementById('inputKKRatio')?.value) || 13;
 
-                // === TOP TABLE (Parlimen): recalculate sasaran-undi and sasaran-kk ===
-                document.querySelectorAll('#ringkasanTableBody .sasaran-undi').forEach(undiCell => {
+                // === PARLIMEN MIRROR TABLE: recalculate sasaran-undi-pdm and sasaran-kk-pdm ===
+                document.querySelectorAll('#parlimenMirrorBody .sasaran-undi-pdm').forEach(undiCell => {
                     const row = undiCell.closest('tr');
                     if (!row || row.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
                     const cells = row.children;
@@ -1145,27 +961,23 @@ async function renderDashboard() {
                     const anggaranVal = Math.round(daftar * tFactor);
                     const newSasaranUndi = Math.round(anggaranVal * mFactor);
                     undiCell.textContent = newSasaranUndi.toLocaleString();
-                    // Also update the turnout cell (always = anggaran, not multiplied)
                     const turnoutCell = cells[hasRowspan ? 3 : 2];
                     if (turnoutCell) turnoutCell.textContent = anggaranVal.toLocaleString();
-                    // Recalculate sasaran-kk based on new sasaran-undi
-                    const kkCell = row.querySelector('.sasaran-kk');
+                    const kkCell = row.querySelector('.sasaran-kk-pdm');
                     if (kkCell) kkCell.textContent = Math.round(newSasaranUndi / kkRatioVal).toLocaleString();
                 });
 
-                // Recalculate TOP TABLE JUMLAH footer
-                const lastRow = document.querySelector('#ringkasanTableBody tr:last-child');
+                // Recalculate PARLIMEN MIRROR TABLE JUMLAH footer
+                const lastRow = document.querySelector('#parlimenMirrorBody tr:last-child');
                 if (lastRow && lastRow.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) {
                     const lastCells = lastRow.querySelectorAll('td');
                     let sumUndi = 0, sumKK = 0;
-                    document.querySelectorAll('#ringkasanTableBody tr:not(:last-child) .sasaran-undi').forEach(cell => {
+                    document.querySelectorAll('#parlimenMirrorBody tr:not(:last-child) .sasaran-undi-pdm').forEach(cell => {
                         sumUndi += parseInt((cell.textContent || '0').replace(/,/g, '')) || 0;
                     });
-                    document.querySelectorAll('#ringkasanTableBody tr:not(:last-child) .sasaran-kk').forEach(cell => {
+                    document.querySelectorAll('#parlimenMirrorBody tr:not(:last-child) .sasaran-kk-pdm').forEach(cell => {
                         sumKK += parseInt((cell.textContent || '0').replace(/,/g, '')) || 0;
                     });
-                    // Footer: [0]=colspan JUMLAH, [1]=berdaftar, [2]=turnout, [3]=pru15,
-                    // [4]=prn2025, [5]=sasaran_undi, [6]=sasaran-kk, [7]=kk_terkini
                     if (lastCells[5]) lastCells[5].textContent = sumUndi.toLocaleString();
                     if (lastCells[6]) lastCells[6].textContent = sumKK.toLocaleString();
                 }
@@ -1181,10 +993,8 @@ async function renderDashboard() {
                     const anggaranVal = Math.round(daftar * tFactor);
                     const newSasaranUndi = Math.round(anggaranVal * mFactor);
                     undiCell.textContent = newSasaranUndi.toLocaleString();
-                    // Also update the turnout cell (always = anggaran, not multiplied)
                     const turnoutIdx = hasDunRowspan ? 3 : 2;
                     if (cells[turnoutIdx]) cells[turnoutIdx].textContent = anggaranVal.toLocaleString();
-                    // Recalculate sasaran-kk-pdm
                     const kkCell = row.querySelector('.sasaran-kk-pdm');
                     if (kkCell) kkCell.textContent = Math.round(newSasaranUndi / kkRatioVal).toLocaleString();
                 });
@@ -1202,8 +1012,6 @@ async function renderDashboard() {
                         if (undi) sumUndi += parseInt((undi.textContent || '0').replace(/,/g, '')) || 0;
                         if (kk) sumKK += parseInt((kk.textContent || '0').replace(/,/g, '')) || 0;
                     }
-                    // Footer: [0]=colspan JUMLAH, [1]=berdaftar, [2]=turnout, [3]=pru15,
-                    // [4]=prn2025, [5]=sasaran_undi, [6]=sasaran-kk
                     if (lastCells[5]) lastCells[5].textContent = sumUndi.toLocaleString();
                     if (lastCells[6]) lastCells[6].textContent = sumKK.toLocaleString();
                 });
@@ -1349,15 +1157,6 @@ async function renderDashboard() {
     }
 }
 
-async function fetchRingkasanData() {
-    try {
-        return await api('/api/dashboard/ringkasan');
-    } catch (e) {
-        console.error('Gagal fetch ringkasan:', e);
-        return null;
-    }
-}
-
 // ========= 4 DUN PDM TABLES LOADER =========
 async function loadPdmTables() {
     const DUN_CODES = ['N12', 'N13', 'N14', 'N15'];
@@ -1392,8 +1191,11 @@ const DUN_PDM_CONFIG = {
 function renderPdmTable(dunKod, dunNama, pdmData) {
     // 🛡️ Return skeleton card when data is empty
     if (!pdmData || pdmData.length === 0) {
-        return `
+    return `
     <div class="card mb-4">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-gray-800">PANEL STRATEGI ${dunNama}</h3>
+        </div>
         <div class="overflow-x-auto" style="max-width:100%;">
             <table class="w-full text-xs" style="min-width:1400px;border-collapse:collapse;">
                 <thead>
@@ -1492,6 +1294,9 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
     
     return `
     <div class="card mb-4">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-gray-800">PANEL STRATEGI ${dunNama}</h3>
+        </div>
         <div class="overflow-x-auto" style="max-width:100%;">
             <table class="w-full text-xs" style="min-width:1400px;border-collapse:collapse;">
                 <thead>
@@ -1528,10 +1333,156 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
     </div>`;
 }
 
+// ============================================================
+// PARLIMEN MIRROR TABLE — Agregasi data daripada 4 DUN PDM
+// ============================================================
+// Fungsi ini menghasilkan jadual "PANEL STRATEGI PARLIMEN P170 TUARAN"
+// dengan struktur SAMA seperti jadual PDM DUN (17 kolum), tetapi data
+// adalah agregasi (SUM) daripada 4 DUN: N12+N13+N14+N15.
+// ============================================================
+function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
+    // Agregasi data PDM per DUN
+    const dunAgg = {};
+    const allDunCodes = dunCodes || ['N12', 'N13', 'N14', 'N15'];
+    const allDunNames = dunNames || { 'N12': 'DUN N12 SULAMAN', 'N13': 'DUN N13 PANTAI DALIT', 'N14': 'DUN N14 TAMPARULI', 'N15': 'DUN N15 KIULU' };
+
+    allDunCodes.forEach((kod, idx) => {
+        const pdmData = (pdmResults[idx] && pdmResults[idx].data) || [];
+        const cleanData = pdmData.filter(p => p.dm !== 'Tidak Diagihkan' && p.dm !== 'ZZ');
+        dunAgg[kod] = {
+            nama: allDunNames[kod],
+            jumlah: cleanData.reduce((s, p) => s + (p.jumlah || 0), 0),
+            putih: cleanData.reduce((s, p) => s + (p.putih || 0), 0),
+            hitam: cleanData.reduce((s, p) => s + (p.hitam || 0), 0),
+            atas_pagar: cleanData.reduce((s, p) => s + (p.atas_pagar || 0), 0),
+            tidak_dikenali: cleanData.reduce((s, p) => s + (p.tidak_dikenali || 0), 0),
+            meninggal: cleanData.reduce((s, p) => s + (p.meninggal || 0), 0),
+            usia_18_30: cleanData.reduce((s, p) => s + (p.usia_18_30 || 0), 0),
+            usia_31_59: cleanData.reduce((s, p) => s + (p.usia_31_59 || 0), 0),
+            usia_60plus: cleanData.reduce((s, p) => s + (p.usia_60plus || 0), 0)
+        };
+    });
+
+    // Baca input global (guna nilai yang SAMA dengan renderPdmTable)
+    const turnOutInput = parseFloat(document.getElementById('inputTurnoutPercentage')?.value || '75');
+    const factor = turnOutInput / 100;
+    const kkRatio = parseFloat(document.getElementById('inputKKRatio')?.value || '13');
+    const col1Label = document.getElementById('inputElectionCol1')?.value || 'PRU15 2022';
+    const col2Label = document.getElementById('inputElectionCol2')?.value || 'PRN 2025';
+    const sasaranUndiMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
+
+    const pdmCount = allDunCodes.length; // 4 DUN
+    let rows = '';
+    let isFirstRow = true;
+    const colSums = { berdaftar: 0, turnout: 0, pru15: 0, prn2025: 0, sasaran_undi: 0, kk: 0, kk_terkini: 0, putih: 0, atas: 0, hitam: 0, tidak: 0, meninggal: 0, usia18: 0, usia31: 0, usia60: 0 };
+
+    allDunCodes.forEach((kod) => {
+        const agg = dunAgg[kod];
+        const jumlah = agg.jumlah;
+        const anggaran = Math.round(jumlah * factor);
+        const sasaranUndi = Math.round(anggaran * sasaranUndiMultiplier / 100);
+        const sasaranKK = Math.round(sasaranUndi / kkRatio);
+        const kkTerkini = Math.round(jumlah / kkRatio);
+
+        // First row gets PARLIMEN rowspan
+        let parlimenCell = '';
+        if (isFirstRow) {
+            parlimenCell = `<td rowspan="${pdmCount}" class="border border-gray-300 px-2 py-1 font-bold text-center text-gray-800 align-middle" style="min-width:65px;">P 170<br>TUARAN</td>`;
+            isFirstRow = false;
+        }
+
+        rows += `<tr class="hover:bg-blue-50">
+            ${parlimenCell}
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle font-medium">${agg.nama}</td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle font-semibold">${jumlah.toLocaleString()}</td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle font-bold text-blue-700">${anggaran.toLocaleString()}</td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="0" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5 editable-pru-pdm" data-dun="${kod}" data-pdm="parlimen"></td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="0" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5 editable-prn-pdm" data-dun="${kod}" data-pdm="parlimen"></td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-undi-pdm">${sasaranUndi.toLocaleString()}</td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-kk-pdm">${sasaranKK.toLocaleString()}</td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle">${kkTerkini.toLocaleString()}</td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle text-green-700 font-medium">${agg.putih.toLocaleString()}</td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle text-yellow-700 font-medium">${agg.atas_pagar.toLocaleString()}</td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle text-red-700 font-medium">${agg.hitam.toLocaleString()}</td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-500">${agg.tidak_dikenali.toLocaleString()}</td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-500">${agg.meninggal.toLocaleString()}</td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle text-blue-700">${agg.usia_18_30.toLocaleString()}</td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle text-blue-700">${agg.usia_31_59.toLocaleString()}</td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle text-blue-700">${agg.usia_60plus.toLocaleString()}</td>
+        </tr>`;
+
+        colSums.berdaftar += jumlah; colSums.turnout += anggaran;
+        colSums.pru15 += 0; colSums.prn2025 += 0;
+        colSums.sasaran_undi += sasaranUndi; colSums.kk += sasaranKK; colSums.kk_terkini += kkTerkini;
+        colSums.putih += agg.putih; colSums.atas += agg.atas_pagar; colSums.hitam += agg.hitam;
+        colSums.tidak += agg.tidak_dikenali; colSums.meninggal += agg.meninggal;
+        colSums.usia18 += agg.usia_18_30; colSums.usia31 += agg.usia_31_59; colSums.usia60 += agg.usia_60plus;
+    });
+
+    // Baris JUMLAH
+    rows += `<tr class="bg-gray-100 font-semibold">
+        <td colspan="2" class="border border-gray-300 px-2 py-1 font-bold text-gray-800">JUMLAH</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.berdaftar.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.turnout.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.pru15.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.prn2025.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.sasaran_undi.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.kk.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.kk_terkini.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle text-green-700">${colSums.putih.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle text-yellow-700">${colSums.atas.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle text-red-700">${colSums.hitam.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-500">${colSums.tidak.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-500">${colSums.meninggal.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle text-blue-700">${colSums.usia18.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle text-blue-700">${colSums.usia31.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle text-blue-700">${colSums.usia60.toLocaleString()}</td>
+    </tr>`;
+
+    return `
+    <div class="card mb-4" id="panelStrategi">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-gray-800">PANEL STRATEGI PARLIMEN P170 TUARAN</h3>
+        </div>
+        <div class="overflow-x-auto" style="max-width:100%;">
+            <table class="w-full text-xs" style="min-width:1400px;border-collapse:collapse;">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th rowspan="2" class="border border-gray-300 px-2 py-1.5 font-bold text-gray-800 text-center align-middle sticky left-0 bg-gray-100" style="min-width:65px;">PARLIMEN</th>
+                        <th rowspan="2" class="border border-gray-300 px-2 py-1.5 font-bold text-gray-800 text-center align-middle" style="min-width:100px;">DUN</th>
+                        <th colspan="4" class="border border-gray-300 px-2 py-1.5 font-bold text-center text-green-800 align-middle" style="background:#dcfce7;">DATA ASAS</th>
+                        <th colspan="8" class="border border-gray-300 px-2 py-1.5 font-bold text-center text-amber-800 align-middle" style="background:#fef3c7;">SASARAN</th>
+                        <th colspan="3" class="border border-gray-300 px-2 py-1.5 font-bold text-center text-blue-800 align-middle" style="background:#dbeafe;">PECAHAN PENGUNDI MENGIKUT UMUR</th>
+                    </tr>
+                    <tr class="bg-gray-50">
+                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle">Bilangan Pengundi Berdaftar</th>
+                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle whitespace-nowrap">Anggaran Peratusan Turun Mengundi <input type="number" id="inputTurnoutPercentage" value="75" class="w-12 text-center font-bold text-black border border-gray-300 rounded px-0.5" style="display:inline-block;"></th>
+                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle"><input type="text" id="inputElectionCol1" value="PRU15 2022" class="w-28 text-center bg-white border border-gray-300 rounded-lg px-2 py-1 text-sm font-semibold text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></th>
+                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle"><input type="text" id="inputElectionCol2" value="PRN 2025" class="w-28 text-center bg-white border border-gray-300 rounded-lg px-2 py-1 text-sm font-semibold text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></th>
+                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle whitespace-nowrap">Sasaran UNDI <input type="number" id="inputSasaranUndiMultiplier" value="100" min="0" max="200" class="w-10 text-center font-bold text-black border border-gray-300 rounded px-0.5" style="display:inline-block;">%</th>
+                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle whitespace-nowrap">Sasaran K.K (1:<input type="number" id="inputKKRatio" value="13" min="1" max="50" class="w-10 text-center font-bold text-black border border-gray-300 rounded px-0.5" style="display:inline-block;">)</th>
+                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle">Jumlah K.K Terkini</th>
+                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-green-700">PUTIH TERKINI</th>
+                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-yellow-700">Atas Pagar</th>
+                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-red-700">HITAM</th>
+                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-gray-500">Tidak Di Kenali</th>
+                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-gray-500">Meninggal Dunia</th>
+                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-blue-700">18 - 30</th>
+                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-blue-700">31 - 59</th>
+                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-blue-700">60+</th>
+                    </tr>
+                </thead>
+                <tbody id="parlimenMirrorBody">
+                    ${rows}
+                </tbody>
+            </table>
+        </div>
+    </div>`;
+}
+
 // ========= PENGUNDI LIST =========
-let filterOptions = null;
-let selectedFilters = { pdm: [], lokaliti: [], sokongan: [], ketua_keluarga: [], pegawai_penyelaras: [] };
-let activeFilterDropdown = null;
+// NOTE: filterOptions, selectedFilters, activeFilterDropdown — diisytiharkan dalam index.html inline script,
+// jadi ia global dan tidak perlu diisytiharkan semula di sini.
 
 function toggleFilterDropdown(type) {
     const existing = document.getElementById('filterDropdown');
@@ -2227,7 +2178,8 @@ function sortPengundi(field) {
 }
 
 // ========= APPROVAL QUEUE =========
-let importFile = null;
+// NOTE: importFile — diisytiharkan dalam index.html inline script,
+// jadi ia global dan tidak perlu diisytiharkan semula di sini.
 
 async function renderApprovalQueue() {
     const content = document.getElementById('contentArea');
@@ -2494,6 +2446,96 @@ function renderComingSoon(page) {
 }
 
 // ============================================================
+// GLOBAL REPORTING FUNCTIONS (Cetak / Excel / PDF)
+// ============================================================
+// Fungsi generik yang mengesan jadual aktif dan mengeksport data
+
+function globalPrint() {
+    window.print();
+}
+
+function globalDownloadExcel() {
+    // Cari jadual yang kelihatan dalam contentArea
+    const container = document.getElementById('contentArea');
+    if (!container) return;
+    const table = container.querySelector('table');
+    if (!table) { showToast('Tiada jadual untuk dieksport', 'error'); return; }
+
+    // Ekstrak data dari jadual (tbody sahaja, skip tfoot)
+    let csv = '\uFEFF';
+    const thead = table.querySelector('thead');
+    if (thead) {
+        const headerCells = thead.querySelectorAll('th');
+        const headers = [];
+        headerCells.forEach(th => {
+            headers.push('"' + (th.textContent || '').trim().replace(/"/g, '""') + '"');
+        });
+        csv += headers.join(',') + '\n';
+    }
+
+    const tbody = table.querySelector('tbody');
+    if (tbody) {
+        const rows = tbody.querySelectorAll('tr');
+        rows.forEach(tr => {
+            const cells = tr.querySelectorAll('td');
+            const values = [];
+            cells.forEach(td => {
+                values.push('"' + (td.textContent || '').trim().replace(/"/g, '""') + '"');
+            });
+            csv += values.join(',') + '\n';
+        });
+    }
+
+    // Download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Eksport_' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Fail CSV berjaya dimuat turun!');
+}
+
+function globalDownloadPDF() {
+    const container = document.getElementById('contentArea');
+    if (!container) return;
+    const table = container.querySelector('table');
+    if (!table) { showToast('Tiada jadual untuk dieksport', 'error'); return; }
+
+    // Clone jadual untuk PDF (pastikan semua style inline untuk cetakan)
+    const clone = table.cloneNode(true);
+    
+    // Dapatkan tajuk halaman
+    const pageTitle = document.getElementById('pageTitle')?.textContent || 'Laporan';
+
+    const pdfHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${pageTitle}</title>
+        <style>
+            body { font-family: 'Segoe UI', Arial, sans-serif; margin: 20px; }
+            h1 { font-size: 18pt; text-align: center; margin-bottom: 5px; }
+            .subtitle { text-align: center; color: #666; font-size: 10pt; margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+            th { background: #f8fafc; padding: 8px 6px; text-align: left; border-bottom: 2px solid #e2e8f0; }
+            td { padding: 6px; border-bottom: 1px solid #f1f5f9; }
+            tfoot td { font-weight: bold; background: #f3f4f6; border-top: 2px solid #d1d5db; }
+            @media print { @page { size: A4 landscape; margin: 10mm; } }
+</style></head><body>
+        <h1>${pageTitle}</h1>
+        <p class="subtitle">Dikeluarkan: ${new Date().toLocaleDateString('ms-MY')}</p>
+        ${clone.outerHTML}
+</body></html>`;
+
+    const w = window.open('', '_blank', 'width=1100,height=700');
+    if (w) {
+        w.document.write(pdfHtml);
+        w.document.close();
+        setTimeout(() => { w.print(); }, 500);
+    }
+}
+
+// ============================================================
 // MAIN APP RENDER
 // ============================================================
 function renderApp() {
@@ -2501,7 +2543,27 @@ function renderApp() {
     renderSidebar();
     if (window.innerWidth < 768) document.getElementById('sidebar').classList.add('closed');
     else document.getElementById('sidebar').classList.remove('closed');
-    document.getElementById('userInfo').innerHTML = `<span class="hidden md:block text-sm text-gray-600">${state.user?.nama_penuh}</span><span class="badge ${state.user?.peranan==='Admin'?'badge-putih':state.user?.peranan==='Petugas Padang'?'badge-atas':'badge-tiada'}">${state.user?.peranan}</span>
+    document.getElementById('userInfo').innerHTML = `
+        <!-- Butang Utiliti Global -->
+        <button onclick="globalPrint()" class="text-gray-500 hover:text-gray-700 p-1.5 rounded-lg hover:bg-gray-100 transition-colors" title="Cetak">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+            </svg>
+        </button>
+        <button onclick="globalDownloadExcel()" class="text-gray-500 hover:text-green-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors" title="Muat Turun Excel">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+        </button>
+        <button onclick="globalDownloadPDF()" class="text-gray-500 hover:text-red-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors" title="Muat Turun PDF">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+            </svg>
+        </button>
+        <!-- Pembahagi -->
+        <span class="text-gray-300 text-lg mx-0.5">|</span>
+        <!-- Akaun -->
+        <span class="hidden md:block text-sm text-gray-600">${state.user?.nama_penuh}</span><span class="badge ${state.user?.peranan==='Admin'?'badge-putih':state.user?.peranan==='Petugas Padang'?'badge-atas':'badge-tiada'}">${state.user?.peranan}</span>
         <button onclick="handleLogout()" class="btn btn-danger text-sm flex items-center gap-1.5 px-3 py-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg> Log Keluar</button>`;
     navigate(state.currentPage);
     if (state.user?.peranan==='Admin') updateApprovalBadge();

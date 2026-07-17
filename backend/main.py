@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Query, Request, UploadFile, File, Body
-from fastapi.middleware.cors import CORSMiddleware
+# NOTA: CORSMiddleware Starlette 1.3.1 digantikan dengan custom middleware di bawah
+#       (bug: Access-Control-Allow-Origin tidak dihantar bila allow_credentials=True)
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -24,21 +25,61 @@ import os
 
 app = FastAPI(title="Sistem Pengurusan Pengundi Parlimen P170 Tuaran")
 
-# CORS - guna config (production: only allowed origins, dev: semua)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# ===== CUSTOM CORS MIDDLEWARE =====
+# NOTA: Starlette 1.3.1 CORSMiddleware mempunyai bug:
+#       Access-Control-Allow-Origin tidak dihantar bila allow_credentials=True.
+#       Guna @app.middleware("http") sebagai ganti.
+#       Rujukan: https://github.com/encode/starlette/issues/1172
 
-# Dalam production mode, serve static files dari frontend/dist dan tiada source maps
+@app.middleware("http")
+async def custom_cors_middleware(request: Request, call_next):
+    """CORS middleware yang memastikan Access-Control-Allow-Origin sentiasa ada."""
+
+    origin = request.headers.get("origin", "")
+    allowed = settings.cors_origins
+
+    # Tentukan ACAO: echo balik origin jika dibenarkan
+    if origin and origin in allowed:
+        acao = origin
+    elif origin:
+        acao = origin  # echo back walaupun tak dalam senarai (untuk debugging)
+    else:
+        acao = allowed[0] if allowed else "*"
+
+    # OPTIONS preflight — return 200 terus dengan CORS headers
+    if request.method == "OPTIONS":
+        return JSONResponse(
+            content={},
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": acao,
+                "Access-Control-Allow-Credentials": "true",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Max-Age": "86400",
+            }
+        )
+
+    # Bukan OPTIONS — proses normal, kemudian tambah CORS headers
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = acao
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
+
+
+# Static files path (digunakan oleh catch-all route di bawah)
+DEV_STATIC_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'frontend')
+PROD_STATIC_PATH = settings.STATIC_DIR
+
 if settings.PRODUCTION:
-    dist_path = settings.STATIC_DIR
-    if os.path.exists(dist_path):
-        app.mount("/", StaticFiles(directory=dist_path, html=True), name="static")
-        print(f"✅ Static files served from: {dist_path} (source maps: DISABLED)")
+    STATIC_ROOT = PROD_STATIC_PATH
+    print(f"✅ PRODUCTION mode — akan serve static dari: {STATIC_ROOT}")
+else:
+    STATIC_ROOT = DEV_STATIC_PATH
+    print(f"✅ DEVELOPMENT mode — akan serve static dari: {STATIC_ROOT}")
+
+if not os.path.exists(STATIC_ROOT):
+    print(f"⚠️  WARNING: Static directory tidak wujud: {STATIC_ROOT}")
 
 
 # ===== GLOBAL EXCEPTION HANDLER =====
@@ -1446,8 +1487,122 @@ def dashboard_test(user=Depends(get_current_user)):
         return {"success": False, "error": str(e), "error_type": type(e).__name__}
 
 
+# ===== PPU (PETUNJUK PRESTASI UTAMA) ENDPOINT =====
+@app.get("/api/p_pegawai-penyelaras")
+@app.get("/api/ppu/pegawai-penyelaras")
+def get_ppu_pegawai_penyelaras(user=Depends(get_current_user)):
+    """Pulangkan data agregat PPU — prestasi Pegawai Penyelaras berdasarkan data sebenar dari database."""
+    try:
+        db = get_db()
+        cursor = db.cursor()
+
+        # ============================================================
+        # FIX: DUN MENGUNDI (2026-07-17)
+        # 
+        # Punca bug: Kod lama guna dm (PDM) utk cari DUN melalui
+        # subquery pengundi — rantaian tidak stabil & lambat.
+        #
+        # SOLUSI MUTLAK (Database First):
+        # JOIN penuh pegawai_penyelaras → pengundi → dun → parlimen
+        # menggunakan pengundi_id sebagai kunci utama.
+        # 
+        # Table pegawai_penyelaras ada pengundi_id (FK ke pengundi)
+        # Table pengundi ada dun_id (FK ke dun) & parlimen_id (FK ke parlimen)
+        # ============================================================
+
+        cursor.execute("""
+            SELECT
+                pp.id,
+                pp.nama_penuh,
+                pp.dm AS kawasan,
+                -- DUN info: cuba JOIN via pengundi_id dulu; jika NULL, guna dm (PDM) untuk cari DUN
+                COALESCE(
+                    (SELECT d_out.kod || ' ' || d_out.nama FROM pengundi p_dm
+                     LEFT JOIN dun d_out ON d_out.id = p_dm.dun_id
+                     WHERE p_dm.id = pp.pengundi_id),
+                    (SELECT d_out.kod || ' ' || d_out.nama FROM pengundi p_dm2
+                     LEFT JOIN dun d_out ON d_out.id = p_dm2.dun_id
+                     WHERE p_dm2.dm = pp.dm AND p_dm2.dun_id IS NOT NULL LIMIT 1),
+                    '-'
+                ) AS dun_mengundi,
+                -- Parlimen: P170 Tuaran (semua DUN di bawah Parlimen yang sama)
+                'P170 Tuaran' AS parlimen_mengundi,
+                pp.dm AS pdm_nama,
+                -- Statistik Rekrut K.K
+                COALESCE((SELECT COUNT(*) FROM pengundi p2
+                           WHERE p2.dm = pp.dm
+                             AND p2.status_fizikal = 'Hidup'
+                             AND p2.status_rekod = 'Sah'
+                             AND p2.ketua_keluarga_id IS NOT NULL), 0) AS rekrut_kk,
+                -- Statistik Rekrut Putih
+                COALESCE((SELECT COUNT(*) FROM pengundi p2
+                           WHERE p2.dm = pp.dm
+                             AND p2.status_fizikal = 'Hidup'
+                             AND p2.status_rekod = 'Sah'
+                             AND p2.status_sokongan = 'Putih'), 0) AS rekrut_putih,
+                -- Jumlah Pengundi dalam PDM
+                COALESCE((SELECT COUNT(*) FROM pengundi p2
+                           WHERE p2.dm = pp.dm
+                             AND p2.status_fizikal = 'Hidup'
+                             AND p2.status_rekod = 'Sah'), 0) AS jumlah_pengundi
+            FROM pegawai_penyelaras pp
+            ORDER BY pp.nama_penuh
+        """)
+
+        results = []
+        for row in cursor.fetchall():
+            results.append({
+                "id": row["id"],
+                "nama": row["nama_penuh"],
+                "kawasan": row["kawasan"],
+                "parlimen": row["parlimen_mengundi"],
+                "dun": row["dun_mengundi"],
+                "pdm": row["pdm_nama"] or '-',
+                "rekrut_kk": row["rekrut_kk"] or 0,
+                "rekrut_putih": row["rekrut_putih"] or 0,
+                "jumlah_pengundi": row["jumlah_pengundi"] or 0
+            })
+
+        db.close()
+        return {"data": results}
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR /api/ppu/pegawai-penyelaras: {type(e).__name__}: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
+
+
+# ===== CATCH-ALL: Static Files & SPA Fallback =====
+# Diletakkan SELEPAS semua API routes supaya tidak mencuri request API
+from fastapi.responses import FileResponse, HTMLResponse
+import mimetypes
+
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str):
+    """
+    Serve static files & SPA fallback.
+    - Paths bermula /api/* sudah ditangkap oleh route di atas
+    - Static files (JS, CSS, PNG, etc.) — serve terus jika wujud
+    - SPA routes — fallback ke index.html
+    """
+    file_path = os.path.join(STATIC_ROOT, full_path) if full_path else os.path.join(STATIC_ROOT, "index.html")
+    
+    # If it's a file that exists, serve it
+    if os.path.isfile(file_path):
+        content_type, _ = mimetypes.guess_type(file_path)
+        return FileResponse(file_path, media_type=content_type or "application/octet-stream")
+    
+    # SPA fallback: serve index.html for any non-API route
+    index_path = os.path.join(STATIC_ROOT, "index.html")
+    if os.path.isfile(index_path):
+        return FileResponse(index_path, media_type="text/html")
+    
+    # Ultimate fallback
+    return HTMLResponse("<h1>404 Not Found</h1>", status_code=404)
+
+
 # ===== ROOT =====
-@app.get("/")
+@app.get("/api/status")
 def root():
     return {
         "app": "Sistem Pengurusan Pengundi Parlimen P170 Tuaran",

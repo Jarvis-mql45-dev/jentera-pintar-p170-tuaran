@@ -24,13 +24,23 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; min-height: 100vh; }
-        .sidebar { width: 260px; transition: transform 0.3s; position: relative; display: flex; flex-direction: column; height: 100vh; }
+        .sidebar { width: 260px; transition: transform 0.3s; display: flex; flex-direction: column; background: white; }
         .sidebar-menu { flex: 1; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; }
         .sidebar-menu::-webkit-scrollbar { display: none; }
         .sidebar-header, .sidebar-footer { flex-shrink: 0; }
         body.no-scroll { overflow: hidden; }
-        @media (min-width: 769px) { .sidebar { position: relative !important; height: 100vh !important; transform: none !important; } }
-        @media (max-width: 768px) { .sidebar { position: fixed; z-index: 50; height: 100vh; } .sidebar.closed { transform: translateX(-260px); } .sidebar.open { transform: translateX(0); } }
+        /* 🖥️ Desktop: Fixed sidebar — sentiasa melekat & skrol bebas */
+        @media (min-width: 769px) {
+            .sidebar { position: fixed !important; left: 0; top: 0; height: 100vh !important; transform: none !important; overflow-y: auto; z-index: 30; }
+            #app > .flex-1 { margin-left: 260px; }
+        }
+        /* 📱 Mobile: Slide-in sidebar */
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; z-index: 50; height: 100vh; }
+            .sidebar.closed { transform: translateX(-260px); }
+            .sidebar.open { transform: translateX(0); }
+            #app > .flex-1 { margin-left: 0; }
+        }
         .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: box-shadow 0.2s; }
         .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
         .btn { padding: 8px 16px; border-radius: 8px; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s; }
@@ -80,6 +90,92 @@
         /* Smooth Loading Overlay - mencegah flashbang putih */
         .smooth-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.85); z-index: 40; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s ease; pointer-events: none; }
         .smooth-overlay.active { opacity: 1; pointer-events: auto; }
+        /* ===== PRINT STYLES: Hanya kandungan utama sahaja yang dicetak ===== */
+        @media print {
+            /* 1. Matikan semua jenis skrol dan paksa lebar penuh pada semua bekas */
+            html, body, main, #app, .content-wrapper, .card, .card-body,
+            .overflow-x-auto, .overflow-y-auto, .overflow-auto,
+            [class*="overflow-"] {
+                overflow: visible !important;
+                overflow-x: visible !important;
+                overflow-y: visible !important;
+                display: block !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+            }
+
+            /* Sembunyikan SEMUA kecuali contentArea */
+            body * { visibility: hidden; }
+            #contentArea, #contentArea * { visibility: visible; }
+            #contentArea {
+                position: absolute;
+                top: 3mm; left: 3mm; right: 3mm;
+                width: auto !important;
+                max-width: none !important;
+                overflow: visible !important;
+                display: block !important;
+            }
+
+            /* Sembunyikan toolbar & butang dalam contentArea */
+            #contentArea .btn, #contentArea select, #contentArea button,
+            #contentArea .flex.items-center.gap-2.flex-wrap { display: none !important; }
+            /* Kecualikan judul jadual */
+            #contentArea h2 { display: block !important; visibility: visible !important; }
+            /* Sembunyikan sidebar, navbar, toast */
+            #sidebar, #userInfo, #pageTitle, #menuToggle, #toast, #smoothOverlay { display: none !important; }
+
+            /* 2. Paksa jadual menggunakan tataletak auto-fit */
+            #contentArea table {
+                width: 100% !important;
+                max-width: 100% !important;
+                table-layout: auto !important;
+                border-collapse: collapse !important;
+                page-break-inside: auto !important;
+            }
+
+            /* 3. Paksa semua sel dan tajuk lajur mengecil & wrap */
+            #contentArea th, #contentArea td {
+                width: auto !important;
+                min-width: 0 !important;
+                max-width: none !important;
+                white-space: normal !important;
+                word-break: break-word !important;
+                overflow-wrap: break-word !important;
+                font-size: 7.5pt !important;
+                padding: 3px 5px !important;
+            }
+            #contentArea th {
+                background: #f8fafc !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            #contentArea tfoot tr {
+                background: #f3f4f6 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            /* 4. Kawalan pemisahan halaman */
+            /* Elakkan kad (tajuk + jadual) terpisah di antara halaman */
+            .card {
+                page-break-inside: avoid !important;
+                break-inside: avoid-page !important;
+            }
+            /* Elakkan page break terus selepas tajuk (orphan header) */
+            h1, h2, h3, h4 {
+                page-break-after: avoid !important;
+                break-after: avoid !important;
+            }
+            #contentArea tr {
+                page-break-inside: avoid !important;
+            }
+
+            @page { margin: 3mm; size: A4 landscape; }
+        }
     </style>
     <!-- 🛡️ INLINE FALLBACK: Login interface styling — Tailwind CDN tidak scan dynamic innerHTML -->
     <style>
@@ -2167,6 +2263,9 @@ document.addEventListener('click', (e) => {
     }
 });
 </script>
+
+<!-- 📊 PPU MODULE (kpi.js) - Pegawai Penyelaras Performance Dashboard -->
+<script src="js/kpi.js?v=9"></script>
 
 <!-- 🚀 ADVANCED DASHBOARD MODULE (app.js) - 5 table layout: 1 Parlimen + 4 DUN PDM -->
 <script src="js/app.js"></script>
