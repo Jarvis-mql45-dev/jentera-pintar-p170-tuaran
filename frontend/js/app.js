@@ -2620,3 +2620,43 @@ document.addEventListener('click', (e) => {
         document.body.classList.remove('no-scroll');
     }
 });
+
+// 🛡️ OVERRIDE: app.js telah selesai dimuat — override navigate() dan re-render current page
+// Ini memastikan fungsi render sebenar (bukan stub dari index.html) digunakan
+(function() {
+    const savedNavigate = window.navigate;
+    window.navigate = function(page) {
+        // Only call if user is authenticated
+        if (!requiresAuth()) { renderLoginPage(); return; }
+        state.currentPage = page;
+        localStorage.setItem('currentPage', page);
+        renderSidebar();
+        document.getElementById('pageTitle').textContent = 
+            page==='dashboard'?'Papan Pemuka':page==='pengundi'?'Senarai Pengundi':
+            page==='approval'?'Kelulusan Data':page==='audit'?'Log Aktiviti':
+            page==='users'?'Pengurusan Pengguna':page==='import'?'Import Data Excel':
+            page==='survey'?'Senarai Soal Selidik':page==='survey-create'?'Cipta Soal Selidik':
+            page==='survey-view'?'Borang Soal Selidik':'Papan Pemuka';
+        document.getElementById('sidebar').classList.remove('open');
+        if (window.innerWidth < 768) {
+            document.getElementById('sidebar').classList.add('closed');
+            document.body.classList.remove('no-scroll');
+        } else {
+            document.getElementById('sidebar').classList.remove('closed');
+        }
+        if (page==='dashboard') renderDashboard();
+        else if (page==='pengundi') renderPengundi();
+        else if (page==='approval') renderApprovalQueue();
+        else if (page==='audit') renderAuditLogs();
+        else if (page==='users') renderUserManagement();
+        else if (page==='import') renderImportData();
+        else if (page==='survey') renderSurveyList();
+        else if (page==='survey-create') renderCreateSurvey();
+        else if (page==='survey-view') renderSurveyView();
+        else renderComingSoon(page);
+    };
+    // Re-render current page with the real navigate function
+    if (state.currentPage && requiresAuth()) {
+        window.navigate(state.currentPage);
+    }
+})();
