@@ -556,7 +556,7 @@ setInterval(() => { if (state.user?.peranan==='Admin' && state.token) updateAppr
 document.addEventListener('click', (e) => { const sidebar = document.getElementById('sidebar'); if (window.innerWidth < 768 && !sidebar.contains(e.target) && !e.target.closest('#menuToggle')) { sidebar.classList.remove('open'); sidebar.classList.add('closed'); document.body.classList.remove('no-scroll'); } });
 </script>
 <script src="js/kpi.js?v=9"></script>
-<script src="js/app.js"></script>
+<script src="js/app.js?v=2"></script>
 <script src="js/dashboard-layout.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
