@@ -1939,28 +1939,40 @@ async function getLokalitiList() {
 }
 
 async function tambahPengundi() {
+    // 🛡️ Guard: cegah modal berlapis akibat klik berturut-turut
+    if (window._tambahModalBusy) return;
+    window._tambahModalBusy = true;
+
+    // 🛡️ Cipta & lock modal serta-merta sebelum sebarang panggilan API
+    const existingOverlay = document.getElementById('tambahModalOverlay');
+    if (existingOverlay) existingOverlay.remove();
+    
     const overlay = document.createElement('div');
     overlay.id = 'tambahModalOverlay';
     overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    // Paparkan loading sementara menunggu data API
+    overlay.innerHTML = `<div class="bg-white rounded-xl p-6 text-center shadow-lg font-medium">Memuatkan borang tambah pengundi...</div>`;
+    document.body.appendChild(overlay);
 
-    // Pre-fetch lokaliti list
-    const lokalitiList = await getLokalitiList();
-    const lokalitiOptions = lokalitiList.map(l => `<option value="${l}">`).join('');
+    try {
+        // Pre-fetch lokaliti list
+        const lokalitiList = await getLokalitiList();
+        const lokalitiOptions = lokalitiList.map(l => `<option value="${l}">`).join('');
 
-    // Pre-fetch KK & PP candidates from their respective tables
-    const [kkOptions, ppOptions] = await Promise.all([
-        fetchKkOptions(''),
-        fetchPpOptions('')
-    ]);
-    const kkOptHtml = kkOptions.map(k => `<option value="${k.id} - ${k.nama_penuh}">`).join('');
-    const ppOptHtml = ppOptions.map(p => `<option value="${p.id} - ${p.nama_penuh}">`).join('');
+        // Pre-fetch KK & PP candidates from their respective tables
+        const [kkOptions, ppOptions] = await Promise.all([
+            fetchKkOptions(''),
+            fetchPpOptions('')
+        ]);
+        const kkOptHtml = kkOptions.map(k => `<option value="${k.id} - ${k.nama_penuh}">`).join('');
+        const ppOptHtml = ppOptions.map(p => `<option value="${p.id} - ${p.nama_penuh}">`).join('');
 
-    // Default DUN = N12 for initial PDM list
-    const defaultDun = 'N12';
-    const initialPdmOptions = renderDunPdmDataList(defaultDun);
+        // Default DUN = N12 for initial PDM list
+        const defaultDun = 'N12';
+        const initialPdmOptions = renderDunPdmDataList(defaultDun);
 
-    overlay.innerHTML = `
+        overlay.innerHTML = `
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between p-4 border-b">
                 <h3 class="text-lg font-semibold text-gray-800">Tambah Pengundi Baru</h3>
@@ -2074,7 +2086,13 @@ async function tambahPengundi() {
             </div>
         </div>
     `;
-    document.body.appendChild(overlay);
+        document.body.appendChild(overlay);
+    } catch (err) {
+        showToast('Gagal: ' + err.message, 'error');
+    } finally {
+        // 🔓 Reset guard selepas modal siap atau gagal
+        window._tambahModalBusy = false;
+    }
 }
 
 async function fetchKkOptions(query) {
