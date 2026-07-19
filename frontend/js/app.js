@@ -1648,7 +1648,7 @@ async function renderPengundi() {
                             <td class="text-xs font-mono">${p.no_kp || '-'}</td>
                             <td class="font-medium whitespace-nowrap">${p.nama_penuh || '-'}</td>
                             <td>${p.jantina || '-'}</td>
-                            <td>${p.umur || p.tahun_lahir || '-'}</td>
+                            <td>${p.tahun_lahir ? (2026 - p.tahun_lahir) : '-'}</td>
                             <td>${p.dm || '-'}</td>
                             <td class="text-sm">${p.lokaliti || '-'}</td>
                             <td>${p.sokongan ? `<span class="badge ${p.sokongan==='Putih'?'badge-putih':p.sokongan==='Hitam'?'badge-hitam':p.sokongan==='Atas Pagar'?'badge-atas':'badge-tiada'}">${p.sokongan}</span>` : '<span class="badge badge-tiada">Tiada</span>'}</td>
@@ -1734,13 +1734,13 @@ async function editPengundi(id) {
                     <!-- Pegawai Penyelaras -->
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">Pegawai Penyelaras</label>
-                        <input type="text" id="editPegawai" list="editPegawaiList" oninput="cariEditPegawaiPenyelaras(this)" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Taip nama pegawai penyelaras" value="${p.pegawai_penyelaras_id ? p.pegawai_penyelaras_id + ' - ' + (p.pegawai_penyelaras || '') : ''}">
+                        <input type="text" id="editPegawai" list="editPegawaiList" oninput="cariEditPegawaiPenyelaras(this)" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Taip nama pegawai penyelaras" value="${p.pegawai_penyelaras_id ? p.pegawai_penyelaras_id + ' - ' + (p.pegawai_penyelaras_nama || '') : ''}">
                         <datalist id="editPegawaiList">${ppOptHtml}</datalist>
                     </div>
                     <!-- Ketua Keluarga -->
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">Ketua Keluarga</label>
-                        <input type="text" id="editKetuaKeluarga" list="editKkList" oninput="cariEditKetuaKeluarga(this)" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Taip nama ketua keluarga" value="${p.ketua_keluarga_id ? p.ketua_keluarga_id + ' - ' + (p.ketua_keluarga || '') : ''}">
+                        <input type="text" id="editKetuaKeluarga" list="editKkList" oninput="cariEditKetuaKeluarga(this)" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Taip nama ketua keluarga" value="${p.ketua_keluarga_id ? p.ketua_keluarga_id + ' - ' + (p.ketua_keluarga_nama || '') : ''}">
                         <datalist id="editKkList">${kkOptHtml}</datalist>
                     </div>
                     <!-- Nama Penuh -->
