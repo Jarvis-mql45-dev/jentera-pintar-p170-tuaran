@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Query, Request, UploadFile, File, Body
-from fastapi.middleware.cors import CORSMiddleware
+# NOTA: CORSMiddleware Starlette 1.3.1 digantikan dengan custom middleware di bawah
+#       (bug: Access-Control-Allow-Origin tidak dihantar bila allow_credentials=True)
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -24,21 +25,61 @@ import os
 
 app = FastAPI(title="Sistem Pengurusan Pengundi Parlimen P170 Tuaran")
 
-# CORS - guna config (production: only allowed origins, dev: semua)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# ===== CUSTOM CORS MIDDLEWARE =====
+# NOTA: Starlette 1.3.1 CORSMiddleware mempunyai bug:
+#       Access-Control-Allow-Origin tidak dihantar bila allow_credentials=True.
+#       Guna @app.middleware("http") sebagai ganti.
+#       Rujukan: https://github.com/encode/starlette/issues/1172
 
-# Dalam production mode, serve static files dari frontend/dist dan tiada source maps
+@app.middleware("http")
+async def custom_cors_middleware(request: Request, call_next):
+    """CORS middleware yang memastikan Access-Control-Allow-Origin sentiasa ada."""
+
+    origin = request.headers.get("origin", "")
+    allowed = settings.cors_origins
+
+    # Tentukan ACAO: echo balik origin jika dibenarkan
+    if origin and origin in allowed:
+        acao = origin
+    elif origin:
+        acao = origin  # echo back walaupun tak dalam senarai (untuk debugging)
+    else:
+        acao = allowed[0] if allowed else "*"
+
+    # OPTIONS preflight — return 200 terus dengan CORS headers
+    if request.method == "OPTIONS":
+        return JSONResponse(
+            content={},
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": acao,
+                "Access-Control-Allow-Credentials": "true",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Max-Age": "86400",
+            }
+        )
+
+    # Bukan OPTIONS — proses normal, kemudian tambah CORS headers
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = acao
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
+
+
+# Static files path (digunakan oleh catch-all route di bawah)
+DEV_STATIC_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'frontend')
+PROD_STATIC_PATH = settings.STATIC_DIR
+
 if settings.PRODUCTION:
-    dist_path = settings.STATIC_DIR
-    if os.path.exists(dist_path):
-        app.mount("/", StaticFiles(directory=dist_path, html=True), name="static")
-        print(f"✅ Static files served from: {dist_path} (source maps: DISABLED)")
+    STATIC_ROOT = PROD_STATIC_PATH
+    print(f"✅ PRODUCTION mode — akan serve static dari: {STATIC_ROOT}")
+else:
+    STATIC_ROOT = DEV_STATIC_PATH
+    print(f"✅ DEVELOPMENT mode — akan serve static dari: {STATIC_ROOT}")
+
+if not os.path.exists(STATIC_ROOT):
+    print(f"⚠️  WARNING: Static directory tidak wujud: {STATIC_ROOT}")
 
 
 # ===== GLOBAL EXCEPTION HANDLER =====
@@ -99,25 +140,29 @@ class PenggunaCreate(BaseModel):
 # ===== AUDIT TRAIL HELPER =====
 def log_activity(request: Request, user: dict, tindakan: str, penerangan: str, no_kp_terlibat: str = None):
     """Log aktiviti pengguna ke dalam audit_logs untuk pematuhan PDPA."""
-    db = get_db()
-    cursor = db.cursor()
-    cursor.execute("""
-        INSERT INTO audit_logs (user_id, username, peranan, tindakan, penerangan, no_kp_terlibat, endpoint, ip_address, user_agent, dicipta_pada)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        user.get("user_id"),
-        user["username"],
-        user["peranan"],
-        tindakan,
-        penerangan,
-        no_kp_terlibat,
-        request.url.path if hasattr(request, 'url') else None,
-        request.client.host if request.client else None,
-        request.headers.get("user-agent") if hasattr(request, 'headers') else None,
-        datetime.now().isoformat()
-    ))
-    db.commit()
-    db.close()
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("""
+            INSERT INTO audit_logs (user_id, username, peranan, tindakan, penerangan, no_kp_terlibat, endpoint, ip_address, user_agent, dicipta_pada)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            user.get("user_id"),
+            user["username"],
+            user["peranan"],
+            tindakan,
+            penerangan,
+            no_kp_terlibat,
+            request.url.path if hasattr(request, 'url') else None,
+            request.client.host if request.client else "localhost",
+            request.headers.get("user-agent") if hasattr(request, 'headers') else None,
+            datetime.now().isoformat()
+        ))
+        db.commit()
+        db.close()
+    except Exception as e:
+        # Kegagalan logging tidak patut menjejaskan request utama (terutamanya di Vercel serverless)
+        print(f"⚠️ log_activity gagal (non-critical): {type(e).__name__}: {str(e)}")
 
 
 # ===== EVENT STARTUP =====
@@ -223,6 +268,63 @@ def get_pdm_by_dun(dun_kod: str, user=Depends(get_current_user)):
     db.close()
     return pdms
 
+# Dashboard stats per-PDM (untuk 4 PDM table dalam dashboard)
+@app.get("/api/dashboard/pdm/{dun_kod}")
+def get_dashboard_pdm(dun_kod: str, user=Depends(get_current_user)):
+    """Pulangkan data per-PDM untuk sesuatu DUN — digunakan oleh 4 PDM table di frontend."""
+    try:
+        db = get_db()
+        cursor = db.cursor()
+
+        THN_SEMASA = 2026
+        cursor.execute("""
+            SELECT
+                p.dm,
+                COUNT(p.id) AS jumlah,
+                SUM(CASE WHEN p.status_sokongan = 'Putih' THEN 1 ELSE 0 END) AS putih,
+                SUM(CASE WHEN p.status_sokongan = 'Atas Pagar' THEN 1 ELSE 0 END) AS atas_pagar,
+                SUM(CASE WHEN p.status_sokongan = 'Hitam' THEN 1 ELSE 0 END) AS hitam,
+                SUM(CASE WHEN p.status_sokongan IS NULL OR p.status_sokongan NOT IN ('Putih', 'Atas Pagar', 'Hitam') THEN 1 ELSE 0 END) AS tidak_dikenali,
+                SUM(CASE WHEN p.status_fizikal = 'Meninggal Dunia' THEN 1 ELSE 0 END) AS meninggal,
+                SUM(CASE WHEN p.tahun_lahir IS NOT NULL AND (?) - p.tahun_lahir BETWEEN 18 AND 30 THEN 1 ELSE 0 END) AS usia_18_30,
+                SUM(CASE WHEN p.tahun_lahir IS NOT NULL AND (?) - p.tahun_lahir BETWEEN 31 AND 59 THEN 1 ELSE 0 END) AS usia_31_59,
+                SUM(CASE WHEN p.tahun_lahir IS NOT NULL AND (?) - p.tahun_lahir >= 60 THEN 1 ELSE 0 END) AS usia_60plus,
+                COUNT(DISTINCT p.ketua_keluarga_id) AS jumlah_ketua_keluarga
+            FROM pengundi p
+            WHERE p.dun_id = (SELECT id FROM dun WHERE kod = ?)
+              AND p.status_fizikal = 'Hidup'
+              AND p.status_rekod = 'Sah'
+              AND p.dm IS NOT NULL AND p.dm != ''
+            GROUP BY p.dm
+            ORDER BY p.dm
+        """, (THN_SEMASA, THN_SEMASA, THN_SEMASA, dun_kod))
+
+        data = []
+        for row in cursor.fetchall():
+            data.append({
+                "dm": row["dm"],
+                "jumlah": row["jumlah"],
+                "putih": row["putih"],
+                "atas_pagar": row["atas_pagar"],
+                "hitam": row["hitam"],
+                "tidak_dikenali": row["tidak_dikenali"],
+                "meninggal": row["meninggal"],
+                "usia_18_30": row["usia_18_30"],
+                "usia_31_59": row["usia_31_59"],
+                "usia_60plus": row["usia_60plus"],
+                "jumlah_ketua_keluarga": row["jumlah_ketua_keluarga"]
+            })
+
+        db.close()
+        return {"success": True, "dun_kod": dun_kod, "data": data}
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR /api/dashboard/pdm/{dun_kod}: {type(e).__name__}: {str(e)}")
+        traceback.print_exc()
+        # Fallback: pulangkan data kosong
+        return {"success": False, "dun_kod": dun_kod, "data": [], "error": str(e)}
+
+
 # Dashboard stats untuk DUN tertentu (filter ikut PDM dalam DUN)
 @app.get("/api/dashboard/dun/{dun_kod}")
 def get_dashboard_dun(request: Request, dun_kod: str, dm: Optional[str] = None, user=Depends(get_current_user)):
@@ -239,7 +341,7 @@ def get_dashboard_dun(request: Request, dun_kod: str, dm: Optional[str] = None, 
         THN_SEMASA = 2026
 
         # Jumlah pengundi
-        cursor.execute(f"SELECT COUNT(*) FROM pengundi {where}", params)
+        cursor.execute(f"SELECT COUNT(*) FROM pengundi p {where}", params)
         jumlah_pengundi = cursor.fetchone()[0]
 
         # Status sokongan
@@ -410,12 +512,12 @@ def get_pengundi(
     params = []
 
     if search:
-        where_parts.append("(p.no_kp LIKE ? OR p.nama_penuh LIKE ?)")
+        where_parts.append("(UPPER(p.no_kp) LIKE UPPER(?) OR UPPER(p.nama_penuh) LIKE UPPER(?))")
         params.extend([f"%{search}%", f"%{search}%"])
 
-    # Multi-select dm filter
+    # Multi-select dm filter — tolak jika nilai kosong
     dm_list = []
-    if dm:
+    if dm and dm.strip():
         if isinstance(dm, str):
             dm_list = [d.strip() for d in dm.split(',') if d.strip()]
         elif isinstance(dm, list):
@@ -482,7 +584,7 @@ def get_pengundi(
         where = "WHERE " + " AND ".join(where_parts)
 
     # Count total
-    cursor.execute(f"SELECT COUNT(*) FROM pengundi {where}", params)
+    cursor.execute(f"SELECT COUNT(*) FROM pengundi p {where}", params)
     total = cursor.fetchone()[0]
 
     # Get page data
@@ -494,8 +596,8 @@ def get_pengundi(
                kk.nama_penuh AS ketua_keluarga_nama,
                pp.nama_penuh AS pegawai_penyelaras_nama
         FROM pengundi p
-        LEFT JOIN pengundi kk ON p.ketua_keluarga_id = kk.id
-        LEFT JOIN pengundi pp ON p.pegawai_penyelaras_id = pp.id
+        LEFT JOIN ketua_keluarga kk ON p.ketua_keluarga_id = kk.id
+        LEFT JOIN pegawai_penyelaras pp ON p.pegawai_penyelaras_id = pp.id
         {where}
         ORDER BY p.id
         LIMIT ? OFFSET ?
@@ -533,20 +635,18 @@ def get_filter_options(user=Depends(get_current_user)):
     lokaliti_list = [r[0] for r in cursor.fetchall()]
     cursor.execute("SELECT DISTINCT status_sokongan FROM pengundi WHERE status_sokongan IS NOT NULL AND status_sokongan != '' ORDER BY status_sokongan")
     sokongan_list = [r[0] for r in cursor.fetchall()]
-    # Senarai pengundi yang menjadi Ketua Keluarga (dirujuk oleh orang lain)
+    # Senarai Ketua Keluarga dari table rasmi
     cursor.execute("""
-        SELECT DISTINCT p.id, p.nama_penuh
-        FROM pengundi p
-        WHERE p.id IN (SELECT DISTINCT ketua_keluarga_id FROM pengundi WHERE ketua_keluarga_id IS NOT NULL)
-        ORDER BY p.nama_penuh
+        SELECT id, nama_penuh
+        FROM ketua_keluarga
+        ORDER BY nama_penuh
     """)
     ketua_keluarga_list = [{"id": r[0], "nama": r[1]} for r in cursor.fetchall()]
-    # Senarai pengundi yang menjadi Pegawai Penyelaras
+    # Senarai Pegawai Penyelaras dari table rasmi
     cursor.execute("""
-        SELECT DISTINCT p.id, p.nama_penuh
-        FROM pengundi p
-        WHERE p.id IN (SELECT DISTINCT pegawai_penyelaras_id FROM pengundi WHERE pegawai_penyelaras_id IS NOT NULL)
-        ORDER BY p.nama_penuh
+        SELECT id, nama_penuh
+        FROM pegawai_penyelaras
+        ORDER BY nama_penuh
     """)
     pegawai_penyelaras_list = [{"id": r[0], "nama": r[1]} for r in cursor.fetchall()]
     db.close()
@@ -577,7 +677,7 @@ def search_pengundi_dropdown(
     cursor.execute("""
         SELECT id, no_kp, nama_penuh, dm, lokaliti
         FROM pengundi
-        WHERE (nama_penuh LIKE ? OR no_kp LIKE ?)
+        WHERE (UPPER(nama_penuh) LIKE UPPER(?) OR UPPER(no_kp) LIKE UPPER(?))
           AND status_fizikal = 'Hidup' AND status_rekod = 'Sah'
         ORDER BY nama_penuh ASC
         LIMIT ? OFFSET ?
@@ -587,8 +687,82 @@ def search_pengundi_dropdown(
     
     cursor.execute("""
         SELECT COUNT(*) FROM pengundi
-        WHERE (nama_penuh LIKE ? OR no_kp LIKE ?)
+        WHERE (UPPER(nama_penuh) LIKE UPPER(?) OR UPPER(no_kp) LIKE UPPER(?))
           AND status_fizikal = 'Hidup' AND status_rekod = 'Sah'
+    """, params)
+    total = cursor.fetchone()[0]
+    
+    db.close()
+    return {"data": results, "total": total, "page": page, "per_page": per_page}
+
+
+# Endpoint carian Ketua Keluarga untuk searchable dropdown — cari pengundi yang menjadi Ketua Keluarga
+@app.get("/api/ketua-keluarga/search")
+def search_ketua_keluarga_dropdown(
+    q: str = "",
+    page: int = 1,
+    per_page: int = 200,
+    user=Depends(get_current_user)
+):
+    """Cari Ketua Keluarga dari table rasmi untuk dropdown pilihan."""
+    db = get_db()
+    cursor = db.cursor()
+    
+    params = [f"%{q}%"]
+    offset = (page - 1) * per_page
+    
+    cursor.execute("""
+        SELECT id, id AS no_kp, nama_penuh, '' AS dm, '' AS lokaliti
+        FROM ketua_keluarga
+        WHERE UPPER(nama_penuh) LIKE UPPER(?)
+        ORDER BY nama_penuh ASC
+        LIMIT ? OFFSET ?
+    """, params + [per_page, offset])
+    
+    results = [dict(row) for row in cursor.fetchall()]
+    
+    cursor.execute("""
+        SELECT COUNT(*) FROM ketua_keluarga
+        WHERE UPPER(nama_penuh) LIKE UPPER(?)
+    """, params)
+    total = cursor.fetchone()[0]
+    
+    db.close()
+    return {"data": results, "total": total, "page": page, "per_page": per_page}
+
+
+# Endpoint carian Pegawai Penyelaras untuk searchable dropdown
+@app.get("/api/pegawai-penyelaras/search")
+def search_pegawai_penyelaras_dropdown(
+    q: str = "",
+    page: int = 1,
+    per_page: int = 200,
+    user=Depends(get_current_user)
+):
+    """Cari pengundi yang menjadi Pegawai Penyelaras untuk dropdown pilihan."""
+    db = get_db()
+    cursor = db.cursor()
+    
+    params = [f"%{q}%", f"%{q}%"]
+    offset = (page - 1) * per_page
+    
+    cursor.execute("""
+        SELECT DISTINCT p.id, p.no_kp, p.nama_penuh, p.dm, p.lokaliti
+        FROM pengundi p
+        WHERE p.id IN (SELECT DISTINCT pegawai_penyelaras_id FROM pengundi WHERE pegawai_penyelaras_id IS NOT NULL)
+          AND (UPPER(p.nama_penuh) LIKE UPPER(?) OR UPPER(p.no_kp) LIKE UPPER(?))
+          AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
+        ORDER BY p.nama_penuh ASC
+        LIMIT ? OFFSET ?
+    """, params + [per_page, offset])
+    
+    results = [dict(row) for row in cursor.fetchall()]
+    
+    cursor.execute("""
+        SELECT COUNT(*) FROM pengundi p
+        WHERE p.id IN (SELECT DISTINCT pegawai_penyelaras_id FROM pengundi WHERE pegawai_penyelaras_id IS NOT NULL)
+          AND (UPPER(p.nama_penuh) LIKE UPPER(?) OR UPPER(p.no_kp) LIKE UPPER(?))
+          AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
     """, params)
     total = cursor.fetchone()[0]
     
@@ -785,8 +959,8 @@ def get_pengundi_by_id(request: Request, pengundi_id: int, user=Depends(get_curr
                kk.nama_penuh AS ketua_keluarga_nama, 
                pp.nama_penuh AS pegawai_penyelaras_nama
         FROM pengundi p
-        LEFT JOIN pengundi kk ON p.ketua_keluarga_id = kk.id
-        LEFT JOIN pengundi pp ON p.pegawai_penyelaras_id = pp.id
+        LEFT JOIN ketua_keluarga kk ON p.ketua_keluarga_id = kk.id
+        LEFT JOIN pegawai_penyelaras pp ON p.pegawai_penyelaras_id = pp.id
         WHERE p.id = ?
     """, (pengundi_id,))
     p = cursor.fetchone()
@@ -978,42 +1152,32 @@ def approve_record(request: Request, pengundi_id: int, user=Depends(get_current_
 
 
 # Tolak rekod (Admin sahaja)
-@app.post("/api/approval-queue/{pengundi_id}/tolak")
+@app.delete("/api/approval-queue/{pengundi_id}/tolak")
 def reject_record(request: Request, pengundi_id: int, user=Depends(get_current_user)):
-    try:
-        check_peranan(user, ["Admin"])
-    except HTTPException as e:
-        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"detail": f"Authorization error: {str(e)}"})
+    check_peranan(user, ["Admin"])
 
-    try:
-        db = get_db()
-        cursor = db.cursor()
-        
-        # Get data before reject
-        cursor.execute("SELECT no_kp, nama_penuh FROM pengundi WHERE id = ? AND status_rekod = 'Menunggu_Kelulusan'", (pengundi_id,))
-        p = cursor.fetchone()
-        if not p:
-            db.close()
-            return JSONResponse(status_code=404, content={"detail": "Rekod tidak ditemui atau sudah diproses"})
-        
-        no_kp = p['no_kp']
-        nama = p['nama_penuh']
-        
-        cursor.execute("DELETE FROM pengundi WHERE id = ? AND status_rekod = 'Menunggu_Kelulusan'", (pengundi_id,))
-        db.commit()
+    db = get_db()
+    cursor = db.cursor()
+    
+    # Get data before reject
+    cursor.execute("SELECT no_kp, nama_penuh FROM pengundi WHERE id = ? AND status_rekod = 'Menunggu_Kelulusan'", (pengundi_id,))
+    p = cursor.fetchone()
+    if not p:
         db.close()
+        raise HTTPException(status_code=404, detail="Rekod tidak ditemui atau sudah diproses")
+    
+    no_kp = p['no_kp']
+    nama = p['nama_penuh']
+    
+    cursor.execute("DELETE FROM pengundi WHERE id = ? AND status_rekod = 'Menunggu_Kelulusan'", (pengundi_id,))
+    db.commit()
+    db.close()
 
-        log_activity(request, user, "Tolak Rekod",
-                     f"Tolak rekod ID {pengundi_id}: {nama}",
-                     no_kp_terlibat=no_kp)
+    log_activity(request, user, "Tolak Rekod",
+                 f"Tolak rekod ID {pengundi_id}: {nama}",
+                 no_kp_terlibat=no_kp)
 
-        return {"message": "Rekod berjaya ditolak dan dipadamkan"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"detail": f"Ralat dalaman: {str(e)}"})
+    return {"message": "Rekod berjaya ditolak dan dipadamkan"}
 
 
 # ===== APPROVE ALL PENDING (Admin sahaja) =====
@@ -1399,8 +1563,122 @@ def dashboard_test(user=Depends(get_current_user)):
         return {"success": False, "error": str(e), "error_type": type(e).__name__}
 
 
+# ===== PPU (PETUNJUK PRESTASI UTAMA) ENDPOINT =====
+@app.get("/api/p_pegawai-penyelaras")
+@app.get("/api/ppu/pegawai-penyelaras")
+def get_ppu_pegawai_penyelaras(user=Depends(get_current_user)):
+    """Pulangkan data agregat PPU — prestasi Pegawai Penyelaras berdasarkan data sebenar dari database."""
+    try:
+        db = get_db()
+        cursor = db.cursor()
+
+        # ============================================================
+        # FIX: DUN MENGUNDI (2026-07-17)
+        # 
+        # Punca bug: Kod lama guna dm (PDM) utk cari DUN melalui
+        # subquery pengundi — rantaian tidak stabil & lambat.
+        #
+        # SOLUSI MUTLAK (Database First):
+        # JOIN penuh pegawai_penyelaras → pengundi → dun → parlimen
+        # menggunakan pengundi_id sebagai kunci utama.
+        # 
+        # Table pegawai_penyelaras ada pengundi_id (FK ke pengundi)
+        # Table pengundi ada dun_id (FK ke dun) & parlimen_id (FK ke parlimen)
+        # ============================================================
+
+        cursor.execute("""
+            SELECT
+                pp.id,
+                pp.nama_penuh,
+                pp.dm AS kawasan,
+                -- DUN info: cuba JOIN via pengundi_id dulu; jika NULL, guna dm (PDM) untuk cari DUN
+                COALESCE(
+                    (SELECT d_out.kod || ' ' || d_out.nama FROM pengundi p_dm
+                     LEFT JOIN dun d_out ON d_out.id = p_dm.dun_id
+                     WHERE p_dm.id = pp.pengundi_id),
+                    (SELECT d_out.kod || ' ' || d_out.nama FROM pengundi p_dm2
+                     LEFT JOIN dun d_out ON d_out.id = p_dm2.dun_id
+                     WHERE p_dm2.dm = pp.dm AND p_dm2.dun_id IS NOT NULL LIMIT 1),
+                    '-'
+                ) AS dun_mengundi,
+                -- Parlimen: P170 Tuaran (semua DUN di bawah Parlimen yang sama)
+                'P170 Tuaran' AS parlimen_mengundi,
+                pp.dm AS pdm_nama,
+                -- Statistik Rekrut K.K
+                COALESCE((SELECT COUNT(*) FROM pengundi p2
+                           WHERE p2.dm = pp.dm
+                             AND p2.status_fizikal = 'Hidup'
+                             AND p2.status_rekod = 'Sah'
+                             AND p2.ketua_keluarga_id IS NOT NULL), 0) AS rekrut_kk,
+                -- Statistik Rekrut Putih
+                COALESCE((SELECT COUNT(*) FROM pengundi p2
+                           WHERE p2.dm = pp.dm
+                             AND p2.status_fizikal = 'Hidup'
+                             AND p2.status_rekod = 'Sah'
+                             AND p2.status_sokongan = 'Putih'), 0) AS rekrut_putih,
+                -- Jumlah Pengundi dalam PDM
+                COALESCE((SELECT COUNT(*) FROM pengundi p2
+                           WHERE p2.dm = pp.dm
+                             AND p2.status_fizikal = 'Hidup'
+                             AND p2.status_rekod = 'Sah'), 0) AS jumlah_pengundi
+            FROM pegawai_penyelaras pp
+            ORDER BY pp.nama_penuh
+        """)
+
+        results = []
+        for row in cursor.fetchall():
+            results.append({
+                "id": row["id"],
+                "nama": row["nama_penuh"],
+                "kawasan": row["kawasan"],
+                "parlimen": row["parlimen_mengundi"],
+                "dun": row["dun_mengundi"],
+                "pdm": row["pdm_nama"] or '-',
+                "rekrut_kk": row["rekrut_kk"] or 0,
+                "rekrut_putih": row["rekrut_putih"] or 0,
+                "jumlah_pengundi": row["jumlah_pengundi"] or 0
+            })
+
+        db.close()
+        return {"data": results}
+    except Exception as e:
+        import traceback
+        print(f"❌ ERROR /api/ppu/pegawai-penyelaras: {type(e).__name__}: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
+
+
+# ===== CATCH-ALL: Static Files & SPA Fallback =====
+# Diletakkan SELEPAS semua API routes supaya tidak mencuri request API
+from fastapi.responses import FileResponse, HTMLResponse
+import mimetypes
+
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str):
+    """
+    Serve static files & SPA fallback.
+    - Paths bermula /api/* sudah ditangkap oleh route di atas
+    - Static files (JS, CSS, PNG, etc.) — serve terus jika wujud
+    - SPA routes — fallback ke index.html
+    """
+    file_path = os.path.join(STATIC_ROOT, full_path) if full_path else os.path.join(STATIC_ROOT, "index.html")
+    
+    # If it's a file that exists, serve it
+    if os.path.isfile(file_path):
+        content_type, _ = mimetypes.guess_type(file_path)
+        return FileResponse(file_path, media_type=content_type or "application/octet-stream")
+    
+    # SPA fallback: serve index.html for any non-API route
+    index_path = os.path.join(STATIC_ROOT, "index.html")
+    if os.path.isfile(index_path):
+        return FileResponse(index_path, media_type="text/html")
+    
+    # Ultimate fallback
+    return HTMLResponse("<h1>404 Not Found</h1>", status_code=404)
+
+
 # ===== ROOT =====
-@app.get("/")
+@app.get("/api/status")
 def root():
     return {
         "app": "Sistem Pengurusan Pengundi Parlimen P170 Tuaran",
