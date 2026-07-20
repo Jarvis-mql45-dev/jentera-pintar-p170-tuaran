@@ -977,33 +977,43 @@ def approve_record(request: Request, pengundi_id: int, user=Depends(get_current_
     return {"message": "Rekod berjaya diluluskan"}
 
 
-# Tolak rekod (Admin sahaja)
-@app.post("/api/approval-queue/{pengundi_id}/tolak")
+# Tolak rekod (Admin sahaja) — GUNA GET untuk elak Method Not Allowed di Vercel
+@app.get("/api/approval-queue/{pengundi_id}/tolak")
 def reject_record(request: Request, pengundi_id: int, user=Depends(get_current_user)):
-    check_peranan(user, ["Admin"])
+    try:
+        check_peranan(user, ["Admin"])
+    except HTTPException as e:
+        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"detail": f"Authorization error: {str(e)}"})
 
-    db = get_db()
-    cursor = db.cursor()
-    
-    # Get data before reject
-    cursor.execute("SELECT no_kp, nama_penuh FROM pengundi WHERE id = ? AND status_rekod = 'Menunggu_Kelulusan'", (pengundi_id,))
-    p = cursor.fetchone()
-    if not p:
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        
+        # Get data before reject
+        cursor.execute("SELECT no_kp, nama_penuh FROM pengundi WHERE id = ? AND status_rekod = 'Menunggu_Kelulusan'", (pengundi_id,))
+        p = cursor.fetchone()
+        if not p:
+            db.close()
+            return JSONResponse(status_code=404, content={"detail": "Rekod tidak ditemui atau sudah diproses"})
+        
+        no_kp = p['no_kp']
+        nama = p['nama_penuh']
+        
+        cursor.execute("DELETE FROM pengundi WHERE id = ? AND status_rekod = 'Menunggu_Kelulusan'", (pengundi_id,))
+        db.commit()
         db.close()
-        raise HTTPException(status_code=404, detail="Rekod tidak ditemui atau sudah diproses")
-    
-    no_kp = p['no_kp']
-    nama = p['nama_penuh']
-    
-    cursor.execute("DELETE FROM pengundi WHERE id = ? AND status_rekod = 'Menunggu_Kelulusan'", (pengundi_id,))
-    db.commit()
-    db.close()
 
-    log_activity(request, user, "Tolak Rekod",
-                 f"Tolak rekod ID {pengundi_id}: {nama}",
-                 no_kp_terlibat=no_kp)
+        log_activity(request, user, "Tolak Rekod",
+                     f"Tolak rekod ID {pengundi_id}: {nama}",
+                     no_kp_terlibat=no_kp)
 
-    return {"message": "Rekod berjaya ditolak dan dipadamkan"}
+        return {"message": "Rekod berjaya ditolak dan dipadamkan"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"detail": f"Ralat dalaman: {str(e)}"})
 
 
 # ===== APPROVE ALL PENDING (Admin sahaja) =====
