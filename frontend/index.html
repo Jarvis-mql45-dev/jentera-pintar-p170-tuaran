@@ -1448,6 +1448,7 @@ async function renderDashboard() {
             </tr>`;
             tbody.innerHTML = rows;
         }).catch(e => console.error('Ringkasan panel error:', e));
+        });  // closes L1337 outermost setTimeout
     } catch (err) {
         content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`;
     }
