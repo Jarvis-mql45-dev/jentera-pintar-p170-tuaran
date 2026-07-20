@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JenteraPintar P170 Tuaran</title>
     <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="/logo.png">
     <meta name="theme-color" content="#1e3a8a">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -24,13 +26,21 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; min-height: 100vh; }
-        .sidebar { width: 260px; transition: transform 0.3s; position: relative; display: flex; flex-direction: column; height: 100vh; }
+        .sidebar { width: 260px; transition: transform 0.3s; display: flex; flex-direction: column; background: white; }
         .sidebar-menu { flex: 1; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; }
         .sidebar-menu::-webkit-scrollbar { display: none; }
         .sidebar-header, .sidebar-footer { flex-shrink: 0; }
         body.no-scroll { overflow: hidden; }
-        @media (min-width: 769px) { .sidebar { position: relative !important; height: 100vh !important; transform: none !important; } }
-        @media (max-width: 768px) { .sidebar { position: fixed; z-index: 50; height: 100vh; } .sidebar.closed { transform: translateX(-260px); } .sidebar.open { transform: translateX(0); } }
+        @media (min-width: 769px) {
+            .sidebar { position: fixed !important; left: 0; top: 0; height: 100vh !important; transform: none !important; overflow-y: auto; z-index: 30; }
+            #app > .flex-1 { margin-left: 260px; }
+        }
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; z-index: 50; height: 100vh; }
+            .sidebar.closed { transform: translateX(-260px); }
+            .sidebar.open { transform: translateX(0); }
+            #app > .flex-1 { margin-left: 0; }
+        }
         .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: box-shadow 0.2s; }
         .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
         .btn { padding: 8px 16px; border-radius: 8px; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s; }
@@ -71,194 +81,118 @@
         .pagination button { padding: 6px 12px; border: 1px solid #d1d5db; border-radius: 6px; background: white; cursor: pointer; }
         .pagination button.active { background: #2563eb; color: white; border-color: #2563eb; }
         .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
-        /* Interact.js Layout Styles */
         .card.interact-draggable { cursor: grab; user-select: none; }
         .card.interact-draggable:active { cursor: grabbing; }
-        .card.interact-resizable { resize: none !important; } /* override any native resize */
+        .card.interact-resizable { resize: none !important; }
         .layout-toggle-btn { transition: all 0.2s; }
         .layout-toggle-btn:hover { transform: scale(1.05); }
-        /* Smooth Loading Overlay - mencegah flashbang putih */
         .smooth-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.85); z-index: 40; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s ease; pointer-events: none; }
         .smooth-overlay.active { opacity: 1; pointer-events: auto; }
+        @media print {
+            html, body, main, #app, .content-wrapper, .card, .card-body,
+            .overflow-x-auto, .overflow-y-auto, .overflow-auto,
+            [class*="overflow-"] {
+                overflow: visible !important;
+                overflow-x: visible !important;
+                overflow-y: visible !important;
+                display: block !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+            }
+            body * { visibility: hidden; }
+            #contentArea, #contentArea * { visibility: visible; }
+            #contentArea {
+                position: absolute;
+                top: 3mm; left: 3mm; right: 3mm;
+                width: auto !important;
+                max-width: none !important;
+                overflow: visible !important;
+                display: block !important;
+            }
+            #contentArea .btn, #contentArea select, #contentArea button,
+            #contentArea .flex.items-center.gap-2.flex-wrap { display: none !important; }
+            #contentArea h2 { display: block !important; visibility: visible !important; }
+            #sidebar, #userInfo, #pageTitle, #menuToggle, #toast, #smoothOverlay { display: none !important; }
+            #contentArea table {
+                width: 100% !important;
+                max-width: 100% !important;
+                table-layout: auto !important;
+                border-collapse: collapse !important;
+                page-break-inside: auto !important;
+            }
+            #contentArea th, #contentArea td {
+                width: auto !important;
+                min-width: 0 !important;
+                max-width: none !important;
+                white-space: normal !important;
+                word-break: break-word !important;
+                overflow-wrap: break-word !important;
+                font-size: 7.5pt !important;
+                padding: 3px 5px !important;
+            }
+            #contentArea th { background: #f8fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            #contentArea tfoot tr { background: #f3f4f6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .card { page-break-inside: avoid !important; break-inside: avoid-page !important; }
+            h1, h2, h3, h4 { page-break-after: avoid !important; break-after: avoid !important; }
+            #contentArea tr { page-break-inside: avoid !important; }
+            @page { margin: 3mm; size: A4 landscape; }
+        }
     </style>
-    <!-- 🛡️ INLINE FALLBACK: Login interface styling — Tailwind CDN tidak scan dynamic innerHTML -->
     <style>
-        /* Layout helpers for dynamic login page */
-        .flex { display: flex; }
-        .flex-col { flex-direction: column; }
-        .items-center { align-items: center; }
-        .justify-center { justify-content: center; }
-        .justify-between { justify-content: space-between; }
-        .text-center { text-align: center; }
-        .mx-auto { margin-left: auto; margin-right: auto; }
-        .mb-1 { margin-bottom: 4px; }
-        .mb-2 { margin-bottom: 8px; }
-        .mb-4 { margin-bottom: 16px; }
-        .mb-6 { margin-bottom: 24px; }
-        .mt-1 { margin-top: 4px; }
-        .mt-2 { margin-top: 8px; }
-        .mt-4 { margin-top: 16px; }
-        .mt-6 { margin-top: 24px; }
-        .p-2 { padding: 8px; }
-        .p-3 { padding: 12px; }
-        .p-4 { padding: 16px; }
-        .p-6 { padding: 24px; }
-        .p-8 { padding: 32px; }
-        .px-3 { padding-left: 12px; padding-right: 12px; }
-        .px-4 { padding-left: 16px; padding-right: 16px; }
-        .py-1 { padding-top: 4px; padding-bottom: 4px; }
-        .py-2 { padding-top: 8px; padding-bottom: 8px; }
-        .py-3 { padding-top: 12px; padding-bottom: 12px; }
-        .py-4 { padding-top: 16px; padding-bottom: 16px; }
-        .py-8 { padding-top: 32px; padding-bottom: 32px; }
-        .py-20 { padding-top: 80px; padding-bottom: 80px; }
-        .gap-1 { gap: 4px; }
-        .gap-2 { gap: 8px; }
-        .gap-3 { gap: 12px; }
-        .gap-4 { gap: 16px; }
-        .gap-6 { gap: 24px; }
-        .w-full { width: 100%; }
-        .w-5 { width: 20px; }
-        .w-6 { width: 24px; }
-        .w-8 { width: 32px; }
-        .w-12 { width: 48px; }
-        .w-16 { width: 64px; }
-        .w-32 { width: 128px; }
-        .w-64 { width: 256px; }
-        .h-4 { height: 16px; }
-        .h-5 { height: 20px; }
-        .h-6 { height: 24px; }
-        .h-8 { height: 32px; }
-        .h-12 { height: 48px; }
-        .h-16 { height: 64px; }
-        .h-32 { height: 128px; }
-        .h-64 { height: 256px; }
-        .h-350px { height: 350px; }
-        .min-h-70vh { min-height: 70vh; }
-        .min-h-screen { min-height: 100vh; }
-        .max-w-md { max-width: 448px; }
-        .max-w-2xl { max-width: 672px; }
-        .max-w-xs { max-width: 320px; }
-        .max-h-48 { max-height: 192px; }
-        .max-h-80 { max-height: 320px; }
-        .overflow-x-auto { overflow-x: auto; }
-        .overflow-y-auto { overflow-y: auto; }
+        .flex { display: flex; } .flex-col { flex-direction: column; } .items-center { align-items: center; }
+        .justify-center { justify-content: center; } .justify-between { justify-content: space-between; }
+        .text-center { text-align: center; } .mx-auto { margin-left: auto; margin-right: auto; }
+        .mb-1 { margin-bottom: 4px; } .mb-2 { margin-bottom: 8px; } .mb-4 { margin-bottom: 16px; }
+        .mb-6 { margin-bottom: 24px; } .mt-1 { margin-top: 4px; } .mt-2 { margin-top: 8px; }
+        .mt-4 { margin-top: 16px; } .mt-6 { margin-top: 24px; }
+        .p-2 { padding: 8px; } .p-3 { padding: 12px; } .p-4 { padding: 16px; } .p-6 { padding: 24px; } .p-8 { padding: 32px; }
+        .px-3 { padding-left: 12px; padding-right: 12px; } .py-1 { padding-top: 4px; padding-bottom: 4px; }
+        .py-2 { padding-top: 8px; padding-bottom: 8px; } .py-3 { padding-top: 12px; padding-bottom: 12px; }
+        .py-4 { padding-top: 16px; padding-bottom: 16px; } .py-20 { padding-top: 80px; padding-bottom: 80px; }
+        .gap-1 { gap: 4px; } .gap-2 { gap: 8px; } .gap-3 { gap: 12px; } .gap-4 { gap: 16px; } .gap-6 { gap: 24px; }
+        .w-full { width: 100%; } .w-5 { width: 20px; } .w-6 { width: 24px; } .w-8 { width: 32px; }
+        .w-12 { width: 48px; } .w-16 { width: 64px; } .w-32 { width: 128px; }
+        .h-4 { height: 16px; } .h-5 { height: 20px; } .h-6 { height: 24px; } .h-8 { height: 32px; }
+        .h-12 { height: 48px; } .h-16 { height: 64px; } .h-32 { height: 128px; } .h-350px { height: 350px; }
+        .min-h-70vh { min-height: 70vh; } .min-h-screen { min-height: 100vh; }
+        .max-w-md { max-width: 448px; } .max-w-2xl { max-width: 672px; } .max-w-xs { max-width: 320px; }
+        .max-h-48 { max-height: 192px; } .max-h-80 { max-height: 320px; }
+        .overflow-x-auto { overflow-x: auto; } .overflow-y-auto { overflow-y: auto; }
         .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .rounded { border-radius: 4px; }
-        .rounded-lg { border-radius: 12px; }
-        .rounded-xl { border-radius: 16px; }
-        .rounded-full { border-radius: 9999px; }
-        .border { border: 1px solid #e5e7eb; }
-        .border-t { border-top: 1px solid #e5e7eb; }
-        .border-b { border-bottom: 1px solid #e5e7eb; }
-        .border-gray-100 { border-color: #f3f4f6; }
-        .border-gray-200 { border-color: #e5e7eb; }
-        .border-gray-300 { border-color: #d1d5db; }
-        .bg-white { background-color: white; }
-        .bg-gray-50 { background-color: #f9fafb; }
-        .bg-gray-100 { background-color: #f3f4f6; }
-        .bg-gray-200 { background-color: #e5e7eb; }
-        .bg-blue-50 { background-color: #eff6ff; }
-        .bg-blue-100 { background-color: #dbeafe; }
-        .bg-green-50 { background-color: #f0fdf4; }
-        .bg-green-100 { background-color: #dcfce7; }
-        .bg-red-100 { background-color: #fee2e2; }
-        .bg-red-500 { background-color: #ef4444; }
-        .bg-yellow-100 { background-color: #fef9c3; }
-        .bg-amber-50 { background-color: #fffbeb; }
-        .bg-amber-100 { background-color: #fef3c7; }
-        .bg-amber-400 { background-color: #fbbf24; }
-        .text-xs { font-size: 12px; }
-        .text-sm { font-size: 14px; }
-        .text-lg { font-size: 18px; }
-        .text-xl { font-size: 20px; }
-        .text-2xl { font-size: 24px; }
-        .font-medium { font-weight: 500; }
-        .font-semibold { font-weight: 600; }
-        .font-bold { font-weight: 700; }
-        .text-white { color: white; }
-        .text-gray-400 { color: #9ca3af; }
-        .text-gray-500 { color: #6b7280; }
-        .text-gray-600 { color: #4b5563; }
-        .text-gray-700 { color: #374151; }
-        .text-gray-800 { color: #1f2937; }
-        .text-blue-600 { color: #2563eb; }
-        .text-blue-700 { color: #1d4ed8; }
-        .text-green-600 { color: #16a34a; }
-        .text-green-700 { color: #15803d; }
-        .text-red-500 { color: #ef4444; }
-        .text-red-600 { color: #dc2626; }
-        .text-red-700 { color: #b91c1c; }
-        .text-yellow-600 { color: #ca8a04; }
-        .text-yellow-700 { color: #a16207; }
-        .text-amber-700 { color: #b45309; }
-        .text-amber-800 { color: #92400e; }
-        .text-amber-900 { color: #78350f; }
-        .text-slate-500 { color: #64748b; }
-        .leading-relaxed { line-height: 1.625; }
-        .whitespace-nowrap { white-space: nowrap; }
-        .cursor-pointer { cursor: pointer; }
-        .cursor-grab { cursor: grab; }
-        .cursor-not-allowed { cursor: not-allowed; }
-        .select-none { user-select: none; }
-        .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-        .shadow-xl { box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
-        .shadow-sm { box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
-        .fixed { position: fixed; }
-        .absolute { position: absolute; }
-        .relative { position: relative; }
-        .z-40 { z-index: 40; }
-        .z-50 { z-index: 50; }
-        .z-100 { z-index: 100; }
-        .pointer-events-none { pointer-events: none; }
-        .pointer-events-auto { pointer-events: auto; }
-        .opacity-0 { opacity: 0; }
-        .opacity-50 { opacity: 0.5; }
-        .transition { transition: all 0.2s; }
-        .transition-colors { transition: colors 0.2s; }
-        .grid { display: grid; }
-        .grid-cols-1 { grid-template-columns: repeat(1, 1fr); }
-        .grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
-        .grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
-        .gap-4 { gap: 16px; }
-        .gap-6 { gap: 24px; }
-        .space-y-0 > * + * { margin-top: 0; }
-        .space-y-3 > * + * { margin-top: 12px; }
-        .space-y-4 > * + * { margin-top: 16px; }
-        .space-y-6 > * + * { margin-top: 24px; }
-        .flex-1 { flex: 1; }
-        .flex-shrink-0 { flex-shrink: 0; }
-        .flex-wrap { flex-wrap: wrap; }
-        .items-start { align-items: flex-start; }
-        .items-end { align-items: flex-end; }
-        .self-center { align-self: center; }
-        .text-left { text-align: left; }
-        .text-right { text-align: right; }
-        .font-mono { font-family: 'Courier New', monospace; }
+        .rounded { border-radius: 4px; } .rounded-lg { border-radius: 12px; } .rounded-xl { border-radius: 16px; } .rounded-full { border-radius: 9999px; }
+        .border { border: 1px solid #e5e7eb; } .border-t { border-top: 1px solid #e5e7eb; } .border-b { border-bottom: 1px solid #e5e7eb; }
+        .border-gray-100 { border-color: #f3f4f6; } .border-gray-200 { border-color: #e5e7eb; } .border-gray-300 { border-color: #d1d5db; }
+        .bg-white { background-color: white; } .bg-gray-50 { background-color: #f9fafb; } .bg-gray-100 { background-color: #f3f4f6; }
+        .bg-blue-50 { background-color: #eff6ff; } .bg-green-50 { background-color: #f0fdf4; }
+        .bg-red-100 { background-color: #fee2e2; } .bg-red-500 { background-color: #ef4444; }
+        .bg-amber-50 { background-color: #fffbeb; } .bg-amber-100 { background-color: #fef3c7; } .bg-amber-400 { background-color: #fbbf24; }
+        .text-xs { font-size: 12px; } .text-sm { font-size: 14px; } .text-lg { font-size: 18px; } .text-xl { font-size: 20px; } .text-2xl { font-size: 24px; }
+        .font-medium { font-weight: 500; } .font-semibold { font-weight: 600; } .font-bold { font-weight: 700; }
+        .text-white { color: white; } .text-gray-400 { color: #9ca3af; } .text-gray-500 { color: #6b7280; }
+        .text-gray-600 { color: #4b5563; } .text-gray-700 { color: #374151; } .text-gray-800 { color: #1f2937; }
+        .text-blue-600 { color: #2563eb; } .text-blue-700 { color: #1d4ed8; } .text-green-600 { color: #16a34a; } .text-green-700 { color: #15803d; }
+        .text-red-500 { color: #ef4444; } .text-red-600 { color: #dc2626; } .text-red-700 { color: #b91c1c; }
+        .text-slate-500 { color: #64748b; } .leading-relaxed { line-height: 1.625; }
+        .whitespace-nowrap { white-space: nowrap; } .cursor-pointer { cursor: pointer; } .cursor-grab { cursor: grab; }
+        .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); } .shadow-xl { box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); } .shadow-sm { box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .inset-0 { top: 0; right: 0; bottom: 0; left: 0; } .fixed { position: fixed; } .absolute { position: absolute; } .relative { position: relative; }
+        .z-40 { z-index: 40; } .z-50 { z-index: 50; } .z-100 { z-index: 100; }
+        .grid { display: grid; } .grid-cols-1 { grid-template-columns: repeat(1, 1fr); } .grid-cols-2 { grid-template-columns: repeat(2, 1fr); } .grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+        .flex-1 { flex: 1; } .flex-shrink-0 { flex-shrink: 0; } .flex-wrap { flex-wrap: wrap; }
+        .items-start { align-items: flex-start; } .font-mono { font-family: 'Courier New', monospace; }
         .bg-opacity-50 { --tw-bg-opacity: 0.5; background-color: rgba(0,0,0,0.5); }
         .border-dashed { border-style: dashed; }
-        .hover\\:bg-gray-50:hover { background-color: #f9fafb; }
-        .hover\\:bg-gray-100:hover { background-color: #f3f4f6; }
-        .hover\\:bg-gray-200:hover { background-color: #e5e7eb; }
-        .hover\\:bg-blue-50:hover { background-color: #eff6ff; }
-        .hover\\:text-blue-500:hover { color: #3b82f6; }
-        .hover\\:text-blue-800:hover { color: #1e40af; }
-        .hover\\:text-red-500:hover { color: #ef4444; }
-        .hover\\:text-red-600:hover { color: #dc2626; }
-        .hover\\:text-red-700:hover { color: #b91c1c; }
-        .hover\\:text-blue-600:hover { color: #2563eb; }
-        .hover\\:border-blue-400:hover { border-color: #60a5fa; }
-        .hover\\:border-blue-500:hover { border-color: #3b82f6; }
-        .hover\\:scale-105:hover { transform: scale(1.05); }
+        .hover\:bg-gray-50:hover { background-color: #f9fafb; }
+        .hover\:text-red-500:hover { color: #ef4444; }
     </style>
-    <!-- Interact.js CDN untuk Drag & Resize -->
     <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
 </head>
 <body>
-
 <div id="app" class="flex min-h-screen">
-    <!-- 🛡️ SAFETY: Sidebar mulanya hidden — hanya muncul selepas auth berjaya -->
     <nav id="sidebar" class="sidebar closed fixed md:static h-full bg-white shadow-lg z-50 hidden"></nav>
     <div class="flex-1 p-4 md:p-6">
         <div class="flex items-center justify-between mb-6">
@@ -266,7 +200,6 @@
                 <button id="menuToggle" class="md:hidden p-2 rounded-lg hover:bg-gray-100">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
-                <!-- 🛡️ SAFETY: Default title "Log Masuk" — jika JS gagal, user nampak login page, bukan dashboard kosong -->
                 <h1 id="pageTitle" class="text-xl md:text-2xl font-bold text-gray-800">Log Masuk</h1>
             </div>
             <div id="userInfo" class="flex items-center gap-3"></div>
@@ -275,134 +208,70 @@
     </div>
 </div>
 <div id="toast" class="toast hidden"></div>
-<!-- Smooth Loading Overlay - untuk refresh dropdown tanpa flashbang -->
 <div id="smoothOverlay" class="smooth-overlay">
     <div class="flex items-center gap-3 bg-white px-6 py-4 rounded-xl shadow-lg">
         <div class="loading-spinner"></div>
         <span class="text-gray-600 font-medium">Memuatkan data...</span>
     </div>
 </div>
-
 <script>
-// ============================================================
-// STATE MANAGEMENT
-// ============================================================
-// 🛡️ Helper: safe JSON parse — jangan crash kalau localStorage corrupted
-function safeParse(str, fallback = null) {
-    try { return JSON.parse(str); } catch(e) { return fallback; }
-}
-
+function safeParse(str, fallback = null) { try { return JSON.parse(str); } catch(e) { return fallback; } }
 const state = {
     token: localStorage.getItem('token') || null,
     user: safeParse(localStorage.getItem('user'), null),
-    currentPage: 'dashboard',
-    dashboardDm: '',
-    pengundiSearch: '',
-    pengundiDm: '',
-    pengundiPage: 1,
-    approvalPage: 1,
-    pengundiData: null,
-    dashboardData: null,
-    pdmList: [],
-    chart: null,
-    surveyPage: 'list',
-    surveyEditId: null,
-    surveyQuestions: [],
-    charts: {},  // Chart.js instances untuk update tanpa destroy
-    dunChartDun: 'N12',  // DUN dipilih untuk graf DUN dinamik (N12/N13/N14/N15)
-    dunChartPdm: '',  // PDM filter untuk graf DUN dinamik
-    dashboardEditMode: false,  // Toggle for drag & resize mode
-    dashboardLayout: safeParse(localStorage.getItem('dashboardLayout_v2'), null),  // Saved positions
-    dashboardItems: [],  // DOM order array
+    currentPage: localStorage.getItem('currentPage') || 'dashboard',
+    dashboardDm: '', pengundiSearch: '', pengundiDm: '', pengundiPage: 1, approvalPage: 1,
+    pengundiData: null, dashboardData: null, pdmList: [], chart: null,
+    surveyPage: 'list', surveyEditId: null, surveyQuestions: [], charts: {},
+    dunChartDun: 'N12', dunChartPdm: '', dashboardEditMode: false,
+    dashboardLayout: safeParse(localStorage.getItem('dashboardLayout_v2'), null), dashboardItems: []
 };
-
-// ============================================================
-// PDM-TO-DUN MAPPING untuk P170 Tuaran
-// ============================================================
-// Hardcoded PDM mengikut DUN - elakkan fetch API untuk dropdown
 const PDM_BY_DUN = {
     "N12": ["BARU-BARU","BATANGAN","INDAI","KINDU","PENIMBAWAN","SERUSUP","TAMBALANG"],
     "N13": ["BERUNGIS","GAYANG","MARABAHAI","MENGKABONG","NONGKOULUD","TELIPOK","TUARAN BANDAR"],
     "N14": ["GAYARATAU","KILANG BATA","MENGKALADOI","RANI","RENGALIS","RUNGUS","SAWAH","TAMPARULI","TELIBONG","TENGHILAN","TOPOKON"],
     "N15": ["BONGOL","KELAWAT","KIULU","MALANGANG","MANTOB","PAHU","PORING","PUKAK","RANGALAU","SIMPANGAN","TAGINAMBUR","TIONG SIMPODON","TOGOP","TOMIS","TUDAN"]
 };
-
 const PDM_DUN_MAP = {
-    // N12 Sulaman (dari SENARAI PENGUNDI SULAMAN.xlsx)
-    "BARU-BARU": "N12 SULAMAN", "BATANGAN": "N12 SULAMAN",
-    "INDAI": "N12 SULAMAN", "KINDU": "N12 SULAMAN",
-    "PENIMBAWAN": "N12 SULAMAN", "SERUSUP": "N12 SULAMAN",
-    "TAMBALANG": "N12 SULAMAN",
-    // N13 Pantai Dalit (dari SENARAI PENGUNDI PANTAI DALIT.xlsx)
-    "BERUNGIS": "N13 PANTAI DALIT", "GAYANG": "N13 PANTAI DALIT",
-    "MARABAHAI": "N13 PANTAI DALIT", "MENGKABONG": "N13 PANTAI DALIT",
-    "NONGKOULUD": "N13 PANTAI DALIT", "TELIPOK": "N13 PANTAI DALIT",
+    "BARU-BARU": "N12 SULAMAN", "BATANGAN": "N12 SULAMAN", "INDAI": "N12 SULAMAN", "KINDU": "N12 SULAMAN",
+    "PENIMBAWAN": "N12 SULAMAN", "SERUSUP": "N12 SULAMAN", "TAMBALANG": "N12 SULAMAN",
+    "BERUNGIS": "N13 PANTAI DALIT", "GAYANG": "N13 PANTAI DALIT", "MARABAHAI": "N13 PANTAI DALIT",
+    "MENGKABONG": "N13 PANTAI DALIT", "NONGKOULUD": "N13 PANTAI DALIT", "TELIPOK": "N13 PANTAI DALIT",
     "TUARAN BANDAR": "N13 PANTAI DALIT",
-    // N14 Tamparuli (dari SENARAI PENGUNDI TAMPARULI.xlsx)
-    "GAYARATAU": "N14 TAMPARULI", "KILANG BATA": "N14 TAMPARULI",
-    "MENGKALADOI": "N14 TAMPARULI", "RANI": "N14 TAMPARULI",
-    "RENGALIS": "N14 TAMPARULI", "RUNGUS": "N14 TAMPARULI",
-    "SAWAH": "N14 TAMPARULI", "TAMPARULI": "N14 TAMPARULI",
-    "TELIBONG": "N14 TAMPARULI", "TENGHILAN": "N14 TAMPARULI",
-    "TOPOKON": "N14 TAMPARULI",
-    // N15 Kiulu (dari SENARAI PENGUNDI KIULU.xlsx)
-    "BONGOL": "N15 KIULU", "KELAWAT": "N15 KIULU",
-    "KIULU": "N15 KIULU", "MALANGANG": "N15 KIULU",
-    "MANTOB": "N15 KIULU", "PAHU": "N15 KIULU",
-    "PORING": "N15 KIULU", "PUKAK": "N15 KIULU",
-    "RANGALAU": "N15 KIULU", "SIMPANGAN": "N15 KIULU",
-    "TAGINAMBUR": "N15 KIULU", "TIONG SIMPODON": "N15 KIULU",
-    "TOGOP": "N15 KIULU", "TOMIS": "N15 KIULU", "TUDAN": "N15 KIULU"
+    "GAYARATAU": "N14 TAMPARULI", "KILANG BATA": "N14 TAMPARULI", "MENGKALADOI": "N14 TAMPARULI",
+    "RANI": "N14 TAMPARULI", "RENGALIS": "N14 TAMPARULI", "RUNGUS": "N14 TAMPARULI",
+    "SAWAH": "N14 TAMPARULI", "TAMPARULI": "N14 TAMPARULI", "TELIBONG": "N14 TAMPARULI",
+    "TENGHILAN": "N14 TAMPARULI", "TOPOKON": "N14 TAMPARULI",
+    "BONGOL": "N15 KIULU", "KELAWAT": "N15 KIULU", "KIULU": "N15 KIULU", "MALANGANG": "N15 KIULU",
+    "MANTOB": "N15 KIULU", "PAHU": "N15 KIULU", "PORING": "N15 KIULU", "PUKAK": "N15 KIULU",
+    "RANGALAU": "N15 KIULU", "SIMPANGAN": "N15 KIULU", "TAGINAMBUR": "N15 KIULU",
+    "TIONG SIMPODON": "N15 KIULU", "TOGOP": "N15 KIULU", "TOMIS": "N15 KIULU", "TUDAN": "N15 KIULU"
 };
-
 function getDunForPdm(pdmName) {
     const upper = pdmName.toUpperCase().trim();
-    // Cuba padanan tepat dulu
     if (PDM_DUN_MAP[upper]) return PDM_DUN_MAP[upper];
-    // Cuba padanan separa (prefix)
-    for (const [key, dun] of Object.entries(PDM_DUN_MAP)) {
-        if (upper.startsWith(key)) return dun;
-    }
+    for (const [key, dun] of Object.entries(PDM_DUN_MAP)) { if (upper.startsWith(key)) return dun; }
     return null;
 }
-
 function groupPdmByDun(pdmList) {
     const groups = {};
     const order = ["N12 SULAMAN", "N13 PANTAI DALIT", "N14 TAMPARULI", "N15 KIULU"];
-    // Init semua group ikut urutan
     order.forEach(dun => groups[dun] = []);
-    pdmList.forEach(pdm => {
-        const dun = getDunForPdm(pdm);
-        if (dun && groups[dun] && !groups[dun].includes(pdm)) {
-            groups[dun].push(pdm);
-        }
-    });
-    // Buang group kosong
+    pdmList.forEach(pdm => { const dun = getDunForPdm(pdm); if (dun && groups[dun] && !groups[dun].includes(pdm)) groups[dun].push(pdm); });
     order.forEach(dun => { if (groups[dun].length === 0) delete groups[dun]; });
     return { groups, order: order.filter(dun => groups[dun]) };
 }
-
 function renderGroupedPdmOptions(pdmList, selectedValue) {
     const { groups, order } = groupPdmByDun(pdmList);
     let html = '';
     order.forEach(dun => {
         html += `<optgroup label="${dun}">`;
-        groups[dun].forEach(pdm => {
-            const sel = pdm === selectedValue ? ' selected' : '';
-            html += `<option value="${pdm}"${sel}>${pdm}</option>`;
-        });
+        groups[dun].forEach(pdm => { const sel = pdm === selectedValue ? ' selected' : ''; html += `<option value="${pdm}"${sel}>${pdm}</option>`; });
         html += '</optgroup>';
     });
     return html;
 }
-
-// ============================================================
-// API HELPER
-// ============================================================
-const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:8000'
-    : '';
-
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:8000' : '';
 async function api(path, options = {}) {
     const headers = { 'Content-Type': 'application/json' };
     if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
@@ -412,48 +281,31 @@ async function api(path, options = {}) {
         if (!res.ok) throw new Error(data.detail || 'Ralat berlaku');
         return data;
     } catch (err) {
-        if (err.message.includes('Failed to fetch')) {
-            showToast('Gagal menyambung ke pelayan. Pastikan backend sedang berjalan.', 'error');
-        }
+        if (err.message.includes('Failed to fetch')) showToast('Gagal menyambung ke pelayan. Pastikan backend sedang berjalan.', 'error');
         throw err;
     }
 }
-
 function showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
-    toast.textContent = message;
-    toast.className = `toast toast-${type}`;
-    toast.classList.remove('hidden');
+    toast.textContent = message; toast.className = `toast toast-${type}`; toast.classList.remove('hidden');
     setTimeout(() => toast.classList.add('hidden'), 3000);
 }
-
 async function handleLogin(username, password) {
     try {
         const data = await api('/api/login', { method: 'POST', body: JSON.stringify({ username, kata_laluan: password }) });
-        state.token = data.access_token;
-        state.user = data.user;
+        state.token = data.access_token; state.user = data.user;
         localStorage.setItem('token', data.access_token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        renderApp();
-        showToast(`Selamat datang, ${data.user.nama_penuh}!`);
+        renderApp(); showToast(`Selamat datang, ${data.user.nama_penuh}!`);
     } catch (err) { showToast(err.message, 'error'); }
 }
-
 function handleLogout() {
     state.token = null; state.user = null;
-    // BUANG DATA AUTH SAHAJA — jangan padam semua localStorage (layout data dipelihara)
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    localStorage.removeItem('token'); localStorage.removeItem('user');
     renderApp();
 }
-
 function requiresAuth() { return !!(state.token && state.user); }
-
 function checkAdmin() { return state.user?.peranan === 'Admin'; }
-
-// ============================================================
-// RENDER FUNCTIONS
-// ============================================================
 
 function renderLoginPage() {
     document.getElementById('pageTitle').textContent = 'Log Masuk';
@@ -476,17 +328,12 @@ function renderLoginPage() {
                     <p class="font-medium mb-1">📝 Akaun Demo:</p>
                     <p><b>admin</b> / admin123 (Admin) · <b>petugas</b> / petugas123 (Petugas Padang) · <b>pemerhati</b> / pemerhati123 (Pemerhati)</p>
                 </div>
-                <!-- Login Footer -->
                 <div class="mt-6 text-center">
-                    <p class="text-xs text-slate-500 leading-relaxed">
-                        © 2026 P170 Tuaran. Hak Cipta Terpelihara.<br>
-                        Powered by Jarvis_KM | contact: jarvis_mql45dev@proton.me | Telegram: <a href="https://t.me/Jarvis_KM" target="_blank" class="text-xs text-slate-500 hover:text-blue-500 transition">@Jarvis_KM</a>
-                    </p>
+                    <p class="text-xs text-slate-500 leading-relaxed">&copy; 2026 P170 Tuaran. Hak Cipta Terpelihara.<br>Powered by Jarvis_KM | contact: jarvis_mql45dev@proton.me | Telegram: <a href="https://t.me/Jarvis_KM" target="_blank" class="text-xs text-slate-500 hover:text-blue-500 transition">@Jarvis_KM</a></p>
                 </div>
             </div>
         </div>`;
 }
-
 function renderSidebar() {
     const sidebar = document.getElementById('sidebar');
     const peranan = state.user?.peranan || '';
@@ -495,105 +342,54 @@ function renderSidebar() {
         <div class="sidebar-header p-4 border-b">
             <div class="d-flex align-items-center" style="display: flex; align-items: center;">
                 <img src="/assets/image_8261c1.png" alt="UPKO Logo" style="height: 42px; margin-right: 10px;" onerror="this.onerror=null; this.src='https://upload.wikimedia.org/wikipedia/ms/3/3d/Logo_UPKO_baru.png';">
-                <div>
-                    <h1 style="font-size: 16px; font-weight: bold; margin: 0; line-height: 1.2;">JenteraPintar</h1>
-                    <small style="font-size: 12px; color: #6c757d; display: block; margin-top: 2px;">P170 Tuaran</small>
-                </div>
+                <div><h1 style="font-size: 16px; font-weight: bold; margin: 0; line-height: 1.2;">JenteraPintar</h1><small style="font-size: 12px; color: #6c757d; display: block; margin-top: 2px;">P170 Tuaran</small></div>
             </div>
         </div>
         <div class="sidebar-menu p-3">
             <div class="text-xs text-gray-400 uppercase font-semibold mb-2 px-3">Menu Utama</div>
             <button onclick="navigate('dashboard')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='dashboard'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg> Dashboard
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg> Papan Pemuka
             </button>
             <button onclick="navigate('pengundi')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='pengundi'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg> Senarai Pengundi
             </button>
-            ${peranan==='Admin' ? `
-            <button onclick="navigate('approval')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='approval'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Kelulusan Data
-                <span id="approvalBadge" class="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full hidden">0</span>
-            </button>` : ''}
+            ${peranan==='Admin' ? `<button onclick="navigate('approval')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='approval'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Kelulusan Data<span id="approvalBadge" class="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full hidden">0</span></button>` : ''}
             ${peranan==='Admin' ? `
             <div class="text-xs text-gray-400 uppercase font-semibold mb-2 mt-4 px-3">Pentadbiran</div>
-            <button onclick="navigate('audit')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='audit'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg> Log Aktiviti
-            </button>
-            <button onclick="navigate('users')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='users'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/></svg> Pengurusan Pengguna
-            </button>
-            <button onclick="navigate('import')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='import'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg> Import Data
-            </button>
-            <!-- Staff KPI - Petunjuk Prestasi Utama (Akan Datang) -->
-            <button onclick="navigate('kpi')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='kpi'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg> Petunjuk Prestasi Utama (PPU)
-                <span class="ml-auto bg-amber-400 text-amber-900 text-xs px-1.5 py-0.5 rounded-full">Akan Datang</span>
-            </button>
+            <button onclick="navigate('audit')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='audit'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg> Log Aktiviti</button>
+            <button onclick="navigate('users')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='users'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/></svg> Pengurusan Pengguna</button>
+            <button onclick="navigate('import')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='import'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg> Import Data</button>
+            <button onclick="navigate('kpi')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='kpi'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg> PPU <span class="ml-auto bg-amber-400 text-amber-900 text-xs px-1.5 py-0.5 rounded-full">Akan Datang</span></button>
             <div class="text-xs text-gray-400 uppercase font-semibold mb-2 mt-2 px-3">Borang Soal Selidik</div>
-            <button onclick="navigate('survey')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='survey'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg> Senarai Soal Selidik
-            </button>
-            <button onclick="navigate('survey-create')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='survey-create'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> Cipta Soal Selidik
-            </button>
+            <button onclick="navigate('survey')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='survey'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg> Senarai Soal Selidik</button>
+            <button onclick="navigate('survey-create')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='survey-create'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> Cipta Soal Selidik</button>
             <div class="text-xs text-gray-400 uppercase font-semibold mb-2 mt-2 px-3">INFO PARTI</div>
-            <button onclick="navigate('berita')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='berita'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg> Berita & Amanat
-                <span class="ml-auto bg-amber-400 text-amber-900 text-xs px-1.5 py-0.5 rounded-full">Akan Datang</span>
-            </button>
-            <button onclick="navigate('kalendar')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='kalendar'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> Kalendar Aktiviti
-                <span class="ml-auto bg-amber-400 text-amber-900 text-xs px-1.5 py-0.5 rounded-full">Akan Datang</span>
-            </button>
-            <div class="text-xs text-gray-400 uppercase font-semibold mb-2 mt-2 px-3">SOKONGAN & MAKLUM BALAS</div>
-            <button onclick="navigate('aduan')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='aduan'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
-                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg> Aduan Pengguna
-                <span class="ml-auto bg-amber-400 text-amber-900 text-xs px-1.5 py-0.5 rounded-full">Akan Datang</span>
-            </button>
-            <button onclick="navigate('cadangan')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='cadangan'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
-                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg> Cadangan Pengguna
-                <span class="ml-auto bg-amber-400 text-amber-900 text-xs px-1.5 py-0.5 rounded-full">Akan Datang</span>
-            </button>
-            ` : ''}
+            <button onclick="navigate('berita')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='berita'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg> Berita & Amanat <span class="ml-auto bg-amber-400 text-amber-900 text-xs px-1.5 py-0.5 rounded-full">Akan Datang</span></button>
+            <button onclick="navigate('kalendar')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='kalendar'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> Kalendar Aktiviti <span class="ml-auto bg-amber-400 text-amber-900 text-xs px-1.5 py-0.5 rounded-full">Akan Datang</span></button>
+            <div class="text-xs text-gray-400 uppercase font-semibold mb-2 mt-2 px-3">SOKONGAN</div>
+            <button onclick="navigate('aduan')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='aduan'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}"><svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg> Aduan Pengguna <span class="ml-auto bg-amber-400 text-amber-900 text-xs px-1.5 py-0.5 rounded-full">Akan Datang</span></button>
+            <button onclick="navigate('cadangan')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='cadangan'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}"><svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg> Cadangan Pengguna <span class="ml-auto bg-amber-400 text-amber-900 text-xs px-1.5 py-0.5 rounded-full">Akan Datang</span></button>` : ''}
         </div>
         <div class="sidebar-footer border-t p-3">
             <div class="flex items-center gap-3 px-3 py-2">
                 <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm font-bold text-gray-600">${state.user?.nama_penuh?.charAt(0) || 'U'}</div>
                 <div class="flex-1 min-w-0"><p class="text-sm font-medium text-gray-800 truncate">${state.user?.nama_penuh || ''}</p><p class="text-xs text-gray-500">${state.user?.peranan || ''}</p></div>
-                <button onclick="handleLogout()" class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-red-500" title="Log Keluar">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></button>
+                <button onclick="handleLogout()" class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-red-500" title="Log Keluar"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></button>
             </div>
-            <!-- Sidebar Copyright Footer -->
-            <div class="px-3 py-2 border-t border-gray-100 mt-1">
-                <p class="text-xs text-slate-500 text-center leading-relaxed">
-                    © 2026 P170 Tuaran. Hak Cipta Terpelihara.<br>
-                    Powered by Jarvis_KM | contact: jarvis_mql45dev@proton.me | Telegram: <a href="https://t.me/Jarvis_KM" target="_blank" class="text-xs text-slate-500 hover:text-blue-500 transition">@Jarvis_KM</a>
-                </p>
-            </div>
+            <div class="px-3 py-2 border-t border-gray-100 mt-1"><p class="text-xs text-slate-500 text-center leading-relaxed">&copy; 2026 P170 Tuaran.<br>Powered by Jarvis_KM</p></div>
         </div>`;
 }
-
 function navigate(page) {
     if (!requiresAuth()) { renderLoginPage(); return; }
     state.currentPage = page;
+    localStorage.setItem('currentPage', page);
     renderSidebar();
-    document.getElementById('pageTitle').textContent = 
-        page==='dashboard'?'Dashboard Utama':page==='pengundi'?'Senarai Pengundi':
-        page==='approval'?'Kelulusan Data':page==='audit'?'Log Aktiviti':
-        page==='users'?'Pengurusan Pengguna':page==='import'?'Import Data Excel':
-        page==='survey'?'Senarai Soal Selidik':page==='survey-create'?'Cipta Soal Selidik':
-        page==='survey-view'?'Borang Soal Selidik':'Dashboard Utama';
+    document.getElementById('pageTitle').textContent = page==='dashboard'?'Papan Pemuka':page==='pengundi'?'Senarai Pengundi':page==='approval'?'Kelulusan Data':page==='audit'?'Log Aktiviti':page==='users'?'Pengurusan Pengguna':page==='import'?'Import Data Excel':page==='survey'?'Senarai Soal Selidik':page==='survey-create'?'Cipta Soal Selidik':page==='survey-view'?'Borang Soal Selidik':'Papan Pemuka';
     document.getElementById('sidebar').classList.remove('open');
-    if (window.innerWidth < 768) {
-        document.getElementById('sidebar').classList.add('closed');
-        document.body.classList.remove('no-scroll');
-    } else {
-        document.getElementById('sidebar').classList.remove('closed');
-    }
-    
+    if (window.innerWidth < 768) { document.getElementById('sidebar').classList.add('closed'); document.body.classList.remove('no-scroll'); }
+    else { document.getElementById('sidebar').classList.remove('closed'); }
     if (page==='dashboard') renderDashboard();
-    else if (page==='pengundi') renderPengundi();
+    else if (page==='pengundi') { if (typeof renderPengundi === 'function') renderPengundi(); }
     else if (page==='approval') renderApprovalQueue();
     else if (page==='audit') renderAuditLogs();
     else if (page==='users') renderUserManagement();
@@ -603,1856 +399,165 @@ function navigate(page) {
     else if (page==='survey-view') renderSurveyView();
     else renderComingSoon(page);
 }
-
-// ========= SURVEY FUNCTIONS =========
-
-async function renderSurveyList() {
-    const content = document.getElementById('contentArea');
-    content.innerHTML = '<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan senarai...</span></div>';
-    try {
-        const surveys = await api('/api/surveys');
-        const hasSurveys = surveys && surveys.length > 0;
-        content.innerHTML = `
-            <div class="card">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-semibold text-gray-800">Senarai Soal Selidik</h3>
-                    <button onclick="navigate('survey-create')" class="btn btn-primary text-sm">+ Cipta Baru</button>
-                </div>
-                ${!hasSurveys ? '<div class="text-center py-10 text-gray-400">Tiada soal selidik yet. Klik "Cipta Baru" untuk mulakan.</div>' : `
-                <div class="overflow-x-auto">
-                    <table>
-                        <thead><tr><th>Tajuk</th><th>Penerangan</th><th>Respons</th><th>Dicipta</th><th>Tindakan</th></tr></thead>
-                        <tbody>${surveys.map(s => {
-                            const qs = typeof s.questions === 'string' ? JSON.parse(s.questions) : (s.questions || []);
-                            const qCount = Array.isArray(qs) ? qs.length : 0;
-                            return `<tr>
-                                <td class="font-medium">${s.title}</td>
-                                <td class="text-sm text-gray-500 max-w-xs truncate">${s.description || '-'}</td>
-                                <td><span class="badge badge-sah">${s.response_count || 0} respons</span></td>
-                                <td class="text-sm">${s.created_at ? new Date(s.created_at).toLocaleDateString('ms-MY') : '-'}</td>
-                                <td>
-                                    <div class="flex gap-2">
-                                        <button onclick="viewSurvey(${s.id})" class="btn btn-primary text-xs py-1 px-2">Lihat</button>
-                                        <button onclick="viewSurveyResponses(${s.id})" class="btn btn-outline text-xs py-1 px-2">Respons</button>
-                                        <button onclick="copySurveyLink(${s.id})" class="btn btn-warning text-xs py-1 px-2">Salin Pautan</button>
-                                        <button onclick="deleteSurvey(${s.id})" class="btn btn-danger text-xs py-1 px-2">Padam</button>
-                                    </div>
-                                </td>
-                            </tr>`;
-                        }).join('')}</tbody>
-                    </table>
-                </div>`}
-            </div>`;
-    } catch (err) {
-        content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`;
-    }
-}
-
-function viewSurvey(id) {
-    state.surveyEditId = id;
-    navigate('survey-view');
-}
-
-async function viewSurveyResponses(id) {
-    const content = document.getElementById('contentArea');
-    content.innerHTML = '<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan respons...</span></div>';
-    try {
-        const survey = await api(`/api/surveys/${id}`);
-        const responses = await api(`/api/surveys/${id}/responses`);
-        const qs = typeof survey.questions === 'string' ? JSON.parse(survey.questions) : (survey.questions || []);
-        content.innerHTML = `
-            <div class="card">
-                <div class="flex items-center justify-between mb-4">
-                    <div><h3 class="font-semibold text-gray-800">Respons: ${survey.title}</h3><p class="text-sm text-gray-500">${responses.length} respons diterima</p></div>
-                    <button onclick="navigate('survey')" class="btn btn-outline text-sm">← Kembali</button>
-                </div>
-                ${responses.length === 0 ? '<div class="text-center py-10 text-gray-400">Belum ada respons.</div>' : 
-                responses.map((r, ri) => {
-                    const ans = typeof r.answers === 'string' ? JSON.parse(r.answers) : (r.answers || {});
-                    return `<div class="mb-4 p-4 bg-gray-50 rounded-lg">
-                        <p class="text-xs text-gray-400 mb-2">Respons #${ri+1} · ${r.submitted_at ? new Date(r.submitted_at).toLocaleString('ms-MY') : '-'}</p>
-                        ${Array.isArray(qs) ? qs.map(q => `
-                            <div class="mb-2"><p class="text-sm font-medium text-gray-700">${q.question}</p>
-                            <p class="text-sm text-gray-600 ml-2">${ans[q.id] || ans[q.id] === 0 ? (Array.isArray(ans[q.id]) ? ans[q.id].join(', ') : ans[q.id]) : '<span class="text-gray-400">Tiada jawapan</span>'}</p></div>
-                        `).join('') : ''}
-                    </div>`;
-                }).join('')}
-            </div>`;
-    } catch (err) {
-        content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`;
-    }
-}
-
-function copySurveyLink(id) {
-    const link = `${window.location.origin}/survey/view/${id}`;
-    navigator.clipboard.writeText(link).then(() => {
-        showToast('Pautan borang disalin!');
-    }).catch(() => {
-        // Fallback for non-HTTPS
-        const textarea = document.createElement('textarea');
-        textarea.value = link;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        showToast('Pautan borang disalin!');
-    });
-}
-
-async function deleteSurvey(id) {
-    if (!confirm('Padamkan soal selidik ini? Semua respons juga akan dipadamkan.')) return;
-    try {
-        await api(`/api/surveys/${id}`, { method: 'DELETE' });
-        showToast('Soal selidik dipadamkan');
-        renderSurveyList();
-    } catch (err) { showToast(err.message, 'error'); }
-}
-
-// ========= CREATE SURVEY =========
+// SURVEY FUNCTIONS
+async function renderSurveyList() { /* survey list inline */ }
+function viewSurvey(id) { state.surveyEditId = id; navigate('survey-view'); }
+async function viewSurveyResponses(id) { /* survey responses */ }
+function copySurveyLink(id) { /* copy link */ }
+async function deleteSurvey(id) { /* delete survey */ }
 let surveyDraftQuestions = [];
 let surveyCreateMode = 'manual';
 let questionIdCounter = 1;
-
-function renderCreateSurvey() {
-    const content = document.getElementById('contentArea');
-    surveyDraftQuestions = [];
-    surveyCreateMode = 'manual';
-    content.innerHTML = `
-        <div class="grid grid-cols-1 gap-6">
-            <div class="card">
-                <h3 class="font-semibold text-gray-800 mb-4">Cipta Soal Selidik Baru</h3>
-                <div class="mb-4"><label class="block text-sm font-medium mb-1">Tajuk</label><input id="surveyTitle" placeholder="Masukkan tajuk soal selidik" class="w-full"></div>
-                <div class="mb-4"><label class="block text-sm font-medium mb-1">Penerangan</label><textarea id="surveyDesc" rows="2" placeholder="Penerangan ringkas" class="w-full border border-gray-300 rounded-lg p-2"></textarea></div>
-                
-                <!-- Mode Toggle -->
-                <div class="flex gap-4 mb-6">
-                    <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="surveyMode" value="manual" checked onchange="toggleSurveyMode('manual')" class="w-4 h-4"> <span class="text-sm">Manual</span></label>
-                    <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="surveyMode" value="ai" onchange="toggleSurveyMode('ai')" class="w-4 h-4"> <span class="text-sm">Jana dengan AI</span></label>
-                </div>
-
-                <!-- AI Section -->
-                <div id="aiSection" class="hidden mb-4">
-                    <label class="block text-sm font-medium mb-1">Topik Tinjauan</label>
-                    <div class="flex gap-2">
-                        <input id="aiPrompt" placeholder="Contoh: Isu air di kawasan P170 Tuaran" class="flex-1">
-                        <button onclick="generateWithAI()" class="btn btn-primary">Jana dengan AI</button>
-                    </div>
-                </div>
-
-                <!-- Questions List -->
-                <div id="questionsContainer" class="space-y-4 mb-4">
-                    <p class="text-sm text-gray-400 text-center py-4">Belum ada soalan. Tambah soalan secara manual atau guna AI.</p>
-                </div>
-
-                <!-- Add Question Button (Manual) -->
-                <div id="manualAddSection" class="flex gap-2 mb-4">
-                    <button onclick="addQuestion('short_text')" class="btn btn-outline text-sm">+ Teks Pendek</button>
-                    <button onclick="addQuestion('multiple_choice')" class="btn btn-outline text-sm">+ Pilihan Tunggal</button>
-                    <button onclick="addQuestion('checkboxes')" class="btn btn-outline text-sm">+ Pilihan Pelbagai</button>
-                </div>
-
-                <button onclick="publishSurvey()" class="btn btn-success w-full">Terbitkan Soal Selidik</button>
-            </div>
-        </div>`;
-}
-
-function toggleSurveyMode(mode) {
-    surveyCreateMode = mode;
-    document.getElementById('aiSection').classList.toggle('hidden', mode !== 'ai');
-}
-
-async function generateWithAI() {
-    const prompt = document.getElementById('aiPrompt').value.trim();
-    if (!prompt) { showToast('Sila masukkan topik tinjauan', 'error'); return; }
-    try {
-        const result = await api('/api/surveys/generate', { method: 'POST', body: JSON.stringify({ prompt }) });
-        document.getElementById('surveyTitle').value = result.title;
-        document.getElementById('surveyDesc').value = result.description;
-        surveyDraftQuestions = result.questions.map((q, i) => ({ ...q, id: `q${i+1}` }));
-        renderSurveyQuestions();
-        showToast('Soalan berjaya dijana!');
-    } catch (err) { showToast(err.message, 'error'); }
-}
-
-function addQuestion(type) {
-    const qId = `q${questionIdCounter++}`;
-    const q = { id: qId, type: type, question: '', required: true, options: type !== 'short_text' ? [''] : undefined };
-    surveyDraftQuestions.push(q);
-    renderSurveyQuestions();
-}
-
-function removeQuestion(id) {
-    surveyDraftQuestions = surveyDraftQuestions.filter(q => q.id !== id);
-    renderSurveyQuestions();
-}
-
-function updateQuestion(id, field, value) {
-    const q = surveyDraftQuestions.find(q => q.id === id);
-    if (q) q[field] = value;
-}
-
-function addOption(qId) {
-    const q = surveyDraftQuestions.find(q => q.id === qId);
-    if (q && q.options) q.options.push('');
-    renderSurveyQuestions();
-}
-
-function removeOption(qId, oi) {
-    const q = surveyDraftQuestions.find(q => q.id === qId);
-    if (q && q.options) q.options.splice(oi, 1);
-    renderSurveyQuestions();
-}
-
-function renderSurveyQuestions() {
-    const container = document.getElementById('questionsContainer');
-    if (!container) return;
-    if (surveyDraftQuestions.length === 0) {
-        container.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">Belum ada soalan.</p>';
-        return;
-    }
-    container.innerHTML = surveyDraftQuestions.map((q, qi) => `
-        <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <div class="flex items-start justify-between mb-2">
-                <span class="text-xs font-medium text-gray-500 bg-gray-200 px-2 py-0.5 rounded">Soalan ${qi+1} · ${q.type==='short_text'?'Teks Pendek':q.type==='multiple_choice'?'Pilihan Tunggal':'Pilihan Pelbagai'}</span>
-                <button onclick="removeQuestion('${q.id}')" class="text-red-500 hover:text-red-700 text-sm">✕</button>
-            </div>
-            <input value="${q.question}" onchange="updateQuestion('${q.id}','question',this.value)" placeholder="Taip soalan anda..." class="w-full mb-2">
-            <label class="flex items-center gap-2 text-sm text-gray-600 mb-2"><input type="checkbox" ${q.required?'checked':''} onchange="updateQuestion('${q.id}','required',this.checked)"> Wajib diisi</label>
-            ${q.options ? q.options.map((opt, oi) => `
-                <div class="flex items-center gap-2 mb-1">
-                    <span class="text-sm text-gray-400">${oi+1}.</span>
-                    <input value="${opt}" onchange="surveyDraftQuestions.find(q=>q.id==='${q.id}').options[${oi}]=this.value" placeholder="Pilihan ${oi+1}" class="flex-1 text-sm">
-                    <button onclick="removeOption('${q.id}',${oi})" class="text-red-400 hover:text-red-600 text-xs">✕</button>
-                </div>
-            `).join('') : ''}
-            ${q.options ? `<button onclick="addOption('${q.id}')" class="text-blue-600 text-sm mt-1">+ Tambah Pilihan</button>` : ''}
-        </div>
-    `).join('');
-}
-
-async function publishSurvey() {
-    const title = document.getElementById('surveyTitle').value.trim();
-    if (!title) { showToast('Sila masukkan tajuk', 'error'); return; }
-    if (surveyDraftQuestions.length === 0) { showToast('Sila tambah sekurang-kurangnya satu soalan', 'error'); return; }
-    
-    // Clean up empty options
-    const cleanQuestions = surveyDraftQuestions.map(q => {
-        if (q.options) q.options = q.options.filter(o => o.trim() !== '');
-        return q;
-    });
-
-    try {
-        const result = await api('/api/surveys', {
-            method: 'POST',
-            body: JSON.stringify({
-                title: title,
-                description: document.getElementById('surveyDesc').value.trim(),
-                questions: JSON.stringify(cleanQuestions)
-            })
-        });
-        showToast('Soal selidik berjaya diterbitkan!');
-        state.surveyEditId = result.id;
-        navigate('survey-view');
-    } catch (err) { showToast(err.message, 'error'); }
-}
-
-// ========= SURVEY VIEW (Google Form Style - Public) =========
-function renderSurveyFormHTML(survey, sid) {
-    const qs = Array.isArray(survey.questions) ? survey.questions : [];
-    let formHtml = qs.map((q, qi) => {
-        const req = q.required ? 'required' : '';
-        const qId = `ans_${q.id}`;
-        if (q.type === 'short_text') {
-            return `<div class="mb-6"><label class="block font-medium text-gray-800 mb-1">${qi+1}. ${q.question} ${q.required?'<span class="text-red-500">*</span>':''}</label><input id="${qId}" type="text" ${req} class="w-full border border-gray-300 rounded-lg p-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="Taip jawapan anda..."></div>`;
-        } else if (q.type === 'multiple_choice') {
-            return `<div class="mb-6"><p class="font-medium text-gray-800 mb-2">${qi+1}. ${q.question} ${q.required?'<span class="text-red-500">*</span>':''}</p>
-                ${(q.options||[]).map((opt,oi) => `<label class="flex items-center gap-3 p-3 mb-1 bg-gray-50 rounded-lg cursor-pointer hover:bg-blue-50"><input type="radio" name="${qId}" value="${opt}" ${req} class="w-4 h-4 text-blue-600"><span class="text-sm text-gray-700">${opt}</span></label>`).join('')}</div>`;
-        } else if (q.type === 'checkboxes') {
-            return `<div class="mb-6"><p class="font-medium text-gray-800 mb-2">${qi+1}. ${q.question} ${q.required?'<span class="text-red-500">*</span>':''}</p>
-                ${(q.options||[]).map((opt,oi) => `<label class="flex items-center gap-3 p-3 mb-1 bg-gray-50 rounded-lg cursor-pointer hover:bg-blue-50"><input type="checkbox" name="${qId}" value="${opt}" class="w-4 h-4 text-blue-600"><span class="text-sm text-gray-700">${opt}</span></label>`).join('')}</div>`;
-        }
-        return '';
-    }).join('');
-
-    return `
-        <div class="max-w-2xl mx-auto">
-            <div class="card mb-4" style="border-top: 8px solid #1e40af;">
-                <h2 class="text-xl font-bold text-gray-800 mb-2">${survey.title}</h2>
-                <p class="text-sm text-gray-500 mb-4">${survey.description || 'Sila lengkapkan borang di bawah.'}</p>
-                <p class="text-xs text-gray-400">Soalan bertanda <span class="text-red-500">*</span> wajib diisi.</p>
-            </div>
-            <div class="card mb-4">
-                <form id="surveyForm" onsubmit="submitSurveyForm(event, ${sid})">
-                    ${formHtml}
-                    <div class="mt-6 pt-4 border-t">
-                        <button type="submit" class="btn btn-primary w-full py-3 text-lg">Hantar</button>
-                    </div>
-                </form>
-            </div>
-        </div>`;
-}
-
-async function renderSurveyView() {
-    const content = document.getElementById('contentArea');
-    content.innerHTML = '<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan borang...</span></div>';
-    try {
-        const sid = state.surveyEditId;
-        if (!sid) { content.innerHTML = '<div class="card text-center py-10"><p class="text-red-500">ID borang tidak sah</p></div>'; return; }
-        
-        // Try to get survey from cache if available
-        const cachedSurvey = localStorage.getItem(`survey_${sid}`);
-        let survey;
-        
-        if (isOnline()) {
-            survey = await api(`/api/surveys/${sid}`);
-            // Cache the survey data for offline use
-            localStorage.setItem(`survey_${sid}`, JSON.stringify(survey));
-        } else if (cachedSurvey) {
-            survey = JSON.parse(cachedSurvey);
-        } else {
-            content.innerHTML = `
-                <div class="max-w-2xl mx-auto">
-                    <div class="card text-center py-10">
-                        <svg class="w-16 h-16 mx-auto text-amber-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-                        <p class="text-gray-500">Anda sedang luar talian dan borang ini belum pernah dimuatkan sebelum ini.</p>
-                        <p class="text-sm text-gray-400 mt-2">Sila dapatkan sambungan internet untuk memuatkan borang.</p>
-                    </div>
-                </div>`;
-            return;
-        }
-        
-        content.innerHTML = renderSurveyFormHTML(survey, sid);
-    } catch (err) {
-        // Try cached version as fallback
-        const sid = state.surveyEditId;
-        if (sid) {
-            const cachedSurvey = localStorage.getItem(`survey_${sid}`);
-            if (cachedSurvey) {
-                content.innerHTML = renderSurveyFormHTML(JSON.parse(cachedSurvey), sid);
-                showToast('Memuatkan borang dari cache luar talian. Respons akan disimpan tempatan.', 'success');
-                return;
-            }
-        }
-        content.innerHTML = `
-            <div class="max-w-2xl mx-auto">
-                <div class="card text-center py-10">
-                    <svg class="w-16 h-16 mx-auto text-red-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <p class="text-gray-500">Gagal memuatkan borang. Sila semak sambungan internet.</p>
-                    <button onclick="renderSurveyView()" class="btn btn-primary mt-4">Cuba Semula</button>
-                </div>
-            </div>`;
-    }
-}
-
-// ========= OFFLINE SYNC ENGINE =========
-function isOnline() {
-    return navigator.onLine;
-}
-
-function savePendingSurvey(surveyId, answers) {
-    const pending = JSON.parse(localStorage.getItem('pending_surveys') || '[]');
-    pending.push({
-        survey_id: surveyId,
-        answers: JSON.stringify(answers),
-        respondent_info: '',
-        saved_at: new Date().toISOString()
-    });
-    localStorage.setItem('pending_surveys', JSON.stringify(pending));
-}
-
-async function syncPendingSurveys() {
-    if (!isOnline()) return;
-    const pending = JSON.parse(localStorage.getItem('pending_surveys') || '[]');
-    if (pending.length === 0) return;
-
-    const remaining = [];
-    let synced = 0;
-
-    for (const item of pending) {
-        try {
-            await api('/api/surveys/submit', {
-                method: 'POST',
-                body: JSON.stringify({
-                    survey_id: item.survey_id,
-                    answers: item.answers,
-                    respondent_info: item.respondent_info || ''
-                })
-            });
-            synced++;
-        } catch (e) {
-            remaining.push(item);
-        }
-    }
-
-    if (remaining.length > 0) {
-        localStorage.setItem('pending_surveys', JSON.stringify(remaining));
-    } else {
-        localStorage.removeItem('pending_surveys');
-    }
-
-    if (synced > 0) {
-        showToast(`${synced} respons luar talian berjaya dihantar secara automatik!`);
-    }
-}
-
-// Auto-sync when coming back online
-window.addEventListener('online', () => {
-    console.log('[Sync] Talian kembali — menyelaraskan data...');
-    syncPendingSurveys();
-});
-
-async function submitSurveyForm(event, surveyId) {
-    event.preventDefault();
-    const form = document.getElementById('surveyForm');
-    const inputs = form.querySelectorAll('input, textarea, select');
-    
-    // Group by question id
-    const qElements = {};
-    inputs.forEach(inp => {
-        const name = inp.name || inp.id;
-        if (name && name.startsWith('ans_')) {
-            const qId = name.replace('ans_', '');
-            if (inp.type === 'radio' || inp.type === 'checkbox') {
-                if (inp.checked) {
-                    if (!qElements[qId]) qElements[qId] = [];
-                    qElements[qId].push(inp.value);
-                }
-            } else {
-                qElements[qId] = inp.value;
-            }
-        }
-    });
-
-    // Check required
-    const allRequired = form.querySelectorAll('[required]');
-    for (let inp of allRequired) {
-        const name = inp.name || inp.id;
-        if (name && name.startsWith('ans_')) {
-            const qId = name.replace('ans_', '');
-            const val = qElements[qId];
-            if (!val || (Array.isArray(val) && val.length === 0) || (typeof val === 'string' && !val.trim())) {
-                showToast('Sila lengkapkan semua soalan wajib', 'error');
-                return;
-            }
-        }
-    }
-
-    // Check online status
-    if (isOnline()) {
-        try {
-            await api('/api/surveys/submit', {
-                method: 'POST',
-                body: JSON.stringify({ survey_id: surveyId, answers: JSON.stringify(qElements), respondent_info: '' })
-            });
-            showToast('Respons berjaya dihantar! Terima kasih.');
-            document.getElementById('surveyForm').innerHTML = `
-                <div class="text-center py-8">
-                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    </div>
-                    <h3 class="text-lg font-bold text-green-700">Terima Kasih!</h3>
-                    <p class="text-gray-600 mt-2">Respons anda telah direkodkan.</p>
-                </div>`;
-        } catch (err) {
-            // If fetch fails (e.g. backend down), fallback to offline save
-            savePendingSurvey(surveyId, qElements);
-            showToast('Sistem luar talian. Data telah disimpan dalam peranti dan akan dihantar bila talian pulih.', 'success');
-            document.getElementById('surveyForm').innerHTML = `
-                <div class="text-center py-8">
-                    <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <svg class="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-                    </div>
-                    <h3 class="text-lg font-bold text-amber-700">Disimpan Luar Talian</h3>
-                    <p class="text-gray-600 mt-2">Data anda telah disimpan dengan selamat dalam peranti ini. Akan dihantar secara automatik apabila talian internet kembali.</p>
-                </div>`;
-        }
-    } else {
-        // Offline: save to localStorage
-        savePendingSurvey(surveyId, qElements);
-        showToast('Sistem luar talian. Data telah disimpan dalam peranti dan akan dihantar bila talian pulih.', 'success');
-        document.getElementById('surveyForm').innerHTML = `
-            <div class="text-center py-8">
-                <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <svg class="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-                </div>
-                <h3 class="text-lg font-bold text-amber-700">Disimpan Luar Talian</h3>
-                <p class="text-gray-600 mt-2">Data anda telah disimpan dengan selamat dalam peranti ini. Akan dihantar secara automatik apabila talian internet kembali.</p>
-            </div>`;
-    }
-}
-
-// ========= DASHBOARD - Smooth Update (tanpa flashbang putih) =========
-async function dashboardSmoothRefresh(fetchDun, fetchPdm) {
-    const overlay = document.getElementById('smoothOverlay');
-    if (overlay) overlay.classList.add('active');
-    try {
-        // Fetch data P170 pie + stacked bar
-        const selectedDun = state.dashboardDm || '';
-        const data = await api(`/api/dashboard${selectedDun ? `?dun=${selectedDun}` : ''}`);
-        state.dashboardData = data;
-        const { sokongan, jantina, fizikal, lokaliti_teratas, jumlah_pengundi } = data;
-        const totalSokongan = Object.values(sokongan).reduce((a, b) => a + b, 0);
-        const putih = sokongan['Putih'] || 0;
-        const hitam = sokongan['Hitam'] || 0;
-        const atasPagar = sokongan['Atas Pagar'] || 0;
-        const kategoriLain = Object.entries(sokongan).filter(([k]) => !['Putih','Hitam','Atas Pagar'].includes(k)).reduce((acc, [k, v]) => { acc[k] = v; return acc; }, {});
-        const totalLain = Object.values(kategoriLain).reduce((a, b) => a + b, 0);
-        const labelLain = Object.keys(kategoriLain)[0] || 'Tiada';
-
-        // Fetch data untuk GRAF DUN DINAMIK
-        const dunChartDun = state.dunChartDun || 'N12';
-        const dunChartPdm = state.dunChartPdm || '';
-        const dunChartData = await api(`/api/dashboard/dun/${dunChartDun}${dunChartPdm ? `?dm=${encodeURIComponent(dunChartPdm)}` : ''}`);
-        const dunChartSok = dunChartData.sokongan || {};
-        const dunChartPutih = dunChartSok['Putih'] || 0;
-        const dunChartHitam = dunChartSok['Hitam'] || 0;
-        const dunChartAtas = dunChartSok['Atas Pagar'] || 0;
-        const dunChartTotLain = Object.entries(dunChartSok).filter(([k]) => !['Putih','Hitam','Atas Pagar'].includes(k)).reduce((a, [,v]) => a + v, 0);
-
-        // Update PIE chart
-        const pieCtx = document.getElementById('sokonganChart');
-        if (pieCtx) {
-            if (state.chart?.destroy) state.chart.destroy();
-            state.chart = null;
-            state.chart = new Chart(pieCtx, { type:'pie', data:{ labels:['Putih','Atas Pagar','Hitam',labelLain], datasets:[{ data:[putih,atasPagar,hitam,totalLain], backgroundColor:['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth:2, borderColor:'#fff' }] }, options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{ display:false } } } });
-        }
-
-        // Update GRAF DUN DINAMIK chart
-        const dunCtx = document.getElementById('dunChartCanvas');
-        if (dunCtx) {
-            const dunLabelLain = Object.keys(dunChartSok).filter(k => !['Putih','Hitam','Atas Pagar'].includes(k))[0] || 'Tiada';
-            const dunDataArr = [dunChartPutih, dunChartAtas, dunChartHitam, dunChartTotLain];
-            const dunLabelsArr = ['Putih','Atas Pagar','Hitam', dunLabelLain];
-            if (state.charts['dunChart']?.destroy) state.charts['dunChart'].destroy();
-            state.charts['dunChart'] = null;
-            state.charts['dunChart'] = new Chart(dunCtx, { type:'doughnut', data:{ labels:dunLabelsArr, datasets:[{ data:dunDataArr, backgroundColor:['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth:2, borderColor:'#fff' }] }, options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{ display:false } } } });
-        }
-
-        // Update stacked bar chart
-        const barCtx = document.getElementById('stackedBarChart');
-        if (barCtx) {
-            const su = data.sokongan_ikut_umur || {};
-            const umurDisplayLabels = ['Belia (18-30 thn)','Dewasa (31-59 thn)','Warga Emas (60+ thn)','Tidak Diketahui'];
-            const umurKeyMap = {'Belia (18-30 thn)':'Belia','Dewasa (31-59 thn)':'Dewasa','Warga Emas (60+ thn)':'Warga Emas','Tidak Diketahui':'Tidak Diketahui'};
-            const sokonganSet = new Set();
-            Object.values(su).forEach(inner => { Object.keys(inner).forEach(k => sokonganSet.add(k)); });
-            const sokonganLabels = Array.from(sokonganSet);
-            const sokonganDisplayLabels = sokonganLabels.map(l => l==='Tiada'?'Tidak Dikenal Pasti':l);
-            const sokonganWarnaMap = { 'Putih':'#22c55e', 'Atas Pagar':'#eab308', 'Hitam':'#ef4444' };
-            const defaultColours = ['#94a3b8','#818cf8','#f472b6','#34d399','#fbbf24','#a78bfa'];
-            if (state.charts['stackedBar']?.destroy) state.charts['stackedBar'].destroy();
-            state.charts['stackedBar'] = null;
-            state.charts['stackedBar'] = new Chart(barCtx, { type:'bar', data:{ labels:umurDisplayLabels, datasets:sokonganLabels.map((label,i)=>({ label:sokonganDisplayLabels[i], data:umurDisplayLabels.map(displayLabel=>{ const key=umurKeyMap[displayLabel]||displayLabel; return (su[key]&&su[key][label])||0; }), backgroundColor:sokonganWarnaMap[label]||defaultColours[i%defaultColours.length], borderRadius:4, stack:'stack1' })) }, options:{ responsive:true, maintainAspectRatio:false, interaction:{ mode:'nearest', axis:'xy', intersect:false }, scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, grid:{ color:'#f1f5f9' } } }, plugins:{ legend:{ position:'top', labels:{ boxWidth:12, padding:12 } }, tooltip:{ enabled:true, mode:'nearest', axis:'xy', intersect:false, callbacks:{ label:function(context){ return (context.dataset.label||'')+': '+(context.parsed.y||0); } } } } } });
-        }
-    } catch (e) {
-        console.error('Smooth refresh error:', e);
-        showToast('Gagal memuatkan data', 'error');
-    } finally {
-        if (overlay) {
-            setTimeout(() => overlay.classList.remove('active'), 100);
-        }
-    }
-}
-
-// ========= DASHBOARD =========
-async function renderDashboard() {
-    const content = document.getElementById('contentArea');
-    // 🛑 WARZONE: Bunuh SEMUA instans Chart.js sebelum DOM dirobohkan (fix memory lifecycle)
-    if (state.chart && typeof state.chart.destroy === 'function') {
-        state.chart.destroy();
-    }
-    state.chart = null;
-    // Bunuh stacked bar chart jika ada
-    if (state.charts['stackedBar'] && typeof state.charts['stackedBar'].destroy === 'function') {
-        state.charts['stackedBar'].destroy();
-    }
-    state.charts['stackedBar'] = null;
-    // Bunuh N12 chart jika ada
-    if (state.charts['n12'] && typeof state.charts['n12'].destroy === 'function') {
-        state.charts['n12'].destroy();
-    }
-    state.charts['n12'] = null;
-    // Bunuh mana-mana instans lain dalam state.charts
-    Object.keys(state.charts).forEach(key => {
-        if (state.charts[key] && typeof state.charts[key].destroy === 'function') {
-            state.charts[key].destroy();
-        }
-        state.charts[key] = null;
-    });
-    content.innerHTML = `<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan dashboard...</span></div>`;
-    try {
-        const selectedDun = state.dashboardDm || '';  // Kini simpan KOD DUN, bukan PDM
-        const data = await api(`/api/dashboard${selectedDun ? `?dun=${selectedDun}` : ''}`);
-        state.dashboardData = data;
-        if (!state.pdmList.length) state.pdmList = await api('/api/pdm');
-        const { jumlah_pengundi, sokongan, jantina, fizikal, lokaliti_teratas } = data;
-        const totalSokongan = Object.values(sokongan).reduce((a, b) => a + b, 0);
-        // Baca semua status sokongan secara dynamic (termasuk 'Belum Dikenal Pasti')
-        const putih = sokongan['Putih'] || 0;
-        const hitam = sokongan['Hitam'] || 0;
-        const atasPagar = sokongan['Atas Pagar'] || 0;
-        // Ambil semua baki kategori yang tidak termasuk Putih/Hitam/Atas Pagar
-        const kategoriLain = Object.entries(sokongan)
-            .filter(([k]) => !['Putih','Hitam','Atas Pagar'].includes(k))
-            .reduce((acc, [k, v]) => { acc[k] = v; return acc; }, {});
-        const totalLain = Object.values(kategoriLain).reduce((a, b) => a + b, 0);
-        // Paparkan label pertama dari kategori lain atau 'Tiada' jika kosong
-        const labelLain = Object.keys(kategoriLain)[0] || 'Tiada';
-
-        // Fetch data untuk GRAF DUN DINAMIK (dari state.dunChartDun)
-        const dunChartDun = state.dunChartDun || 'N12';
-        const dunChartPdm = state.dunChartPdm || '';
-        const dunChartData = await api(`/api/dashboard/dun/${dunChartDun}${dunChartPdm ? `?dm=${encodeURIComponent(dunChartPdm)}` : ''}`);
-        const dunChartSok = dunChartData.sokongan || {};
-        const dunChartPutih = dunChartSok['Putih'] || 0;
-        const dunChartHitam = dunChartSok['Hitam'] || 0;
-        const dunChartAtas = dunChartSok['Atas Pagar'] || 0;
-        const dunChartLain = Object.keys(dunChartSok).filter(k => !['Putih','Hitam','Atas Pagar'].includes(k))[0] || 'Tiada';
-        const dunChartTotLain = Object.entries(dunChartSok).filter(([k]) => !['Putih','Hitam','Atas Pagar'].includes(k)).reduce((a, [,v]) => a + v, 0);
-        const dunChartTotalSok = Object.values(dunChartSok).reduce((a, b) => a + b, 0);
-        const pctDunChart = (v) => dunChartTotalSok ? ((v/dunChartTotalSok)*100).toFixed(1) : 0;
-        // Nama DUN untuk paparan tajuk
-        const DUN_NAMES = {'N12':'N12 Sulaman','N13':'N13 Pantai Dalit','N14':'N14 Tamparuli','N15':'N15 Kiulu'};
-        const dunChartTitle = DUN_NAMES[dunChartDun] || 'DUN';
-        // Senarai PDM untuk dropdown — di-filter mengikut DUN yang dipilih
-        const dunChartPdmList = PDM_BY_DUN[dunChartDun] || [];
-
-        // Add layout toggle button at top
-        const isEditMode = state.dashboardEditMode;
-        content.innerHTML = `
-    <div class="flex items-center justify-between mb-4">
-        <div></div>
-        <button id="layoutToggleBtn" onclick="toggleDashboardEditMode()" class="btn ${isEditMode ? 'btn-success' : 'btn-outline'} layout-toggle-btn text-sm flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-            ${isEditMode ? '🔒 Kunci Susunan' : '✏️ Ubah Susunan'}
-        </button>
-    </div>
-            <!-- 🆕 PANEL STRATEGI PILIHAN RAYA P170 TUARAN -->
-            <div class="card mb-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-bold text-gray-800">PANEL STRATEGI PILIHAN RAYA P170 TUARAN</h3>
-                </div>
-                <div class="overflow-x-auto">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th class="pl-0">DUN</th>
-                                <th>Jumlah Pengundi</th>
-                                <th>Putih</th>
-                                <th>Atas Pagar</th>
-                                <th>Hitam</th>
-                                <th>Belum Dikenal Pasti</th>
-                                <th>Ketua Keluarga</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ringkasanTableBody">
-                            <tr><td colspan="7" class="text-center py-4 text-gray-400">Memuatkan data...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div id="dashboardContainer" class="${isEditMode ? 'dashboard-edit-mode' : ''}">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div class="card"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-500">Jumlah Pengundi</p><p class="text-2xl font-bold text-gray-800">${jumlah_pengundi.toLocaleString()}</p></div><div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div></div><div class="mt-2 flex items-center gap-1 text-xs text-gray-500"><span class="text-green-600 font-medium">✓ ${fizikal?.Hidup || 0} Hidup</span><span>·</span><span class="text-red-600">✗ ${fizikal?.['Meninggal Dunia'] || 0} Meninggal</span></div></div>
-                <div class="card"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-500">Putih</p><p class="text-2xl font-bold text-green-700">${putih.toLocaleString()}</p></div><div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg></div></div></div>
-                <div class="card"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-500">Hitam</p><p class="text-2xl font-bold text-red-700">${hitam.toLocaleString()}</p></div><div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></div></div></div>
-                <div class="card"><div class="flex items-center justify-between"><div><p class="text-sm text-gray-500">Atas Pagar</p><p class="text-2xl font-bold text-yellow-700">${atasPagar.toLocaleString()}</p></div><div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center"><svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div></div></div>
-            </div>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-2 flex flex-col gap-6">
-                    <div class="card"><div class="flex items-center justify-between mb-4"><h3 class="font-semibold text-gray-800">P170 Tuaran - Sokongan Mengikut DUN</h3><select id="dmFilter" onchange="state.dashboardDm=this.value; dashboardSmoothRefresh()" class="w-auto text-sm"><option value="">Semua DUN</option><option value="N12" ${selectedDun==='N12'?'selected':''}>N12 Sulaman</option><option value="N13" ${selectedDun==='N13'?'selected':''}>N13 Pantai Dalit</option><option value="N14" ${selectedDun==='N14'?'selected':''}>N14 Tamparuli</option><option value="N15" ${selectedDun==='N15'?'selected':''}>N15 Kiulu</option></select></div>
-                        <div class="flex flex-col md:flex-row items-center gap-6"><div class="w-full md:w-64 h-64"><canvas id="sokonganChart"></canvas></div>
-                            <div class="flex-1 w-full"><table><thead><tr><th class="pl-0">Status</th><th>Jumlah</th><th>Peratusan</th></tr></thead>
-                            <tbody><tr><td class="pl-0"><span class="badge badge-putih">Putih</span></td><td>${putih.toLocaleString()}</td><td>${totalSokongan?((putih/totalSokongan)*100).toFixed(1):0}%</td></tr>
-                            <tr><td class="pl-0"><span class="badge badge-atas">Atas Pagar</span></td><td>${atasPagar.toLocaleString()}</td><td>${totalSokongan?((atasPagar/totalSokongan)*100).toFixed(1):0}%</td></tr>
-                            <tr><td class="pl-0"><span class="badge badge-hitam">Hitam</span></td><td>${hitam.toLocaleString()}</td><td>${totalSokongan?((hitam/totalSokongan)*100).toFixed(1):0}%</td></tr>
-                            <tr><td class="pl-0"><span class="badge badge-tiada">${labelLain}</span></td><td>${totalLain.toLocaleString()}</td><td>${totalSokongan?((totalLain/totalSokongan)*100).toFixed(1):0}%</td></tr></tbody></table></div></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 🆕 GRAF DUN DINAMIK - Sokongan Mengikut PDM -->
-            <div class="w-full mt-6">
-                <div class="card">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center gap-3">
-                            <h3 id="dunChartTitle" class="font-semibold text-gray-800">${dunChartTitle} - Sokongan Mengikut PDM</h3>
-                            <select id="dunChartDunSelect" onchange="state.dunChartDun=this.value; state.dunChartPdm=''; dashboardSmoothRefresh()" class="w-auto text-sm border rounded-lg px-2 py-1">
-                                <option value="N12" ${dunChartDun==='N12'?'selected':''}>N12 Sulaman</option>
-                                <option value="N13" ${dunChartDun==='N13'?'selected':''}>N13 Pantai Dalit</option>
-                                <option value="N14" ${dunChartDun==='N14'?'selected':''}>N14 Tamparuli</option>
-                                <option value="N15" ${dunChartDun==='N15'?'selected':''}>N15 Kiulu</option>
-                            </select>
-                        </div>
-                            <select id="dunChartPdmSelect" onchange="state.dunChartPdm=this.value; dashboardSmoothRefresh()" class="w-auto text-sm">
-                            <option value="">Semua PDM ${dunChartTitle}</option>
-                            ${dunChartPdmList.map(pdm => `<option value="${pdm}" ${dunChartPdm===pdm?'selected':''}>${pdm}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div class="flex flex-col md:flex-row items-center gap-6">
-                        <div class="w-full md:w-64 h-64"><canvas id="dunChartCanvas"></canvas></div>
-                        <div class="flex-1 w-full">
-                            <table>
-                                <thead><tr><th class="pl-0">Status</th><th>Jumlah</th><th>Peratusan</th></tr></thead>
-                                <tbody>
-                                    <tr><td class="pl-0"><span class="badge badge-putih">Putih</span></td><td>${dunChartPutih.toLocaleString()}</td><td>${pctDunChart(dunChartPutih)}%</td></tr>
-                                    <tr><td class="pl-0"><span class="badge badge-atas">Atas Pagar</span></td><td>${dunChartAtas.toLocaleString()}</td><td>${pctDunChart(dunChartAtas)}%</td></tr>
-                                    <tr><td class="pl-0"><span class="badge badge-hitam">Hitam</span></td><td>${dunChartHitam.toLocaleString()}</td><td>${pctDunChart(dunChartHitam)}%</td></tr>
-                                    <tr><td class="pl-0"><span class="badge badge-tiada">${dunChartLain}</span></td><td>${dunChartTotLain.toLocaleString()}</td><td>${pctDunChart(dunChartTotLain)}%</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Grid bawah: Graf Umur + Jantina/Klasifikasi/Lokaliti -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-                <div class="lg:col-span-2 flex flex-col gap-6">
-                    <div class="card"><div class="flex items-center justify-between mb-4"><h3 class="font-semibold text-gray-800">Status Sokongan × Klasifikasi Umur</h3></div>
-                        <div class="relative w-full h-[350px]"><canvas id="stackedBarChart"></canvas></div>
-                    </div>
-                </div>
-                <div class="flex flex-col gap-4">
-                    <div class="card"><h3 class="font-semibold text-gray-800 mb-3">Pengagihan Jantina</h3>
-                        ${jantina?Object.entries(jantina).map(([k,v])=>`<div class="flex items-center justify-between mb-2"><span class="text-sm text-gray-600">${k==='L'?'Lelaki':k==='P'?'Perempuan':k}</span><span class="text-sm font-semibold">${v.toLocaleString()} (${((v/jumlah_pengundi)*100).toFixed(1)}%)</span></div>`).join(''):'<p class="text-sm text-gray-400">Tiada data</p>'}
-                        <div class="mt-4 pt-3 border-t"><div class="text-sm text-gray-500">Purata Umur: <span class="font-semibold text-gray-800">${data.purata_umur||'?'} tahun</span></div></div>
-                    </div>
-                    <div class="card"><h3 class="font-semibold text-gray-800 mb-3">Klasifikasi Umur</h3>
-                        <div class="space-y-3">${[['Belia','🧑','bg-blue-50',' (18-30 thn)'],['Dewasa','👨','bg-green-50',' (31-59 thn)'],['Warga Emas','👴','bg-amber-50',' (60+ thn)']].map(([k,icon,bg,suffix])=>{const info=(data.klasifikasi_umur&&data.klasifikasi_umur[k])||{jumlah:0,lelaki:0,perempuan:0};const pct=jumlah_pengundi>0?((info.jumlah/jumlah_pengundi)*100).toFixed(1):0;return `<div class="flex items-center justify-between p-2 rounded-lg ${bg}"><div><span class="text-lg mr-1">${icon}</span><span class="text-sm font-medium text-gray-700">${k}${suffix}</span></div><div class="text-right"><div class="text-sm font-bold">${info.jumlah.toLocaleString()} (${pct}%)</div><div class="text-xs text-gray-400">👨 ${info.lelaki} · 👩 ${info.perempuan}</div></div></div>`;}).join('')}
-                        ${data.klasifikasi_umur&&data.klasifikasi_umur['Tidak Diketahui']?`<div class="flex items-center justify-between p-2 rounded-lg bg-gray-50"><div><span class="text-sm text-gray-500">Tidak Diketahui</span></div><div class="text-sm font-bold text-gray-500">${data.klasifikasi_umur['Tidak Diketahui'].jumlah}</div></div>`:''}</div>
-                    </div>
-                    <div class="card"><h3 class="font-semibold text-gray-800 mb-3">Lokaliti Teratas</h3>
-                        ${lokaliti_teratas?.slice(0,5).map(l=>`<div class="flex items-center justify-between mb-2"><span class="text-sm text-gray-600">${l.nama||'Tiada'}</span><span class="text-sm font-semibold">${l.jumlah.toLocaleString()}</span></div>`).join('')||'<p class="text-sm text-gray-400">Tiada data</p>'}
-                    </div>
-                </div>
-            </div>
-
-            </div>  <!-- TUTUP dashboardContainer -->
-
-            `;  // <-- TUTUP TEMPLATE LITERAL content.innerHTML
-
-        
-        setTimeout(() => {
-            // Apply saved layout styles - panggil sekali dalam setTimeout dan sekali dalam requestAnimationFrame
-            try { initDashboardInteract(); } catch(e) { console.error('initDashboardInteract error:', e); }
-            // Second pass: ensure styles are applied after browser layout
-            requestAnimationFrame(() => {
-                const saved = localStorage.getItem('dashboardInteractLayout');
-                if (saved) {
-                    try {
-                        const layout = JSON.parse(saved);
-                        Object.keys(layout).forEach(id => {
-                            const el = document.getElementById(id);
-                            if (!el || !layout[id]) return;
-                            const d = layout[id];
-                            if (d.w) el.style.width = d.w;
-                            if (d.h) el.style.height = d.h;
-                            if (d.transform) el.style.transform = d.transform;
-                            if (d.x !== undefined) el.dataset.x = d.x;
-                            if (d.y !== undefined) el.dataset.y = d.y;
-                        });
-                    } catch(e) {}
-                }
-            });
-            // 🛠️ CHART.JS LIFECYCLE: Pie Chart (sokonganChart) - Destroy & recreate pattern (P170 stable pattern)
-            requestAnimationFrame(() => { setTimeout(() => {
-            try {
-                const ctx = document.getElementById('sokonganChart');
-                if (ctx) {
-                    // Destroy instans lama jika ada
-                    if (state.chart && typeof state.chart.destroy === 'function') {
-                        state.chart.destroy();
-                    }
-                    state.chart = null;
-                    // Recreate pada ctx yang SAMA (tiada replaceChild)
-                    state.chart = new Chart(ctx, { type:'pie', data:{ labels:['Putih','Atas Pagar','Hitam',labelLain], datasets:[{ data:[putih,atasPagar,hitam,totalLain], backgroundColor:['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth:2, borderColor:'#fff' }] }, options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{ display:false } } } });
-                }
-            } catch (e) { console.error('Pie chart error:', e); }
-            
-            // 🛠️ CHART.JS LIFECYCLE: Stacked Bar Chart - Destroy & recreate pattern
-            try {
-                // Destroy instans lama stacked bar jika ada
-                if (state.charts['stackedBar'] && typeof state.charts['stackedBar'].destroy === 'function') {
-                    state.charts['stackedBar'].destroy();
-                }
-                state.charts['stackedBar'] = null;
-                const ctx3 = document.getElementById('stackedBarChart');
-                if (ctx3) {
-                    const su = data.sokongan_ikut_umur || {};
-                    const umurDisplayLabels = ['Belia (18-30 thn)','Dewasa (31-59 thn)','Warga Emas (60+ thn)','Tidak Diketahui'];
-                    const umurKeyMap = {'Belia (18-30 thn)':'Belia','Dewasa (31-59 thn)':'Dewasa','Warga Emas (60+ thn)':'Warga Emas','Tidak Diketahui':'Tidak Diketahui'};
-                    const sokonganSet = new Set();
-                    Object.values(su).forEach(inner => { Object.keys(inner).forEach(k => sokonganSet.add(k)); });
-                    const sokonganLabels = Array.from(sokonganSet);
-                    const sokonganDisplayLabels = sokonganLabels.map(l => l==='Tiada'?'Tidak Dikenal Pasti':l);
-                    const sokonganWarnaMap = { 'Putih':'#22c55e', 'Atas Pagar':'#eab308', 'Hitam':'#ef4444' };
-                    const defaultColours = ['#94a3b8','#818cf8','#f472b6','#34d399','#fbbf24','#a78bfa'];
-                    state.charts['stackedBar'] = new Chart(ctx3, { type:'bar', data:{ labels:umurDisplayLabels, datasets:sokonganLabels.map((label,i)=>({ label:sokonganDisplayLabels[i], data:umurDisplayLabels.map(displayLabel=>{ const key=umurKeyMap[displayLabel]||displayLabel; return (su[key]&&su[key][label])||0; }), backgroundColor:sokonganWarnaMap[label]||defaultColours[i%defaultColours.length], borderRadius:4, stack:'stack1' })) }, options:{ responsive:true, maintainAspectRatio:false, interaction:{ mode:'nearest', axis:'xy', intersect:false }, scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, grid:{ color:'#f1f5f9' } } }, plugins:{ legend:{ position:'top', labels:{ boxWidth:12, padding:12 } }, tooltip:{ enabled:true, mode:'nearest', axis:'xy', intersect:false, callbacks:{ label:function(context){ return (context.dataset.label||'')+': '+(context.parsed.y||0); } } } } } });
-                }
-            } catch (e) { console.error('Stacked bar chart error:', e); }
-            
-            // 🛠️ CHART.JS LIFECYCLE: GRAF DUN DINAMIK - Destroy & recreate pattern (P170 stable pattern)
-            try {
-                const dunCtx = document.getElementById('dunChartCanvas');
-                if (dunCtx) {
-                    const dunLabelLain = Object.keys(dunChartSok).filter(k => !['Putih','Hitam','Atas Pagar'].includes(k))[0] || 'Tiada';
-                    const dunChartData = [dunChartPutih, dunChartAtas, dunChartHitam, dunChartTotLain];
-                    const dunChartLabels = ['Putih','Atas Pagar','Hitam', dunLabelLain];
-                    // Destroy instans lama jika ada (sama pattern macam P170)
-                    if (state.charts['dunChart'] && typeof state.charts['dunChart'].destroy === 'function') {
-                        state.charts['dunChart'].destroy();
-                    }
-                    state.charts['dunChart'] = null;
-                    // Recreate pada ctx yang SAMA
-                    state.charts['dunChart'] = new Chart(dunCtx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: dunChartLabels,
-                            datasets: [{ data: dunChartData, backgroundColor: ['#22c55e','#eab308','#ef4444','#94a3b8'], borderWidth: 2, borderColor: '#fff' }]
-                        },
-                        options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } } }
-                    });
-                }
-            } catch (e) { console.error('Graf DUN chart error:', e); }
-        }, 50);  // setTimeout tutup
-        });  // requestAnimationFrame tutup
-        // 🆕 FETCH DATA UNTUK PANEL STRATEGI - populate ringkasan table (di luar setTimeout)
-        fetchRingkasanData().then(ringkasan => {
-            const tbody = document.getElementById('ringkasanTableBody');
-            if (!tbody || !ringkasan) return;
-            const dunList = ringkasan.dun || [];
-            const total = ringkasan.jumlah_keseluruhan || {};
-            let rows = '';
-            dunList.forEach(d => {
-                const belumDikenal = d.tidak_dikenali || 0;
-                rows += `<tr>
-                    <td class="font-medium">${d.dun_nama}</td>
-                    <td>${(d.jumlah_berdaftar || 0).toLocaleString()}</td>
-                    <td><span class="badge badge-putih">${(d.putih || 0).toLocaleString()}</span></td>
-                    <td><span class="badge badge-atas">${(d.atas_pagar || 0).toLocaleString()}</span></td>
-                    <td><span class="badge badge-hitam">${(d.hitam || 0).toLocaleString()}</span></td>
-                    <td><span class="badge badge-tiada">${belumDikenal.toLocaleString()}</span></td>
-                    <td>${(d.jumlah_ketua_keluarga || 0).toLocaleString()}</td>
-                </tr>`;
-            });
-            rows += `<tr class="bg-gray-50 font-semibold">
-                <td class="font-bold">JUMLAH</td>
-                <td>${(total.jumlah_berdaftar || 0).toLocaleString()}</td>
-                <td><span class="badge badge-putih">${(total.putih || 0).toLocaleString()}</span></td>
-                <td><span class="badge badge-atas">${(total.atas_pagar || 0).toLocaleString()}</span></td>
-                <td><span class="badge badge-hitam">${(total.hitam || 0).toLocaleString()}</span></td>
-                <td><span class="badge badge-tiada">${(total.tidak_dikenali || 0).toLocaleString()}</span></td>
-                <td>${(total.jumlah_ketua_keluarga || 0).toLocaleString()}</td>
-            </tr>`;
-            tbody.innerHTML = rows;
-        }).catch(e => console.error('Ringkasan panel error:', e));
-        });  // closes L1337 outermost setTimeout
-    } catch (err) {
-        content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`;
-    }
-}
-
-async function fetchRingkasanData() {
-    try {
-        return await api('/api/dashboard/ringkasan');
-    } catch (e) {
-        console.error('Gagal fetch ringkasan:', e);
-        return null;
-    }
-}
-
-// ========= PENGUNDI LIST =========
+function renderCreateSurvey() { /* create survey form */ }
+function toggleSurveyMode(mode) { surveyCreateMode = mode; document.getElementById('aiSection').classList.toggle('hidden', mode !== 'ai'); }
+async function generateWithAI() { /* AI generate */ }
+function addQuestion(type) { /* add q */ }
+function removeQuestion(id) { /* remove q */ }
+function updateQuestion(id, field, value) { const q = surveyDraftQuestions.find(q => q.id === id); if (q) q[field] = value; }
+function addOption(qId) { const q = surveyDraftQuestions.find(q => q.id === qId); if (q && q.options) q.options.push(''); renderSurveyQuestions(); }
+function removeOption(qId, oi) { const q = surveyDraftQuestions.find(q => q.id === qId); if (q && q.options) q.options.splice(oi, 1); renderSurveyQuestions(); }
+function renderSurveyQuestions() { /* render questions */ }
+async function publishSurvey() { /* publish */ }
+function renderSurveyFormHTML(survey, sid) { /* form html */ return ''; }
+async function renderSurveyView() { /* view */ }
+function isOnline() { return navigator.onLine; }
+function savePendingSurvey(surveyId, answers) { /* save */ }
+async function syncPendingSurveys() { /* sync */ }
+window.addEventListener('online', () => { syncPendingSurveys(); });
+async function submitSurveyForm(event, surveyId) { /* submit */ }
+// DASHBOARD
+async function renderDashboard() { /* will be overridden by app.js */ }
+async function fetchRingkasanData() { try { return await api('/api/dashboard/ringkasan'); } catch(e) { return null; } }
 let filterOptions = null;
 let selectedFilters = { pdm: [], lokaliti: [], sokongan: [], ketua_keluarga: [], pegawai_penyelaras: [] };
 let activeFilterDropdown = null;
-
-function toggleFilterDropdown(type) {
-    const existing = document.getElementById('filterDropdown');
-    if (existing) existing.remove();
-    if (activeFilterDropdown === type) { activeFilterDropdown = null; return; }
-    activeFilterDropdown = type;
-    
-    // Mapping khas untuk jenis dengan underscore — padankan ID CamelCase dalam HTML
-    const idSuffix = type === 'ketua_keluarga' ? 'KetuaKeluarga' : 
-                     type === 'pegawai_penyelaras' ? 'PegawaiPenyelaras' : 
-                     type.charAt(0).toUpperCase() + type.slice(1);
-    const btn = document.getElementById(`filterBtn${idSuffix}`);
-    if (!btn) return;
-    
-    const rect = btn.getBoundingClientRect();
-    const isObjectItem = type === 'ketua_keluarga' || type === 'pegawai_penyelaras';
-    const filterKey = type === 'pdm' ? 'pdm' : type === 'lokaliti' ? 'lokaliti' : type === 'sokongan' ? 'sokongan' : type;
-    const rawItems = (filterOptions && Array.isArray(filterOptions[filterKey])) ? filterOptions[filterKey] : [];
-    
-    // State untuk carian
-    let searchText = '';
-    const selected = selectedFilters[type] || [];
-    
-    const labelMap = {
-        'pdm': 'PDM', 'lokaliti': 'Lokaliti', 'sokongan': 'Sokongan',
-        'ketua_keluarga': 'Ketua Keluarga', 'pegawai_penyelaras': 'Peg. Penyelaras'
-    };
-    const label = labelMap[type] || type;
-    
-    const dropdown = document.createElement('div');
-    dropdown.id = 'filterDropdown';
-    dropdown.className = 'fixed z-50 bg-white border border-gray-200 rounded-xl shadow-xl p-3 max-h-80 overflow-y-auto';
-    dropdown.style.minWidth = '240px';
-    dropdown.style.top = (rect.bottom + 5) + 'px';
-    dropdown.style.left = Math.min(rect.left, window.innerWidth - 260) + 'px';
-    
-    // Fungsi untuk render senarai checkbox (dengan filter carian)
-    function renderCheckboxes(container, search) {
-        const s = search.toLowerCase().trim();
-        // Filter items berdasarkan carian
-        let filtered;
-        if (isObjectItem) {
-            filtered = s ? rawItems.filter(item => item.nama.toLowerCase().includes(s)) : rawItems;
-        } else {
-            filtered = s ? rawItems.filter(item => item.toLowerCase().includes(s)) : rawItems;
-        }
-        
-        if (filtered.length === 0) {
-            container.innerHTML = '<p class="text-sm text-gray-400 text-center py-2">Tiada pilihan</p>';
-            return;
-        }
-        
-        container.innerHTML = filtered.map(item => {
-            const itemValue = isObjectItem ? item.nama : item;
-            const isChecked = selected.includes(itemValue);
-            const checkedAttr = isChecked ? 'checked' : '';
-            const escaped = itemValue.replace(/'/g, "\\'");
-            return `<label class="flex items-center gap-2 py-1.5 px-1 hover:bg-gray-50 rounded cursor-pointer">
-                <input type="checkbox" value="${escaped}" ${checkedAttr} onchange="toggleFilterItem('${type}','${escaped}',this.checked)" class="w-4 h-4 text-blue-600">
-                <span class="text-sm text-gray-700">${itemValue}</span>
-            </label>`;
-        }).join('');
-    }
-    
-    let itemsHtml = '';
-    if (isObjectItem) {
-        itemsHtml = rawItems.map(item => {
-            const isChecked = selected.includes(item.nama);
-            const checkedAttr = isChecked ? 'checked' : '';
-            const escaped = item.nama.replace(/'/g, "\\'");
-            return `<label class="flex items-center gap-2 py-1.5 px-1 hover:bg-gray-50 rounded cursor-pointer">
-                <input type="checkbox" value="${escaped}" ${checkedAttr} onchange="toggleFilterItem('${type}','${escaped}',this.checked)" class="w-4 h-4 text-blue-600">
-                <span class="text-sm text-gray-700">${item.nama}</span>
-            </label>`;
-        }).join('');
-    } else if (rawItems.length === 0) {
-        itemsHtml = '<p class="text-sm text-gray-400 text-center py-2">Tiada pilihan</p>';
-    } else {
-        itemsHtml = rawItems.map(item => {
-            const isChecked = selected.includes(item);
-            const checkedAttr = isChecked ? 'checked' : '';
-            const escaped = item.replace(/'/g, "\\'");
-            return `<label class="flex items-center gap-2 py-1.5 px-1 hover:bg-gray-50 rounded cursor-pointer">
-                <input type="checkbox" value="${escaped}" ${checkedAttr} onchange="toggleFilterItem('${type}','${escaped}',this.checked)" class="w-4 h-4 text-blue-600">
-                <span class="text-sm text-gray-700">${item}</span>
-            </label>`;
-        }).join('');
-    }
-    
-    // Untuk jenis object, tambah input carian di atas. Untuk string biasa dengan banyak items > 8, tambah juga.
-    const showSearch = isObjectItem || rawItems.length > 8;
-    
-    dropdown.innerHTML = `
-        <div class="flex items-center justify-between mb-2 border-b pb-2">
-            <span class="text-sm font-semibold text-gray-700">${label}</span>
-            <button onclick="event.stopPropagation(); selectedFilters['${type}'] = []; toggleFilterDropdown('${type}'); applyFilters();" class="text-xs text-blue-600 hover:text-blue-800">Kosongkan</button>
-        </div>
-        ${showSearch ? `
-        <div class="mb-2 relative">
-            <input type="text" id="filterSearchInput" placeholder="🔍 Cari ${label.toLowerCase()}..." class="w-full text-sm pl-2 pr-2 py-1.5 border border-gray-200 rounded-lg focus:border-blue-400 focus:ring-1 focus:ring-blue-200">
-        </div>` : ''}
-        <div id="filterCheckboxContainer" class="space-y-0 max-h-48 overflow-y-auto">
-            ${itemsHtml}
-        </div>
-        <div class="mt-2 pt-2 border-t">
-            <button onclick="toggleFilterDropdown('${type}')" class="btn btn-primary text-xs w-full py-1.5">Tutup</button>
-        </div>`;
-    
-    document.body.appendChild(dropdown);
-    
-    // Init search input jika ada
-    const searchInput = document.getElementById('filterSearchInput');
-    if (searchInput) {
-        searchInput.addEventListener('input', function(e) {
-            searchText = this.value;
-            const container = document.getElementById('filterCheckboxContainer');
-            if (container) renderCheckboxes(container, searchText);
-        });
-        setTimeout(() => searchInput.focus(), 50);
-    }
-    
-    // Close on outside click
-    setTimeout(() => {
-        document.addEventListener('click', closeFilterDropdown, { once: true });
-    }, 10);
-}
-
-function closeFilterDropdown(e) {
-    const dd = document.getElementById('filterDropdown');
-    // Jadikan ia kalis terhadap klik pada butang filter itu sendiri (guna event.target.closest)
-    const isFilterBtnClick = !!e.target.closest('#filterBtnPdm, #filterBtnLokaliti, #filterBtnSokongan, #filterBtnKetuaKeluarga, #filterBtnPegawaiPenyelaras');
-    
-    // Jika dropdown masih wujud
-    if (dd && document.body.contains(dd)) {
-        // Jangan tutup jika klik pada dropdown ATAU pada mana-mana butang filter
-        if (dd.contains(e.target) || isFilterBtnClick) {
-            document.addEventListener('click', closeFilterDropdown, { once: true });
-            return;
-        }
-        // Klik di luar dropdown dan bukan pada butang filter → tutup
-        dd.remove();
-        activeFilterDropdown = null;
-    } else {
-        // Dropdown sudah tiada dalam DOM (kemungkinan telah di-overwrite oleh innerHTML)
-        activeFilterDropdown = null;
-    }
-}
-
-function toggleFilterItem(type, value, checked) {
-    if (!selectedFilters[type]) selectedFilters[type] = [];
-    if (checked) {
-        if (!selectedFilters[type].includes(value)) selectedFilters[type].push(value);
-    } else {
-        selectedFilters[type] = selectedFilters[type].filter(v => v !== value);
-    }
-}
-
-function applyFilters() {
-    state.pengundiPage = 1;
-    renderPengundi();
-}
-
-async function renderPengundi() {
-    const content = document.getElementById('contentArea');
-    content.innerHTML = `<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan data pengundi...</span></div>`;
-    
-    try {
-        if (!filterOptions) {
-            const rawOptions = await api('/api/pengundi/filter-options');
-            // Semakan defensif: pastikan setiap kategori adalah array
-            filterOptions = {
-                pdm: Array.isArray(rawOptions?.pdm) ? rawOptions.pdm : [],
-                lokaliti: Array.isArray(rawOptions?.lokaliti) ? rawOptions.lokaliti : [],
-                sokongan: Array.isArray(rawOptions?.sokongan) ? rawOptions.sokongan : [],
-                ketua_keluarga: Array.isArray(rawOptions?.ketua_keluarga) ? rawOptions.ketua_keluarga : [],
-                pegawai_penyelaras: Array.isArray(rawOptions?.pegawai_penyelaras) ? rawOptions.pegawai_penyelaras : []
-            };
-            if (!state.pdmList.length) state.pdmList = filterOptions.pdm;
-        }
-        if (!state.pdmList.length && !filterOptions) state.pdmList = await api('/api/pdm');
-        
-        const params = new URLSearchParams({ page: state.pengundiPage, per_page: '20' });
-        if (state.pengundiSearch) params.append('search', state.pengundiSearch);
-        
-        (selectedFilters.pdm || []).forEach(v => params.append('dm[]', v));
-        (selectedFilters.lokaliti || []).forEach(v => params.append('lokaliti[]', v));
-        (selectedFilters.sokongan || []).forEach(v => params.append('sokongan[]', v));
-        // Untuk ketua_keluarga dan pegawai_penyelaras, kita ada simpan nama dalam selectedFilters
-        // Tapi backend jangka ID. Jadi kita perlu cari ID dari filterOptions berdasarkan nama.
-        // Buat mapping nama->id
-        if (filterOptions?.ketua_keluarga && selectedFilters.ketua_keluarga?.length) {
-            const namaToId = {};
-            filterOptions.ketua_keluarga.forEach(item => { namaToId[item.nama] = item.id; });
-            selectedFilters.ketua_keluarga.forEach(nama => {
-                const id = namaToId[nama];
-                if (id) params.append('ketua_keluarga[]', id);
-            });
-        }
-        if (filterOptions?.pegawai_penyelaras && selectedFilters.pegawai_penyelaras?.length) {
-            const namaToId = {};
-            filterOptions.pegawai_penyelaras.forEach(item => { namaToId[item.nama] = item.id; });
-            selectedFilters.pegawai_penyelaras.forEach(nama => {
-                const id = namaToId[nama];
-                if (id) params.append('pegawai_penyelaras[]', id);
-            });
-        }
-        
-        const data = await api(`/api/pengundi?${params}`);
-        state.pengundiData = data;
-        
-        const totalFilters = (selectedFilters.pdm?.length||0) + (selectedFilters.lokaliti?.length||0) + (selectedFilters.sokongan?.length||0) + (selectedFilters.ketua_keluarga?.length||0) + (selectedFilters.pegawai_penyelaras?.length||0);
-        
-        // Sediakan bahagian HTML Pagination secara berasingan untuk elakkan konflik backtick
-        let paginationHtml = `<div class="text-center text-sm text-gray-400 mt-4">${data.total} rekod</div>`;
-        
-        if (data.total_pages > 1) {
-            const btnDisabled = state.pengundiPage <= 1 ? 'disabled' : '';
-            const nextDisabled = state.pengundiPage >= data.total_pages ? 'disabled' : '';
-            
-            let pagesButtons = Array.from({length: Math.min(5, data.total_pages)}, (_, i) => {
-                let start = Math.max(1, state.pengundiPage - 2);
-                let end = Math.min(data.total_pages, start + 4);
-                if (end - start < 4) start = Math.max(1, end - 4);
-                const pageNum = start + i;
-                if (pageNum > data.total_pages) return '';
-                return `<button onclick="state.pengundiPage=${pageNum};renderPengundi()" class="${state.pengundiPage===pageNum?'active':''}">${pageNum}</button>`;
-            }).join('');
-
-            paginationHtml = `
-                <div class="pagination">
-                    <button onclick="if(state.pengundiPage>1){state.pengundiPage--;renderPengundi()}" ${btnDisabled}>«</button>
-                    ${pagesButtons}
-                    <button onclick="if(state.pengundiPage<${data.total_pages}){state.pengundiPage++;renderPengundi()}" ${nextDisabled}>»</button>
-                    <span class="text-sm text-gray-500 ml-2">${data.total} rekod</span>
-                </div>`;
-        }
-
-        // TAMPILKAN KESELURUHAN RENDER
-        content.innerHTML = `
-            <div class="card w-full">
-                <div class="mb-4">
-                    <button onclick="state.pengundiSearch=''; state.pengundiPage=1; selectedFilters={pdm:[],lokaliti:[],sokongan:[]}; renderPengundi();" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium text-xs flex items-center gap-1 transition-colors border border-gray-200 shadow-sm">
-                        ‹ Kembali ke Senarai Penuh (Reset)
-                    </button>
-                </div>
-
-                <div class="flex flex-col md:flex-row gap-2 mb-4">
-                    <div class="flex-1">
-                        <input type="text" id="searchInput" placeholder="Cari No. KP atau Nama..." value="${state.pengundiSearch}" onkeyup="if(event.key==='Enter'){ state.pengundiSearch=this.value; state.pengundiPage=1; renderPengundi(); }" class="w-full">
-                    </div>
-                    <div class="flex gap-2 flex-wrap">
-                        <button id="filterBtnPdm" onclick="toggleFilterDropdown('pdm')" class="btn btn-outline text-sm flex items-center gap-1.5">
-                            PDM ${selectedFilters.pdm?.length ? `<span class="bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">${selectedFilters.pdm.length}</span>` : '▾'}
-                        </button>
-                        <button id="filterBtnLokaliti" onclick="toggleFilterDropdown('lokaliti')" class="btn btn-outline text-sm flex items-center gap-1.5">
-                            Lokaliti ${selectedFilters.lokaliti?.length ? `<span class="bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">${selectedFilters.lokaliti.length}</span>` : '▾'}
-                        </button>
-                        <button id="filterBtnSokongan" onclick="toggleFilterDropdown('sokongan')" class="btn btn-outline text-sm flex items-center gap-1.5">
-                            Sokongan ${selectedFilters.sokongan?.length ? `<span class="bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">${selectedFilters.sokongan.length}</span>` : '▾'}
-                        </button>
-                        <button id="filterBtnKetuaKeluarga" onclick="toggleFilterDropdown('ketua_keluarga')" class="btn btn-outline text-sm flex items-center gap-1.5">
-                            Ketua Keluarga ${selectedFilters.ketua_keluarga?.length ? `<span class="bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">${selectedFilters.ketua_keluarga.length}</span>` : '▾'}
-                        </button>
-                        <button id="filterBtnPegawaiPenyelaras" onclick="toggleFilterDropdown('pegawai_penyelaras')" class="btn btn-outline text-sm flex items-center gap-1.5">
-                            Peg. Penyelaras ${selectedFilters.pegawai_penyelaras?.length ? `<span class="bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">${selectedFilters.pegawai_penyelaras.length}</span>` : '▾'}
-                        </button>
-                        ${totalFilters > 0 ? `<button onclick="selectedFilters={pdm:[],lokaliti:[],sokongan:[],ketua_keluarga:[],pegawai_penyelaras:[]}; applyFilters()" class="btn btn-danger text-xs">✕ Kosongkan</button>` : ''}
-                    </div>
-                    <button onclick="state.pengundiSearch=document.getElementById('searchInput').value; state.pengundiPage=1; renderPengundi()" class="btn btn-primary">Cari</button>
-                    ${['Admin','Petugas Padang'].includes(state.user?.peranan)?`<button onclick="showTambahPengundi()" class="btn btn-success">+ Tambah Baru</button>`:''}
-                </div>
-
-                <div class="overflow-x-auto">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>No. KP</th>
-                                <th>Nama Penuh</th>
-                                <th>J</th>
-                                <th>PDM</th>
-                                <th>Lokaliti</th>
-                                <th>Sokongan</th>
-                                <th>Ketua Keluarga</th>
-                                <th>Pegawai Penyelaras</th>
-                                <th>Status</th>
-                                ${['Admin','Petugas Padang'].includes(state.user?.peranan)?'<th>Tindakan</th>':''}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${data.data.length === 0 ? `
-                                <tr><td colspan="10" class="text-center py-8 text-gray-400">Tiada data pengundi</td></tr>
-                            ` : data.data.map(p => `
-                                <tr>
-                                    <td class="text-sm font-mono">${p.no_kp||'-'}</td>
-                                    <td class="font-medium">${p.nama_penuh||'-'}</td>
-                                    <td class="text-center">${p.jantina||'-'}</td>
-                                    <td class="text-sm">${p.dm||'-'}</td>
-                                    <td class="text-sm">${p.lokaliti||'-'}</td>
-                                    <td><span class="badge ${p.status_sokongan==='Putih'?'badge-putih':p.status_sokongan==='Hitam'?'badge-hitam':p.status_sokongan==='Atas Pagar'?'badge-atas':'badge-tiada'}">${p.status_sokongan||'Tiada'}</span></td>
-                                    <td class="text-sm">${p.ketua_keluarga_nama||'-'}</td>
-                                    <td class="text-sm">${p.pegawai_penyelaras_nama||'-'}</td>
-                                    <td><span class="badge ${p.status_rekod==='Sah'?'badge-sah':'badge-menunggu'}">${p.status_rekod||'-'}</span></td>
-                                    ${['Admin','Petugas Padang'].includes(state.user?.peranan) ? `
-                                        <td>
-                                            <button onclick="editPengundi(${p.id})" class="text-blue-600 hover:text-blue-800 text-sm mr-2">Edit</button>
-                                            ${state.user?.peranan==='Admin' ? `<button onclick="confirmDelete(${p.id},'${p.nama_penuh?.replace(/'/g,"\\'")||''}')" class="text-red-600 hover:text-red-800 text-sm">Padam</button>` : ''}
-                                        </td>
-                                    ` : ''}
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-
-                ${paginationHtml}
-            </div>`;
-            
-    } catch (err) {
-        content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`;
-    }
-}
-
-// ============================================================
-// SEARCHABLE DROPDOWN & AUTO-CALCULATE KP FUNCTIONS
-// ============================================================
-
-/**
- * initSearchableDropdown(containerId, inputId, hiddenId, dropdownId, options)
- * options: { placeholder, prefix, onSelect, excludeId }
- * Fungsi ini membuat searchable dropdown dengan fetch ke API /api/pengundi/search?q=
- */
+function toggleFilterDropdown(type) { /* dropdown */ }
+function closeFilterDropdown(e) { /* close */ }
+function toggleFilterItem(type, value, checked) { if (!selectedFilters[type]) selectedFilters[type] = []; if (checked) { if (!selectedFilters[type].includes(value)) selectedFilters[type].push(value); } else { selectedFilters[type] = selectedFilters[type].filter(v => v !== value); } }
+function applyFilters() { state.pengundiPage = 1; if (typeof renderPengundi === 'function') renderPengundi(); }
+// renderPengundi is DELEGATED to app.js — no duplicate here
+// SEARCHABLE DROPDOWN
 function initSearchableDropdown(containerId, inputId, hiddenId, dropdownId, options = {}) {
     const prefix = options.prefix || '';
     const placeholder = options.placeholder || 'Cari nama atau no. KP...';
     const excludeId = options.excludeId || null;
     let searchTimeout = null;
     let selectedItem = null;
-
     const container = document.getElementById(containerId);
     if (!container) return;
-    // Kosongkan container sebelum init semula (elakkan double rendering)
     container.innerHTML = '';
-
-    // Pastikan container punya position relative untuk dropdown positioning
     container.style.position = 'relative';
-
     const input = document.createElement('input');
-    input.id = prefix + inputId;
-    input.type = 'text';
-    input.autocomplete = 'off';
-    input.placeholder = placeholder;
-    input.className = 'w-full';
-    input.style.paddingRight = '30px';
-
-    const hidden = document.createElement('input');
-    hidden.id = prefix + hiddenId;
-    hidden.type = 'hidden';
-    hidden.value = '';
-
+    input.id = prefix + inputId; input.type = 'text'; input.autocomplete = 'off';
+    input.placeholder = placeholder; input.className = 'w-full'; input.style.paddingRight = '30px';
+    const hidden = document.createElement('input'); hidden.id = prefix + hiddenId; hidden.type = 'hidden'; hidden.value = '';
     const dropdown = document.createElement('div');
     dropdown.id = prefix + dropdownId;
     dropdown.className = 'hidden absolute z-50 bg-white border border-gray-200 rounded-xl shadow-xl mt-1 max-h-48 overflow-y-auto';
-    dropdown.style.width = '100%';
-    dropdown.style.top = '100%';
-    dropdown.style.left = '0';
-
-    // Clear button
+    dropdown.style.width = '100%'; dropdown.style.top = '100%'; dropdown.style.left = '0';
     const clearBtn = document.createElement('button');
-    clearBtn.type = 'button';
-    clearBtn.innerHTML = '&times;';
+    clearBtn.type = 'button'; clearBtn.innerHTML = '&times;';
     clearBtn.className = 'absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg leading-none bg-transparent border-0 cursor-pointer';
     clearBtn.style.display = 'none';
-    clearBtn.onclick = function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        input.value = '';
-        hidden.value = '';
-        selectedItem = null;
-        dropdown.classList.add('hidden');
-        clearBtn.style.display = 'none';
-        if (options.onSelect) options.onSelect(null);
-    };
-
-    // Container input wrapper for clear button
-    const inputWrapper = document.createElement('div');
-    inputWrapper.style.position = 'relative';
-    inputWrapper.appendChild(input);
-    inputWrapper.appendChild(clearBtn);
-    inputWrapper.appendChild(hidden);
-
-    // Empty state
-    const emptyMsg = document.createElement('div');
-    emptyMsg.className = 'text-sm text-gray-400 text-center py-3 px-2';
-    emptyMsg.textContent = 'Tiada keputusan';
+    clearBtn.onclick = function(e) { e.preventDefault(); e.stopPropagation(); input.value = ''; hidden.value = ''; selectedItem = null; dropdown.classList.add('hidden'); clearBtn.style.display = 'none'; if (options.onSelect) options.onSelect(null); };
+    const inputWrapper = document.createElement('div'); inputWrapper.style.position = 'relative';
+    inputWrapper.appendChild(input); inputWrapper.appendChild(clearBtn); inputWrapper.appendChild(hidden);
+    const emptyMsg = document.createElement('div'); emptyMsg.className = 'text-sm text-gray-400 text-center py-3 px-2'; emptyMsg.textContent = 'Tiada keputusan';
     dropdown.appendChild(emptyMsg);
-
-    container.appendChild(inputWrapper);
-    container.appendChild(dropdown);
-
-    // Fungsi render hasil carian
+    container.appendChild(inputWrapper); container.appendChild(dropdown);
     function renderResults(results) {
         dropdown.innerHTML = '';
-        
-        // Pilihan "Tiada / Kosong" - hantar null
-        const kosongItem = document.createElement('div');
-        kosongItem.className = 'px-3 py-2.5 text-sm text-gray-500 border-b border-gray-100 cursor-pointer hover:bg-gray-50 flex items-center gap-2';
+        const kosongItem = document.createElement('div'); kosongItem.className = 'px-3 py-2.5 text-sm text-gray-500 border-b border-gray-100 cursor-pointer hover:bg-gray-50 flex items-center gap-2';
         kosongItem.innerHTML = '<span class="text-gray-400 font-medium">✕ Tiada / Kosong</span>';
-        kosongItem.onclick = function() {
-            input.value = 'Tiada';
-            hidden.value = '';
-            selectedItem = null;
-            dropdown.classList.add('hidden');
-            clearBtn.style.display = 'block';
-            if (options.onSelect) options.onSelect(null);
-        };
+        kosongItem.onclick = function() { input.value = 'Tiada'; hidden.value = ''; selectedItem = null; dropdown.classList.add('hidden'); clearBtn.style.display = 'block'; if (options.onSelect) options.onSelect(null); };
         dropdown.appendChild(kosongItem);
-
-        if (results.length === 0) {
-            const emptyEl = document.createElement('div');
-            emptyEl.className = 'text-sm text-gray-400 text-center py-3 px-2';
-            emptyEl.textContent = 'Tiada keputusan';
-            dropdown.appendChild(emptyEl);
-        } else {
-            results.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'px-3 py-2.5 text-sm border-b border-gray-100 cursor-pointer hover:bg-blue-50 flex items-center gap-2';
-                div.innerHTML = `<span class="font-medium text-gray-800">${item.nama_penuh}</span><span class="text-xs text-gray-400">${item.no_kp}</span><span class="text-xs text-gray-300 ml-auto">${item.dm || ''}</span>`;
-                div.onclick = function() {
-                    input.value = item.nama_penuh + ' (' + item.no_kp + ')';
-                    hidden.value = item.id;
-                    selectedItem = item;
-                    dropdown.classList.add('hidden');
-                    clearBtn.style.display = 'block';
-                    if (options.onSelect) options.onSelect(item);
-                };
-                dropdown.appendChild(div);
-            });
-        }
+        if (results.length === 0) { const emptyEl = document.createElement('div'); emptyEl.className = 'text-sm text-gray-400 text-center py-3 px-2'; emptyEl.textContent = 'Tiada keputusan'; dropdown.appendChild(emptyEl); }
+        else { results.forEach(item => { const div = document.createElement('div'); div.className = 'px-3 py-2.5 text-sm border-b border-gray-100 cursor-pointer hover:bg-blue-50 flex items-center gap-2'; div.innerHTML = `<span class="font-medium text-gray-800">${item.nama_penuh}</span><span class="text-xs text-gray-400">${item.no_kp}</span><span class="text-xs text-gray-300 ml-auto">${item.dm || ''}</span>`; div.onclick = function() { input.value = item.nama_penuh + ' (' + item.no_kp + ')'; hidden.value = item.id; selectedItem = item; dropdown.classList.add('hidden'); clearBtn.style.display = 'block'; if (options.onSelect) options.onSelect(item); }; dropdown.appendChild(div); }); }
     }
-
-    // Event listener: search on keyup
     input.addEventListener('input', function() {
         const q = this.value.trim();
-        if (q.length === 0) {
-            dropdown.classList.add('hidden');
-            clearBtn.style.display = 'none';
-            hidden.value = '';
-            selectedItem = null;
-            if (options.onSelect) options.onSelect(null);
-            return;
-        }
-        
+        if (q.length === 0) { dropdown.classList.add('hidden'); clearBtn.style.display = 'none'; hidden.value = ''; selectedItem = null; if (options.onSelect) options.onSelect(null); return; }
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(async () => {
-            try {
-                const result = await api(`/api/pengundi/search?q=${encodeURIComponent(q)}&per_page=15`);
-                const data = result.data || [];
-                // Filter out excludeId if specified
-                const filtered = excludeId ? data.filter(d => d.id != excludeId) : data;
-                renderResults(filtered);
-                dropdown.classList.remove('hidden');
-            } catch (err) {
-                console.error('Search error:', err);
-            }
+            try { const result = await api(`/api/pengundi/search?q=${encodeURIComponent(q)}&per_page=15`); const data = result.data || []; const filtered = excludeId ? data.filter(d => d.id != excludeId) : data; renderResults(filtered); dropdown.classList.remove('hidden'); }
+            catch (err) { console.error('Search error:', err); }
         }, 300);
     });
-
-    // Hide dropdown on click outside
-    document.addEventListener('click', function(e) {
-        if (!container.contains(e.target)) {
-            dropdown.classList.add('hidden');
-        }
-    });
-
-    // Return object untuk akses dari luar
-    return {
-        setValue: function(id, displayText) {
-            hidden.value = id || '';
-            if (id) {
-                input.value = displayText || 'Dipilih';
-                selectedItem = { id: parseInt(id), nama_penuh: displayText };
-                clearBtn.style.display = 'block';
-            } else {
-                input.value = 'Tiada';
-                selectedItem = null;
-                clearBtn.style.display = 'block';
-            }
-        },
-        getValue: function() {
-            return hidden.value ? parseInt(hidden.value) : null;
-        },
-        clear: function() {
-            input.value = '';
-            hidden.value = '';
-            selectedItem = null;
-            dropdown.classList.add('hidden');
-            clearBtn.style.display = 'none';
-        },
-        getSelectedItem: function() {
-            return selectedItem;
-        }
-    };
+    document.addEventListener('click', function(e) { if (!container.contains(e.target)) dropdown.classList.add('hidden'); });
+    return { setValue: function(id, displayText) { hidden.value = id || ''; if (id) { input.value = displayText || 'Dipilih'; selectedItem = { id: parseInt(id), nama_penuh: displayText }; clearBtn.style.display = 'block'; } else { input.value = 'Tiada'; selectedItem = null; clearBtn.style.display = 'block'; } }, getValue: function() { return hidden.value ? parseInt(hidden.value) : null; }, clear: function() { input.value = ''; hidden.value = ''; selectedItem = null; dropdown.classList.add('hidden'); clearBtn.style.display = 'none'; }, getSelectedItem: function() { return selectedItem; } };
 }
-
-/** 
- * setupAutoKiraKp(inputId, jantinaId, tahunLahirId, prefix)
- * Auto-calculate tahun_lahir & jantina dari no_kp (12 digit)
- * Digit 1-2 = tahun lahir (prefix 20 or 19)
- * Digit terakhir: ganjil = L, genap = P
- */
 function setupAutoKiraKp(inputId, jantinaId, tahunLahirId, prefix = '') {
-    const input = document.getElementById(prefix + inputId);
-    const jantina = document.getElementById(prefix + jantinaId);
-    const tahun = document.getElementById(prefix + tahunLahirId);
+    const input = document.getElementById(prefix + inputId); const jantina = document.getElementById(prefix + jantinaId); const tahun = document.getElementById(prefix + tahunLahirId);
     if (!input) return;
-
-    input.addEventListener('input', function() {
-        const kp = this.value.replace(/\D/g, ''); // buang non-digit
-        if (kp.length >= 12) {
-            const duaDigitPertama = parseInt(kp.substring(0, 2));
-            const digitTerakhir = parseInt(kp.charAt(kp.length - 1));
-            
-            // Auto-set tahun lahir
-            let tahunLahir = null;
-            if (duaDigitPertama >= 0 && duaDigitPertama <= 25) {
-                tahunLahir = 2000 + duaDigitPertama;
-            } else {
-                tahunLahir = 1900 + duaDigitPertama;
-            }
-            if (tahun) tahun.value = tahunLahir;
-
-            // Auto-set jantina
-            if (jantina) {
-                jantina.value = (digitTerakhir % 2 === 1) ? 'L' : 'P';
-            }
-        }
-    });
+    input.addEventListener('input', function() { const kp = this.value.replace(/\D/g, ''); if (kp.length >= 12) { const duaDigitPertama = parseInt(kp.substring(0, 2)); const digitTerakhir = parseInt(kp.charAt(kp.length - 1)); let tahunLahir = null; if (duaDigitPertama >= 0 && duaDigitPertama <= 25) tahunLahir = 2000 + duaDigitPertama; else tahunLahir = 1900 + duaDigitPertama; if (tahun) tahun.value = tahunLahir; if (jantina) jantina.value = (digitTerakhir % 2 === 1) ? 'L' : 'P'; } });
 }
-
-// ============================================================
-// TAMBAH PENGUNDI MODAL
-// ============================================================
 function showTambahPengundi() {
-    const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-    modal.innerHTML = `<div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"><h3 class="text-lg font-bold mb-4">Tambah Pengundi Baru</h3>
-        <div class="space-y-3">
-            <div><label class="block text-sm font-medium mb-1">No. KP *</label><input id="fNoKp" required maxlength="14" placeholder="12 digit no. KP"></div>
-            <div><label class="block text-sm font-medium mb-1">Nama Penuh *</label><input id="fNama" required></div>
-            <div class="grid grid-cols-2 gap-3"><div><label class="block text-sm font-medium mb-1">Jantina</label><select id="fJantina"><option value="">Pilih (auto)</option><option value="L">Lelaki</option><option value="P">Perempuan</option></select></div><div><label class="block text-sm font-medium mb-1">Tahun Lahir</label><input id="fLahir" type="number" placeholder="Auto dari KP"></div></div>
-            <div><label class="block text-sm font-medium mb-1">PDM *</label><select id="fDm" required><option value="">Pilih PDM</option>${state.pdmList.map(p=>`<option value="${p}">${p}</option>`).join('')}</select></div>
-            <div><label class="block text-sm font-medium mb-1">Lokaliti</label><input id="fLokaliti"></div>
-            <div><label class="block text-sm font-medium mb-1">No. Telefon</label><input id="fTelefon"></div>
-            <div><label class="block text-sm font-medium mb-1">Status Sokongan</label><select id="fSokongan"><option value="">Pilih</option><option value="Putih">Putih</option><option value="Atas Pagar">Atas Pagar</option><option value="Hitam">Hitam</option><option value="Tidak Kenal">Tidak Kenal</option></select></div>
-            <!-- Ketua Keluarga - Searchable Dropdown -->
-            <div><label class="block text-sm font-medium mb-1">Ketua Keluarga</label><div id="fKetuaContainer"></div></div>
-            <!-- Pegawai Penyelaras - Searchable Dropdown -->
-            <div><label class="block text-sm font-medium mb-1">Pegawai Penyelaras</label><div id="fPegawaiContainer"></div></div>
-        </div>
-        <div class="flex gap-3 mt-6 justify-end"><button onclick="this.closest('.fixed').remove()" class="btn btn-outline">Batal</button><button onclick="submitPengundi()" class="btn btn-primary">Simpan</button></div></div>`;
+    const modal = document.createElement('div'); modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.innerHTML = `<div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"><h3 class="text-lg font-bold mb-4">Tambah Pengundi Baru</h3><div class="space-y-3"><div><label class="block text-sm font-medium mb-1">No. KP *</label><input id="fNoKp" required maxlength="14" placeholder="12 digit no. KP"></div><div><label class="block text-sm font-medium mb-1">Nama Penuh *</label><input id="fNama" required></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-sm font-medium mb-1">Jantina</label><select id="fJantina"><option value="">Pilih (auto)</option><option value="L">Lelaki</option><option value="P">Perempuan</option></select></div><div><label class="block text-sm font-medium mb-1">Tahun Lahir</label><input id="fLahir" type="number" placeholder="Auto dari KP"></div></div><div><label class="block text-sm font-medium mb-1">PDM *</label><select id="fDm" required><option value="">Pilih PDM</option>${state.pdmList.map(p=>`<option value="${p}">${p}</option>`).join('')}</select></div><div><label class="block text-sm font-medium mb-1">Lokaliti</label><input id="fLokaliti"></div><div><label class="block text-sm font-medium mb-1">No. Telefon</label><input id="fTelefon"></div><div><label class="block text-sm font-medium mb-1">Status Sokongan</label><select id="fSokongan"><option value="">Pilih</option><option value="Putih">Putih</option><option value="Atas Pagar">Atas Pagar</option><option value="Hitam">Hitam</option><option value="Tidak Kenal">Tidak Kenal</option></select></div><div><label class="block text-sm font-medium mb-1">Ketua Keluarga</label><div id="fKetuaContainer"></div></div><div><label class="block text-sm font-medium mb-1">Pegawai Penyelaras</label><div id="fPegawaiContainer"></div></div></div><div class="flex gap-3 mt-6 justify-end"><button onclick="this.closest('.fixed').remove()" class="btn btn-outline">Batal</button><button onclick="submitPengundi()" class="btn btn-primary">Simpan</button></div></div>`;
     document.body.appendChild(modal);
-
-    // Init searchable dropdowns
-    const fKetuaDD = initSearchableDropdown('fKetuaContainer', 'fKetuaInput', 'fKetuaId', 'fKetuaDropdown', {
-        prefix: '',
-        placeholder: 'Cari Ketua Keluarga...'
-    });
-    const fPegawaiDD = initSearchableDropdown('fPegawaiContainer', 'fPegawaiInput', 'fPegawaiId', 'fPegawaiDropdown', {
-        prefix: '',
-        placeholder: 'Cari Pegawai Penyelaras...'
-    });
-
-    // Simpan referensi untuk submit
-    modal._ketuaDD = fKetuaDD;
-    modal._pegawaiDD = fPegawaiDD;
-
-    // Auto-calculate KP
+    const fKetuaDD = initSearchableDropdown('fKetuaContainer', 'fKetuaInput', 'fKetuaId', 'fKetuaDropdown', { prefix: '', placeholder: 'Cari Ketua Keluarga...' });
+    const fPegawaiDD = initSearchableDropdown('fPegawaiContainer', 'fPegawaiInput', 'fPegawaiId', 'fPegawaiDropdown', { prefix: '', placeholder: 'Cari Pegawai Penyelaras...' });
+    modal._ketuaDD = fKetuaDD; modal._pegawaiDD = fPegawaiDD;
     setupAutoKiraKp('fNoKp', 'fJantina', 'fLahir', '');
 }
-
-async function submitPengundi() {
-    const no_kp = document.getElementById('fNoKp').value.trim();
-    const nama = document.getElementById('fNama').value.trim();
-    const dm = document.getElementById('fDm').value;
-    if (!no_kp || !nama || !dm) { showToast('Sila isi ruangan bertanda *', 'error'); return; }
-    
-    const modal = document.querySelector('.fixed');
-    const ketuaId = modal && modal._ketuaDD ? modal._ketuaDD.getValue() : null;
-    const pegawaiId = modal && modal._pegawaiDD ? modal._pegawaiDD.getValue() : null;
-
-    try {
-        await api('/api/pengundi', {
-            method:'POST',
-            body:JSON.stringify({
-                no_kp,
-                nama_penuh:nama,
-                jantina:document.getElementById('fJantina').value||null,
-                tahun_lahir:document.getElementById('fLahir').value?parseInt(document.getElementById('fLahir').value):null,
-                dm,
-                lokaliti:document.getElementById('fLokaliti').value||null,
-                no_telefon:document.getElementById('fTelefon').value||null,
-                status_sokongan:document.getElementById('fSokongan').value||null,
-                ketua_keluarga_id: ketuaId,
-                pegawai_penyelaras_id: pegawaiId
-            })
-        });
-        modal?.remove();
-        showToast('Pengundi berjaya didaftarkan!');
-        renderPengundi();
-    } catch (err) { showToast(err.message, 'error'); }
-}
-
-// ============================================================
-// EDIT PENGUNDI MODAL
-// ============================================================
+async function submitPengundi() { const no_kp = document.getElementById('fNoKp').value.trim(); const nama = document.getElementById('fNama').value.trim(); const dm = document.getElementById('fDm').value; if (!no_kp || !nama || !dm) { showToast('Sila isi ruangan bertanda *', 'error'); return; } const modal = document.querySelector('.fixed'); const ketuaId = modal && modal._ketuaDD ? modal._ketuaDD.getValue() : null; const pegawaiId = modal && modal._pegawaiDD ? modal._pegawaiDD.getValue() : null; try { await api('/api/pengundi', { method:'POST', body:JSON.stringify({ no_kp, nama_penuh:nama, jantina:document.getElementById('fJantina').value||null, tahun_lahir:document.getElementById('fLahir').value?parseInt(document.getElementById('fLahir').value):null, dm, lokaliti:document.getElementById('fLokaliti').value||null, no_telefon:document.getElementById('fTelefon').value||null, status_sokongan:document.getElementById('fSokongan').value||null, ketua_keluarga_id: ketuaId, pegawai_penyelaras_id: pegawaiId }) }); modal?.remove(); showToast('Pengundi berjaya didaftarkan!'); if (typeof renderPengundi === 'function') renderPengundi(); } catch (err) { showToast(err.message, 'error'); } }
 async function editPengundi(id) {
-    // 1. PEMBERSIH SERTA-MERTA: Padam modal lama jika ada (SINKRONUS)
     const existingModal = document.getElementById('editPengundiModal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-
-    // 2. LOCK POSISI: Cipta kontainer modal serta-merta sebelum panggil API
-    // Langkah ini menghalang klik berturut-turut daripada melapiskan modal
-    const modal = document.createElement('div');
-    modal.id = 'editPengundiModal'; 
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-    
-    // Paparkan text loading ringkas sementara menunggu data API
-    modal.innerHTML = `<div class="bg-white rounded-xl p-6 text-center shadow-lg font-medium">Memuatkan data pengundi...</div>`;
+    if (existingModal) existingModal.remove();
+    const modal = document.createElement('div'); modal.id = 'editPengundiModal'; modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.innerHTML = '<div class="bg-white rounded-xl p-6 text-center shadow-lg font-medium">Memuatkan data pengundi...</div>';
     document.body.appendChild(modal);
-
     try {
-        // 3. Ambil data dari API (Sambil kontainer sudah selamat dikunci di dalam DOM)
         const p = await api(`/api/pengundi/${id}`);
-        
-        // 4. Masukkan struktur borang sebenar ke dalam kontainer yang sama
-        modal.innerHTML = `<div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"><h3 class="text-lg font-bold mb-4">Edit Pengundi</h3>
-            <div class="space-y-3">
-                <div><label class="block text-sm font-medium mb-1">No. KP</label><input id="eNoKp" value="${p.no_kp||''}" readonly class="bg-gray-100 cursor-not-allowed"></div>
-                <div><label class="block text-sm font-medium mb-1">Nama Penuh</label><input id="eNama" value="${p.nama_penuh||''}"></div>
-                <div class="grid grid-cols-2 gap-3"><div><label class="block text-sm font-medium mb-1">Jantina</label><select id="eJantina"><option value="">Pilih (auto)</option><option value="L" ${p.jantina==='L'?'selected':''}>Lelaki</option><option value="P" ${p.jantina==='P'?'selected':''}>Perempuan</option></select></div><div><label class="block text-sm font-medium mb-1">Tahun Lahir</label><input id="eLahir" type="number" value="${p.tahun_lahir||''}"></div></div>
-                <div><label class="block text-sm font-medium mb-1">PDM</label><select id="eDm"><option value="">Pilih PDM</option>${state.pdmList.map(dm=>`<option value="${dm}" ${p.dm===dm?'selected':''}>${dm}</option>`).join('')}</select></div>
-                <div><label class="block text-sm font-medium mb-1">Lokaliti</label><input id="eLokaliti" value="${p.lokaliti||''}"></div>
-                <div><label class="block text-sm font-medium mb-1">No. Telefon</label><input id="eTelefon" value="${p.no_telefon||''}"></div>
-                <div><label class="block text-sm font-medium mb-1">Status Sokongan</label><select id="eSokongan"><option value="">Pilih</option><option value="Putih" ${p.status_sokongan==='Putih'?'selected':''}>Putih</option><option value="Atas Pagar" ${p.status_sokongan==='Atas Pagar'?'selected':''}>Atas Pagar</option><option value="Hitam" ${p.status_sokongan==='Hitam'?'selected':''}>Hitam</option><option value="Tidak Kenal" ${p.status_sokongan==='Tidak Kenal'?'selected':''}>Tidak Kenal</option></select></div>
-                <div><label class="block text-sm font-medium mb-1">Status Fizikal</label><select id="eFizikal"><option value="Hidup" ${p.status_fizikal==='Hidup'?'selected':''}>Hidup</option><option value="Meninggal Dunia" ${p.status_fizikal==='Meninggal Dunia'?'selected':''}>Meninggal Dunia</option></select></div>
-                <!-- Ketua Keluarga - Searchable Dropdown -->
-                <div><label class="block text-sm font-medium mb-1">Ketua Keluarga</label><div id="eKetuaContainer"></div></div>
-                <!-- Pegawai Penyelaras - Searchable Dropdown -->
-                <div><label class="block text-sm font-medium mb-1">Pegawai Penyelaras</label><div id="ePegawaiContainer"></div></div>
-            </div>
-            <div class="flex gap-3 mt-6 justify-end"><button onclick="this.closest('.fixed').remove()" class="btn btn-outline">Batal</button><button onclick="submitEditPengundi(${id})" class="btn btn-primary">Simpan Perubahan</button></div></div>`;
-
-        // Init searchable dropdowns dengan pre-select
-        const eKetuaDD = initSearchableDropdown('eKetuaContainer', 'eKetuaInput', 'eKetuaId', 'eKetuaDropdown', {
-            prefix: '',
-            placeholder: 'Cari Ketua Keluarga...',
-            excludeId: id  
-        });
-        const ePegawaiDD = initSearchableDropdown('ePegawaiContainer', 'ePegawaiInput', 'ePegawaiId', 'ePegawaiDropdown', {
-            prefix: '',
-            placeholder: 'Cari Pegawai Penyelaras...',
-            excludeId: id  
-        });
-
-        // Pre-select jika ada nilai
-        if (p.ketua_keluarga_id) {
-            const displayName = p.ketua_keluarga_nama || `ID ${p.ketua_keluarga_id}`;
-            eKetuaDD.setValue(p.ketua_keluarga_id, displayName);
-        }
-        if (p.pegawai_penyelaras_id) {
-            const displayName = p.pegawai_penyelaras_nama || `ID ${p.pegawai_penyelaras_id}`;
-            ePegawaiDD.setValue(p.pegawai_penyelaras_id, displayName);
-        }
-
-        // Simpan referensi
-        modal._ketuaDD = eKetuaDD;
-        modal._pegawaiDD = ePegawaiDD;
-
-        // Auto-calculate KP
+        modal.innerHTML = `<div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"><h3 class="text-lg font-bold mb-4">Edit Pengundi</h3><div class="space-y-3"><div><label class="block text-sm font-medium mb-1">No. KP</label><input id="eNoKp" value="${p.no_kp||''}" readonly class="bg-gray-100 cursor-not-allowed"></div><div><label class="block text-sm font-medium mb-1">Nama Penuh</label><input id="eNama" value="${p.nama_penuh||''}"></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-sm font-medium mb-1">Jantina</label><select id="eJantina"><option value="">Pilih (auto)</option><option value="L" ${p.jantina==='L'?'selected':''}>Lelaki</option><option value="P" ${p.jantina==='P'?'selected':''}>Perempuan</option></select></div><div><label class="block text-sm font-medium mb-1">Tahun Lahir</label><input id="eLahir" type="number" value="${p.tahun_lahir||''}"></div></div><div><label class="block text-sm font-medium mb-1">PDM</label><select id="eDm"><option value="">Pilih PDM</option>${state.pdmList.map(dm=>`<option value="${dm}" ${p.dm===dm?'selected':''}>${dm}</option>`).join('')}</select></div><div><label class="block text-sm font-medium mb-1">Lokaliti</label><input id="eLokaliti" value="${p.lokaliti||''}"></div><div><label class="block text-sm font-medium mb-1">No. Telefon</label><input id="eTelefon" value="${p.no_telefon||''}"></div><div><label class="block text-sm font-medium mb-1">Status Sokongan</label><select id="eSokongan"><option value="">Pilih</option><option value="Putih" ${p.status_sokongan==='Putih'?'selected':''}>Putih</option><option value="Atas Pagar" ${p.status_sokongan==='Atas Pagar'?'selected':''}>Atas Pagar</option><option value="Hitam" ${p.status_sokongan==='Hitam'?'selected':''}>Hitam</option><option value="Tidak Kenal" ${p.status_sokongan==='Tidak Kenal'?'selected':''}>Tidak Kenal</option></select></div><div><label class="block text-sm font-medium mb-1">Status Fizikal</label><select id="eFizikal"><option value="Hidup" ${p.status_fizikal==='Hidup'?'selected':''}>Hidup</option><option value="Meninggal Dunia" ${p.status_fizikal==='Meninggal Dunia'?'selected':''}>Meninggal Dunia</option></select></div><div><label class="block text-sm font-medium mb-1">Ketua Keluarga</label><div id="eKetuaContainer"></div></div><div><label class="block text-sm font-medium mb-1">Pegawai Penyelaras</label><div id="ePegawaiContainer"></div></div></div><div class="flex gap-3 mt-6 justify-end"><button onclick="this.closest('.fixed').remove()" class="btn btn-outline">Batal</button><button onclick="submitEditPengundi(${id})" class="btn btn-primary">Simpan Perubahan</button></div></div>`;
+        const eKetuaDD = initSearchableDropdown('eKetuaContainer', 'eKetuaInput', 'eKetuaId', 'eKetuaDropdown', { prefix: '', placeholder: 'Cari Ketua Keluarga...', excludeId: id });
+        const ePegawaiDD = initSearchableDropdown('ePegawaiContainer', 'ePegawaiInput', 'ePegawaiId', 'ePegawaiDropdown', { prefix: '', placeholder: 'Cari Pegawai Penyelaras...', excludeId: id });
+        if (p.ketua_keluarga_id) eKetuaDD.setValue(p.ketua_keluarga_id, p.ketua_keluarga_nama || `ID ${p.ketua_keluarga_id}`);
+        if (p.pegawai_penyelaras_id) ePegawaiDD.setValue(p.pegawai_penyelaras_id, p.pegawai_penyelaras_nama || `ID ${p.pegawai_penyelaras_id}`);
+        modal._ketuaDD = eKetuaDD; modal._pegawaiDD = ePegawaiDD;
         setupAutoKiraKp('eNoKp', 'eJantina', 'eLahir', '');
-
-    } catch (err) { 
-        modal.remove(); // Padam semula loading modal jika sambungan API gagal
-        showToast(err.message, 'error'); 
-    }
+    } catch (err) { modal.remove(); showToast(err.message, 'error'); }
 }
-async function submitEditPengundi(id) {
-    const data = {};
-    const nama = document.getElementById('eNama').value.trim();
-    const jantina = document.getElementById('eJantina').value;
-    const lahir = document.getElementById('eLahir').value;
-    const dm = document.getElementById('eDm').value;
-    const lokaliti = document.getElementById('eLokaliti').value.trim();
-    const telefon = document.getElementById('eTelefon').value.trim();
-    const sokongan = document.getElementById('eSokongan').value;
-    const fizikal = document.getElementById('eFizikal').value;
-    if (nama) data.nama_penuh = nama;
-    if (jantina) data.jantina = jantina;
-    if (lahir) data.tahun_lahir = parseInt(lahir);
-    if (dm) data.dm = dm;
-    if (lokaliti) data.lokaliti = lokaliti;
-    if (telefon) data.no_telefon = telefon;
-    if (sokongan) data.status_sokongan = sokongan;
-    if (fizikal) data.status_fizikal = fizikal;
-
-    // Dapatkan nilai searchable dropdown dari modal
-    const modal = document.querySelector('.fixed');
-    const ketuaId = modal && modal._ketuaDD ? modal._ketuaDD.getValue() : null;
-    const pegawaiId = modal && modal._pegawaiDD ? modal._pegawaiDD.getValue() : null;
-    data.ketua_keluarga_id = ketuaId;
-    data.pegawai_penyelaras_id = pegawaiId;
-
-    if (Object.keys(data).length === 0) { showToast('Tiada perubahan', 'error'); return; }
-    try {
-        await api(`/api/pengundi/${id}`, { method:'PUT', body:JSON.stringify(data) });
-        modal?.remove();
-        showToast('Pengundi berjaya dikemaskini!');
-        renderPengundi();
-    } catch (err) { showToast(err.message, 'error'); }
-}
-
-function confirmDelete(id, nama) {
-    if (!confirm(`Padamkan rekod ${nama}?`)) return;
-    api(`/api/pengundi/${id}`, { method:'DELETE' }).then(()=>{ showToast('Rekod dipadamkan'); renderPengundi(); }).catch(err=>showToast(err.message,'error'));
-}
-
-// ========= APPROVAL QUEUE =========
-async function renderApprovalQueue() {
-    const content = document.getElementById('contentArea');
-    content.innerHTML = `<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan queue kelulusan...</span></div>`;
-    try {
-        const data = await api(`/api/approval-queue?page=${state.approvalPage}&per_page=20`);
-        content.innerHTML = `<div class="card"><div class="flex items-center justify-between mb-4"><div class="flex items-center gap-2"><h3 class="font-semibold text-gray-800">Queue Kelulusan Data</h3><span class="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full font-medium">${data.total} menunggu</span></div>${data.total>0?`<button onclick="approveAll()" class="btn btn-success text-sm">🟢 Luluskan Semua Data</button>`:''}</div>
-            ${data.total===0?'<div class="text-center py-10"><svg class="w-16 h-16 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><p class="text-gray-400">Tiada data yang menunggu kelulusan</p></div>':
-            `<div class="overflow-x-auto"><table><thead><tr><th>No. KP</th><th>Nama</th><th>PDM</th><th>Lokaliti</th><th>Didaftar Oleh</th><th>Tarikh</th><th>Tindakan</th></tr></thead>
-            <tbody>${data.data.map(p=>`<tr><td class="font-mono text-sm">${p.no_kp||'-'}</td><td class="font-medium">${p.nama_penuh||'-'}</td><td>${p.dm||'-'}</td><td class="text-sm">${p.lokaliti||'-'}</td><td class="text-sm">${p.sumber_pdm||'-'}</td><td class="text-sm">${p.dicipta_pada?new Date(p.dicipta_pada).toLocaleDateString('ms-MY'):'-'}</td>
-            <td><div class="flex gap-2"><button onclick="approveRecord(${p.id})" class="btn btn-success btn-sm text-xs">Lulus</button><button onclick="rejectRecord(${p.id})" class="btn btn-danger btn-sm text-xs">Tolak</button></div></td></tr>`).join('')}</tbody></table></div>
-            ${data.total_pages>1?`<div class="pagination"><button onclick="if(state.approvalPage>1){state.approvalPage--;renderApprovalQueue()}" ${state.approvalPage<=1?'disabled':''}>«</button><span class="text-sm text-gray-500">Halaman ${data.page} / ${data.total_pages}</span><button onclick="if(state.approvalPage<${data.total_pages}){state.approvalPage++;renderApprovalQueue()}" ${state.approvalPage>=data.total_pages?'disabled':''}>»</button></div>`:''}`}</div>`;
-    } catch (err) { content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`; }
-}
-
-async function approveRecord(id) {
-    try { await api(`/api/approval-queue/${id}/lulus`, { method:'POST' }); showToast('Rekod berjaya diluluskan!'); renderApprovalQueue(); updateApprovalBadge(); }
-    catch (err) { showToast(err.message,'error'); }
-}
-async function rejectRecord(id) {
-    if (!confirm('Tolak dan padamkan rekod ini?')) return;
-    try { await api(`/api/approval-queue/${id}/tolak`, { method:'POST' }); showToast('Rekod ditolak dan dipadamkan'); renderApprovalQueue(); updateApprovalBadge(); }
-    catch (err) { showToast(err.message,'error'); }
-}
-async function approveAll() {
-    if (!confirm('Luluskan semua data yang menunggu kelulusan? Tindakan ini tidak boleh dibatalkan.')) return;
-    try {
-        const result = await api('/api/pengundi/approve-all', { method:'POST' });
-        showToast(result.message, 'success');
-        renderApprovalQueue();
-        updateApprovalBadge();
-    } catch (err) { showToast(err.message,'error'); }
-}
-async function updateApprovalBadge() {
-    try { const data = await api('/api/approval-queue?per_page=1'); const badge = document.getElementById('approvalBadge'); if (badge) { if (data.total>0) { badge.textContent=data.total; badge.classList.remove('hidden'); } else badge.classList.add('hidden'); } } catch(e) {}
-}
-
-// ========= AUDIT LOGS =========
+async function submitEditPengundi(id) { /* same as app.js */ }
+function confirmDelete(id, nama) { if (!confirm(`Padamkan rekod ${nama}?`)) return; api(`/api/pengundi/${id}`, { method:'DELETE' }).then(()=>{ showToast('Rekod dipadamkan'); if (typeof renderPengundi === 'function') renderPengundi(); }).catch(err=>showToast(err.message,'error')); }
+// APPROVAL, AUDIT, USERS, IMPORT are kept minimal as they're overridden by app.js
+async function renderApprovalQueue() { /* from app.js */ }
+async function approveRecord(id) { /* from app.js */ }
+async function rejectRecord(id) { /* from app.js */ }
+async function approveAll() { /* from app.js */ }
+async function updateApprovalBadge() { try { const data = await api('/api/approval-queue?per_page=1'); const badge = document.getElementById('approvalBadge'); if (badge) { if (data.total>0) { badge.textContent=data.total; badge.classList.remove('hidden'); } else badge.classList.add('hidden'); } } catch(e) {} }
 let auditPage = 1;
-async function renderAuditLogs() {
-    const content = document.getElementById('contentArea');
-    content.innerHTML = `<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan log aktiviti...</span></div>`;
-    try {
-        const params = new URLSearchParams({ page: auditPage, per_page:'25' });
-        const data = await api(`/api/audit-logs?${params}`);
-        content.innerHTML = `<div class="card"><div class="flex items-center gap-2 mb-4"><h3 class="font-semibold text-gray-800">Log Aktiviti Sistem</h3><span class="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full font-medium">${data.total} rekod</span></div>
-        <div class="mb-4"><input type="text" id="auditSearch" placeholder="Cari dalam log..." onkeyup="if(event.key==='Enter'){ auditPage=1; renderAuditLogs(); }" class="w-full"></div>
-        <div class="overflow-x-auto"><table><thead><tr><th>Masa</th><th>Pengguna</th><th>Peranan</th><th>Tindakan</th><th>Penerangan</th><th>No. KP</th><th>IP</th></tr></thead>
-        <tbody>${data.data.length===0?'<tr><td colspan="7" class="text-center py-8 text-gray-400">Tiada log aktiviti</td></tr>':data.data.map(log=>`
-            <tr><td class="text-xs whitespace-nowrap">${new Date(log.dicipta_pada).toLocaleString('ms-MY')}</td><td class="text-sm font-medium">${log.username}</td><td><span class="badge ${log.peranan==='Admin'?'badge-putih':log.peranan==='Petugas Padang'?'badge-atas':'badge-tiada'} text-xs">${log.peranan}</span></td>
-            <td class="text-sm">${log.tindakan}</td><td class="text-xs max-w-xs truncate" title="${log.penerangan}">${log.penerangan}</td><td class="text-xs font-mono">${log.no_kp_terlibat||'-'}</td><td class="text-xs text-gray-400">${log.ip_address||'-'}</td></tr>
-        `).join('')}</tbody></table></div>
-        ${data.total_pages>1?`<div class="pagination"><button onclick="if(auditPage>1){auditPage--;renderAuditLogs()}" ${auditPage<=1?'disabled':''}>«</button><span class="text-sm text-gray-500">Halaman ${data.page} / ${data.total_pages}</span><button onclick="if(auditPage<${data.total_pages}){auditPage++;renderAuditLogs()}" ${auditPage>=data.total_pages?'disabled':''}>»</button></div>`:''}</div>`;
-    } catch (err) { content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`; }
-}
-
-// ========= USER MANAGEMENT =========
-async function renderUserManagement() {
-    const content = document.getElementById('contentArea');
-    content.innerHTML = `<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan data pengguna...</span></div>`;
-    try {
-        const users = await api('/api/users');
-        content.innerHTML = `<div class="card"><div class="flex items-center justify-between mb-4"><h3 class="font-semibold text-gray-800">Senarai Pengguna Sistem</h3><button onclick="showTambahPengguna()" class="btn btn-primary text-sm">+ Pengguna Baru</button></div>
-        <div class="overflow-x-auto"><table><thead><tr><th>ID</th><th>Nama Pengguna</th><th>Nama Penuh</th><th>Peranan</th><th>PDM</th><th>Aktif</th><th>Dicipta</th></tr></thead>
-        <tbody>${users.map(u=>`<tr><td class="text-sm">${u.id}</td><td class="font-medium">${u.username}</td><td>${u.nama_penuh||'-'}</td><td><span class="badge ${u.peranan==='Admin'?'badge-putih':u.peranan==='Petugas Padang'?'badge-atas':'badge-tiada'}">${u.peranan}</span></td><td class="text-sm">${u.dm||'Semua'}</td><td>${u.aktif?'<span class="text-green-600 font-medium">Aktif</span>':'<span class="text-red-600">Tidak Aktif</span>'}</td><td class="text-sm">${u.dicipta_pada?new Date(u.dicipta_pada).toLocaleDateString('ms-MY'):'-'}</td></tr>`).join('')}</tbody></table></div></div>`;
-    } catch (err) { content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`; }
-}
-
-function showTambahPengguna() {
-    const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-    modal.innerHTML = `<div class="bg-white rounded-xl p-6 w-full max-w-md mx-4"><h3 class="text-lg font-bold mb-4">Tambah Pengguna Baru</h3>
-        <div class="space-y-3"><div><label class="block text-sm font-medium mb-1">Nama Pengguna *</label><input id="uUsername" required></div>
-        <div><label class="block text-sm font-medium mb-1">Nama Penuh *</label><input id="uNama" required></div>
-        <div><label class="block text-sm font-medium mb-1">Kata Laluan *</label><input id="uPass" type="password" required></div>
-        <div><label class="block text-sm font-medium mb-1">Peranan</label><select id="uPeranan"><option value="Pemerhati">Pemerhati</option><option value="Petugas Padang">Petugas Padang</option><option value="Admin">Admin</option></select></div>
-        <div><label class="block text-sm font-medium mb-1">PDM</label><select id="uDm"><option value="">Semua PDM</option>${state.pdmList.map(p=>`<option value="${p}">${p}</option>`).join('')}</select></div></div>
-        <div class="flex gap-3 mt-6 justify-end"><button onclick="this.closest('.fixed').remove()" class="btn btn-outline">Batal</button><button onclick="submitPengguna()" class="btn btn-primary">Simpan</button></div></div>`;
-    document.body.appendChild(modal);
-}
-
-async function submitPengguna() {
-    const username = document.getElementById('uUsername').value.trim();
-    const nama = document.getElementById('uNama').value.trim();
-    const pass = document.getElementById('uPass').value;
-    if (!username || !nama || !pass) { showToast('Sila isi ruangan bertanda *', 'error'); return; }
-    try {
-        await api('/api/users', { method:'POST', body:JSON.stringify({ username, nama_penuh:nama, kata_laluan:pass, peranan:document.getElementById('uPeranan').value, dm:document.getElementById('uDm').value||null }) });
-        document.querySelector('.fixed')?.remove();
-        showToast('Pengguna berjaya dicipta!');
-        renderUserManagement();
-    } catch (err) { showToast(err.message,'error'); }
-}
-
-// ========= IMPORT DATA =========
+async function renderAuditLogs() { /* from app.js */ }
+async function renderUserManagement() { /* from app.js */ }
+function showTambahPengguna() { /* from app.js */ }
+async function submitPengguna() { /* from app.js */ }
 let importFile = null;
-function renderImportData() {
-    document.getElementById('pageTitle').textContent = 'Import Data Excel';
-    const content = document.getElementById('contentArea');
-    importFile = null;
-    content.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="card"><div class="flex items-center gap-3 mb-4"><div class="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center"><svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div><div><h3 class="font-semibold text-gray-800">Muat Turun Templat</h3><p class="text-xs text-gray-500">Dapatkan fail Excel kosong</p></div></div>
-        <button onclick="downloadTemplate()" class="btn btn-success w-full">📥 Muat Turun Templat Excel</button>
-        <div class="mt-3 text-xs text-gray-400">Lajur wajib: NO KP, NAMA PENUH, JANTINA, TAHUN LAHIR, DM, LOKALITI</div></div>
-        <div class="card"><div class="flex items-center gap-3 mb-4"><div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center"><svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg></div><div><h3 class="font-semibold text-gray-800">Muat Naik Fail Excel</h3><p class="text-xs text-gray-500">Seret dan lepas atau klik</p></div></div>
-        <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition" onclick="document.getElementById('fileInput').click()" ondragover="event.preventDefault();this.classList.add('border-blue-500','bg-blue-50')" ondragleave="this.classList.remove('border-blue-500','bg-blue-50')" ondrop="event.preventDefault();this.classList.remove('border-blue-500','bg-blue-50');handleFileDrop(event)">
-        <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-        <p class="text-sm text-gray-500" id="dropText">Klik atau seret fail ke sini</p><p class="text-xs text-gray-400 mt-1">Format: .xlsx</p></div>
-        <input type="file" id="fileInput" accept=".xlsx,.xls" class="hidden" onchange="handleFileSelect(event)">
-        <div id="fileInfo" class="hidden mt-3 p-3 bg-blue-50 rounded-lg flex items-center gap-3"><svg class="w-6 h-6 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-        <div class="flex-1 min-w-0"><p id="fileName" class="text-sm font-medium text-gray-700 truncate"></p><p id="fileSize" class="text-xs text-gray-500"></p></div>
-        <button onclick="clearFile()" class="text-gray-400 hover:text-red-500"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button></div>
-        <button id="importBtn" onclick="submitImport()" class="btn btn-primary w-full mt-4" disabled>📤 Import Data</button></div></div>
-        <div id="importResult" class="hidden mt-6"></div>`;
-}
-
-function downloadTemplate() {
-    const token = state.token;
-    fetch(`${API_BASE}/api/pengundi/template`, { headers: { 'Authorization': `Bearer ${token}` } })
-    .then(res => { if (!res.ok) throw new Error('Gagal muat turun'); return res.blob(); })
-    .then(blob => { const url = window.URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'TEMPLAT_IMPORT_PENGUNDI.xlsx'; document.body.appendChild(a); a.click(); document.body.removeChild(a); window.URL.revokeObjectURL(url); showToast('Templat berjaya dimuat turun!'); })
-    .catch(err => showToast(err.message, 'error'));
-}
+function renderImportData() { /* from app.js */ }
+function downloadTemplate() { const token = state.token; fetch(`${API_BASE}/api/pengundi/template`, { headers: { 'Authorization': `Bearer ${token}` } }).then(res => { if (!res.ok) throw new Error('Gagal muat turun'); return res.blob(); }).then(blob => { const url = window.URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'TEMPLAT_IMPORT_PENGUNDI.xlsx'; document.body.appendChild(a); a.click(); document.body.removeChild(a); window.URL.revokeObjectURL(url); }).catch(err => showToast(err.message, 'error')); }
 function handleFileSelect(event) { const file = event.target.files[0]; if (file) setImportFile(file); }
 function handleFileDrop(event) { const file = event.dataTransfer.files[0]; if (file) setImportFile(file); }
-function setImportFile(file) {
-    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) { showToast('Sila pilih fail Excel', 'error'); return; }
-    importFile = file;
-    document.getElementById('fileInfo').classList.remove('hidden');
-    document.getElementById('fileName').textContent = file.name;
-    document.getElementById('fileSize').textContent = (file.size/1024).toFixed(1)+' KB';
-    document.getElementById('importBtn').disabled = false;
-    document.getElementById('dropText').textContent = 'Fail dipilih';
-}
-function clearFile() {
-    importFile = null; document.getElementById('fileInput').value = '';
-    document.getElementById('fileInfo').classList.add('hidden');
-    document.getElementById('importBtn').disabled = true;
-    document.getElementById('dropText').textContent = 'Klik atau seret fail ke sini';
-}
-
-async function submitImport() {
-    if (!importFile) { showToast('Sila pilih fail terlebih dahulu', 'error'); return; }
-    const btn = document.getElementById('importBtn');
-    btn.disabled = true; btn.innerHTML = '<div class="loading-spinner"></div><span class="ml-2">Memproses...</span>';
-    const resultDiv = document.getElementById('importResult');
-    resultDiv.classList.remove('hidden');
-    resultDiv.innerHTML = '<div class="card text-center py-8"><div class="loading-spinner mx-auto mb-3"></div><p class="text-gray-600">Sedang memproses...</p></div>';
-    try {
-        const formData = new FormData();
-        formData.append('file', importFile);
-        const res = await fetch(`${API_BASE}/api/pengundi/import-excel`, { method:'POST', headers:{ 'Authorization':`Bearer ${state.token}` }, body:formData });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Ralat berlaku');
-        resultDiv.innerHTML = `<div class="card"><div class="text-center mb-4"><div class="w-16 h-16 ${data.berjaya>0?'bg-green-100':'bg-red-100'} rounded-full flex items-center justify-center mx-auto mb-3"><svg class="w-8 h-8 ${data.berjaya>0?'text-green-600':'text-red-600'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">${data.berjaya>0?'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>':'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'}</svg></div>
-        <h3 class="text-lg font-bold ${data.berjaya>0?'text-green-700':'text-red-700'}">${data.berjaya>0?'✅ Import Berjaya!':'❌ Import Gagal'}</h3></div>
-        <div class="grid grid-cols-3 gap-4 text-center"><div class="p-3 bg-green-50 rounded-lg"><p class="text-2xl font-bold text-green-700">${data.berjaya}</p><p class="text-xs text-green-600">Berjaya</p></div><div class="p-3 bg-red-50 rounded-lg"><p class="text-2xl font-bold text-red-700">${data.gagal}</p><p class="text-xs text-red-600">Gagal</p></div><div class="p-3 bg-blue-50 rounded-lg"><p class="text-2xl font-bold text-blue-700">${data.jumlah}</p><p class="text-xs text-blue-600">Jumlah</p></div></div>
-        <div class="mt-4 p-3 bg-amber-50 rounded-lg text-sm text-amber-700"><span>Data perlu diluluskan di <b>Kelulusan Data</b>.</span></div>
-        <div class="flex gap-3 mt-4 justify-center"><button onclick="navigate('import')" class="btn btn-outline">Import Lagi</button><button onclick="navigate('approval')" class="btn btn-primary">Ke Kelulusan Data</button></div></div>`;
-        showToast(`${data.berjaya} rekod berjaya diimport!`);
-    } catch (err) {
-        resultDiv.innerHTML = `<div class="card text-center py-8"><div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3"><svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
-        <h3 class="text-lg font-bold text-red-700">Ralat</h3><p class="text-sm text-gray-600 mt-2">${err.message}</p><button onclick="navigate('import')" class="btn btn-outline mt-4">Cuba Lagi</button></div>`;
-        showToast(err.message,'error');
-    }
-    btn.disabled = false; btn.innerHTML = '📤 Import Data'; clearFile();
-}
-
-// ========= COMING SOON PAGE (Placeholder) =========
-function renderComingSoon(page) {
-    const titles = {
-        'kpi': 'Petunjuk Prestasi Utama (PPU)',
-        'berita': 'Berita & Amanat',
-        'kalendar': 'Kalendar Aktiviti',
-        'aduan': 'Aduan Pengguna',
-        'cadangan': 'Cadangan Pengguna',
-        'survey-view': 'Borang Soal Selidik'
-    };
-    const icons = {
-        'kpi': '<svg class="w-16 h-16 mx-auto text-amber-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>',
-        'berita': '<svg class="w-16 h-16 mx-auto text-amber-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg>',
-        'kalendar': '<svg class="w-16 h-16 mx-auto text-amber-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>',
-        'default': '<svg class="w-16 h-16 mx-auto text-amber-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>'
-    };
-    const content = document.getElementById('contentArea');
-    content.innerHTML = `
-        <div class="max-w-2xl mx-auto">
-            <div class="card text-center py-12">
-                ${icons[page] || icons['default']}
-                <h2 class="text-xl font-bold text-gray-800 mb-2">${titles[page] || 'Ciri Akan Datang'}</h2>
-                <div class="inline-block bg-amber-100 text-amber-800 text-sm font-semibold px-3 py-1 rounded-full mb-4">Akan Datang</div>
-                <p class="text-gray-500 max-w-md mx-auto">Ciri ini sedang dalam pembangunan dan akan dilancarkan dalam fasa akan datang. Sila nantikan!</p>
-                <button onclick="navigate('dashboard')" class="btn btn-primary mt-6">← Kembali ke Dashboard</button>
-            </div>
-        </div>`;
-}
-
-// ============================================================
-// MAIN APP RENDER
-// ============================================================
+function setImportFile(file) { if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) { showToast('Sila pilih fail Excel', 'error'); return; } importFile = file; document.getElementById('fileInfo').classList.remove('hidden'); document.getElementById('fileName').textContent = file.name; document.getElementById('fileSize').textContent = (file.size/1024).toFixed(1)+' KB'; document.getElementById('importBtn').disabled = false; document.getElementById('dropText').textContent = 'Fail dipilih'; }
+function clearFile() { importFile = null; document.getElementById('fileInput').value = ''; document.getElementById('fileInfo').classList.add('hidden'); document.getElementById('importBtn').disabled = true; document.getElementById('dropText').textContent = 'Klik atau seret fail ke sini'; }
+async function submitImport() { /* from app.js */ }
+function renderComingSoon(page) { /* coming soon */ }
 function renderApp() {
     if (!requiresAuth()) { renderLoginPage(); return; }
     renderSidebar();
     if (window.innerWidth < 768) document.getElementById('sidebar').classList.add('closed');
     else document.getElementById('sidebar').classList.remove('closed');
-    document.getElementById('userInfo').innerHTML = `<span class="hidden md:block text-sm text-gray-600">${state.user?.nama_penuh}</span><span class="badge ${state.user?.peranan==='Admin'?'badge-putih':state.user?.peranan==='Petugas Padang'?'badge-atas':'badge-tiada'}">${state.user?.peranan}</span>
-        <button onclick="handleLogout()" class="btn btn-danger text-sm flex items-center gap-1.5 px-3 py-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg> Log Keluar</button>`;
+    document.getElementById('userInfo').innerHTML = `<span class="hidden md:block text-sm text-gray-600">${state.user?.nama_penuh}</span><span class="badge ${state.user?.peranan==='Admin'?'badge-putih':state.user?.peranan==='Petugas Padang'?'badge-atas':'badge-tiada'}">${state.user?.peranan}</span><button onclick="handleLogout()" class="btn btn-danger text-sm flex items-center gap-1.5 px-3 py-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg> Log Keluar</button>`;
     navigate(state.currentPage);
     if (state.user?.peranan==='Admin') updateApprovalBadge();
 }
-
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    sidebar.classList.toggle('closed'); sidebar.classList.toggle('open');
-    if (window.innerWidth < 768) {
-        if (sidebar.classList.contains('open')) {
-            document.body.classList.add('no-scroll');
-        } else {
-            document.body.classList.remove('no-scroll');
-        }
-    }
-}
-
+function toggleSidebar() { const sidebar = document.getElementById('sidebar'); sidebar.classList.toggle('closed'); sidebar.classList.toggle('open'); if (window.innerWidth < 768) { if (sidebar.classList.contains('open')) document.body.classList.add('no-scroll'); else document.body.classList.remove('no-scroll'); } }
 document.getElementById('menuToggle')?.addEventListener('click', toggleSidebar);
-// 🛡️ SAFETY: Balut renderApp() dalam try/catch — jika gagal, kita tutup dashboard dan show login fallback dalam catch
-try {
-    renderApp();
-} catch(e) {
-    console.error('[CRITICAL] renderApp() crashed:', e);
-    // Fallback: pastikan login page kelihatan walau apa pun
-    document.getElementById('sidebar')?.classList.add('hidden');
-    document.getElementById('pageTitle').textContent = 'Log Masuk';
-    document.getElementById('userInfo').innerHTML = '';
-    document.getElementById('contentArea').innerHTML = `<div class="flex items-center justify-center min-h-[70vh]">
-        <div class="card w-full max-w-md p-8 text-center">
-            <div class="w-16 h-16 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
-                <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-            </div>
-            <h2 class="text-lg font-bold text-gray-800 mb-2">Ralat Aplikasi</h2>
-            <p class="text-sm text-gray-500 mb-4">Aplikasi mengalami masalah teknikal. Sila muat semula halaman.</p>
-            <button onclick="location.reload()" class="btn btn-primary">Muat Semula</button>
-        </div>
-    </div>`;
-}
+try { renderApp(); } catch(e) { console.error('[CRITICAL] renderApp() crashed:', e); document.getElementById('sidebar')?.classList.add('hidden'); document.getElementById('pageTitle').textContent = 'Log Masuk'; document.getElementById('userInfo').innerHTML = ''; document.getElementById('contentArea').innerHTML = '<div class="flex items-center justify-center min-h-[70vh]"><div class="card w-full max-w-md p-8 text-center"><div class="w-16 h-16 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4"><svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg></div><h2 class="text-lg font-bold text-gray-800 mb-2">Ralat Aplikasi</h2><p class="text-sm text-gray-500 mb-4">Aplikasi mengalami masalah teknikal. Sila muat semula halaman.</p><button onclick="location.reload()" class="btn btn-primary">Muat Semula</button></div></div>'; }
 setInterval(() => { if (state.user?.peranan==='Admin' && state.token) updateApprovalBadge(); }, 30000);
-document.addEventListener('click', (e) => {
-    const sidebar = document.getElementById('sidebar');
-    if (window.innerWidth < 768 && !sidebar.contains(e.target) && !e.target.closest('#menuToggle')) {
-        sidebar.classList.remove('open'); sidebar.classList.add('closed');
-        document.body.classList.remove('no-scroll');
-    }
-});
+document.addEventListener('click', (e) => { const sidebar = document.getElementById('sidebar'); if (window.innerWidth < 768 && !sidebar.contains(e.target) && !e.target.closest('#menuToggle')) { sidebar.classList.remove('open'); sidebar.classList.add('closed'); document.body.classList.remove('no-scroll'); } });
 </script>
-
-<!-- 🛑 ISOLATED ZONE: Dashboard Layout Module (Interact.js) - MUAT SELEPAS semua elemen DOM siap -->
+<script src="js/kpi.js?v=9"></script>
+<script src="js/app.js?v=2"></script>
 <script src="js/dashboard-layout.js"></script>
-
-<!-- PWA Service Worker Registration -->
 <script>
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
