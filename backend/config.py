@@ -8,8 +8,9 @@ from typing import Optional
 
 # Auto-load .env file jika wujud
 try:
-    from backend.load_env import load_env_file
-    load_env_file()
+    from backend.load_env import load_env_file, ENV_LOCAL_PATH
+    load_env_file()                 # Load .env (production defaults)
+    load_env_file(ENV_LOCAL_PATH)   # Load .env.local (development overrides)
 except ImportError:
     pass
 
@@ -36,9 +37,10 @@ class Settings:
 
     # === CORS ===
     # Dalam production, set JENTERA_ALLOWED_ORIGINS ke domain tertentu
+    # NOTA: 127.0.0.1:3000 WAJIB ada kerana pelayan HTTP guna 127.0.0.1, bukan localhost
     ALLOWED_ORIGINS: list = os.environ.get(
         "JENTERA_ALLOWED_ORIGINS",
-        "http://localhost:3000,http://localhost:5173,http://localhost:8000"
+        "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://localhost:8000"
     ).split(",")
 
     # === DEPLOYMENT MODE ===
@@ -60,11 +62,9 @@ class Settings:
 
     @property
     def cors_origins(self) -> list:
-        if self.PRODUCTION:
-            # Dalam production, hanya domain yang dibenarkan
-            return self.ALLOWED_ORIGINS
-        # Dalam development, benarkan semua
-        return ["*"]
+        # NOTA: JANGAN guna ["*"] bersama allow_credentials=True — Starlette CORSMiddleware
+        #       gagal menambah Access-Control-Allow-Origin header. Guna senarai eksplisit.
+        return self.ALLOWED_ORIGINS
 
 
 settings = Settings()

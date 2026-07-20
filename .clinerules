@@ -22,3 +22,16 @@
 - Pastikan operasi 'localStorage.removeItem()' dilakukan secara bersasaran. DILARANG menggunakan 'localStorage.clear()' yang boleh memadamkan data tetapan layout pengguna secara tidak sengaja semasa logout.
 
 - SELEPAS pepijat disahkan hilang di VS Code Debugger Localhost, jalankan deployment ke Vercel dengan 'npx vercel --prod' untuk production deploy.
+
+# =====================================================================
+# DATABASE & SAFE REFACTORING RULES
+# =====================================================================
+
+## 1. Single Source of Truth (Database First)
+* Sentiasa utamakan untuk menarik data hubungan (seperti DUN, Parlimen, PDM, atau nama Pegawai Penyelaras) secara terus daripada pangkalan data induk Supabase menggunakan query SQL `JOIN` yang betul.
+* Elakkan daripada menulis pemetaan manual (seperti pemetaan PDM-ke-DUN) secara keras (hardcoded) di dalam kod Python backend atau JavaScript frontend sekiranya data tersebut sudah ada secara dinamik di dalam pangkalan data.
+
+## 2. Safe Refactoring (No Breaking Changes)
+* **JANGAN** padam objek pemetaan lama, fungsi utiliti, atau kamus fallback (seperti `PDM_DUN_MAP` di dalam `app.js`) secara global, kerana modul-modul lain yang tidak kita jejaki mungkin masih bergantung kepada kod tersebut.
+* Apabila memigrasikan sesuatu ciri untuk menggunakan query pangkalan data sepenuhnya, hanya putuskan kebergantungan (decouple) untuk ciri/jadual spesifik yang sedang diusahakan sahaja. Biarkan pemetaan sejarah yang lain tanpa diusik kecuali diarahkan secara nyata.
+* Sentiasa amalkan pengaturcaraan defensif (defensive programming): jika kolum pangkalan data memulangkan nilai `NULL` atau tiada, sediakan fallback UI yang selamat daripada membiarkan aplikasi tergendala (crash).

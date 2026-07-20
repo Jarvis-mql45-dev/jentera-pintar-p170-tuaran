@@ -6,8 +6,9 @@ Membaca .env file untuk production configuration.
 import os
 import sys
 
-# Path ke .env file (root projek)
+# Path ke .env dan .env.local (root projek)
 ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+ENV_LOCAL_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env.local')
 
 
 def load_env_file(env_path: str = ENV_PATH) -> bool:
@@ -79,5 +80,7 @@ def ensure_production_config():
 
 
 # Auto-load apabila module diimport
+# Strategy: .env dulu (production/defaults), kemudian .env.local override (development)
 if __name__ != "__main__":
-    load_env_file()
+    load_env_file(ENV_PATH)           # 1. Load .env (production default)
+    load_env_file(ENV_LOCAL_PATH)     # 2. Load .env.local (development overrides)
