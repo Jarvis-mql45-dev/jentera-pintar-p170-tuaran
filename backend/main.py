@@ -596,7 +596,7 @@ def get_pengundi(
                kk.nama_penuh AS ketua_keluarga_nama,
                pp.nama_penuh AS pegawai_penyelaras_nama
         FROM pengundi p
-        LEFT JOIN pengundi kk ON p.ketua_keluarga_id = kk.id
+        LEFT JOIN ketua_keluarga kk ON p.ketua_keluarga_id = kk.id
         LEFT JOIN pegawai_penyelaras pp ON p.pegawai_penyelaras_id = pp.id
         {where}
         ORDER BY p.id
@@ -635,12 +635,11 @@ def get_filter_options(user=Depends(get_current_user)):
     lokaliti_list = [r[0] for r in cursor.fetchall()]
     cursor.execute("SELECT DISTINCT status_sokongan FROM pengundi WHERE status_sokongan IS NOT NULL AND status_sokongan != '' ORDER BY status_sokongan")
     sokongan_list = [r[0] for r in cursor.fetchall()]
-    # Senarai pengundi yang menjadi Ketua Keluarga (dirujuk oleh orang lain)
+    # Senarai Ketua Keluarga dari table rasmi
     cursor.execute("""
-        SELECT DISTINCT p.id, p.nama_penuh
-        FROM pengundi p
-        WHERE p.id IN (SELECT DISTINCT ketua_keluarga_id FROM pengundi WHERE ketua_keluarga_id IS NOT NULL)
-        ORDER BY p.nama_penuh
+        SELECT id, nama_penuh
+        FROM ketua_keluarga
+        ORDER BY nama_penuh
     """)
     ketua_keluarga_list = [{"id": r[0], "nama": r[1]} for r in cursor.fetchall()]
     # Senarai Pegawai Penyelaras dari table rasmi
@@ -705,30 +704,26 @@ def search_ketua_keluarga_dropdown(
     per_page: int = 200,
     user=Depends(get_current_user)
 ):
-    """Cari pengundi yang menjadi Ketua Keluarga untuk dropdown pilihan."""
+    """Cari Ketua Keluarga dari table rasmi untuk dropdown pilihan."""
     db = get_db()
     cursor = db.cursor()
     
-    params = [f"%{q}%", f"%{q}%"]
+    params = [f"%{q}%"]
     offset = (page - 1) * per_page
     
     cursor.execute("""
-        SELECT DISTINCT p.id, p.no_kp, p.nama_penuh, p.dm, p.lokaliti
-        FROM pengundi p
-        WHERE p.id IN (SELECT DISTINCT ketua_keluarga_id FROM pengundi WHERE ketua_keluarga_id IS NOT NULL)
-          AND (UPPER(p.nama_penuh) LIKE UPPER(?) OR UPPER(p.no_kp) LIKE UPPER(?))
-          AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
-        ORDER BY p.nama_penuh ASC
+        SELECT id, id AS no_kp, nama_penuh, '' AS dm, '' AS lokaliti
+        FROM ketua_keluarga
+        WHERE UPPER(nama_penuh) LIKE UPPER(?)
+        ORDER BY nama_penuh ASC
         LIMIT ? OFFSET ?
     """, params + [per_page, offset])
     
     results = [dict(row) for row in cursor.fetchall()]
     
     cursor.execute("""
-        SELECT COUNT(*) FROM pengundi p
-        WHERE p.id IN (SELECT DISTINCT ketua_keluarga_id FROM pengundi WHERE ketua_keluarga_id IS NOT NULL)
-          AND (UPPER(p.nama_penuh) LIKE UPPER(?) OR UPPER(p.no_kp) LIKE UPPER(?))
-          AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
+        SELECT COUNT(*) FROM ketua_keluarga
+        WHERE UPPER(nama_penuh) LIKE UPPER(?)
     """, params)
     total = cursor.fetchone()[0]
     
@@ -964,7 +959,7 @@ def get_pengundi_by_id(request: Request, pengundi_id: int, user=Depends(get_curr
                kk.nama_penuh AS ketua_keluarga_nama, 
                pp.nama_penuh AS pegawai_penyelaras_nama
         FROM pengundi p
-        LEFT JOIN pengundi kk ON p.ketua_keluarga_id = kk.id
+        LEFT JOIN ketua_keluarga kk ON p.ketua_keluarga_id = kk.id
         LEFT JOIN pegawai_penyelaras pp ON p.pegawai_penyelaras_id = pp.id
         WHERE p.id = ?
     """, (pengundi_id,))
