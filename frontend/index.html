@@ -2215,7 +2215,7 @@ async function approveRecord(id) {
 }
 async function rejectRecord(id) {
     if (!confirm('Tolak dan padamkan rekod ini?')) return;
-    try { await api(`/api/approval-queue/${id}/tolak`, { method:'DELETE' }); showToast('Rekod ditolak dan dipadamkan'); renderApprovalQueue(); updateApprovalBadge(); }
+    try { await api(`/api/approval-queue/${id}/tolak`, { method:'POST' }); showToast('Rekod ditolak dan dipadamkan'); renderApprovalQueue(); updateApprovalBadge(); }
     catch (err) { showToast(err.message,'error'); }
 }
 async function approveAll() {

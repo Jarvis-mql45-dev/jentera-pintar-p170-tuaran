@@ -978,7 +978,7 @@ def approve_record(request: Request, pengundi_id: int, user=Depends(get_current_
 
 
 # Tolak rekod (Admin sahaja)
-@app.delete("/api/approval-queue/{pengundi_id}/tolak")
+@app.post("/api/approval-queue/{pengundi_id}/tolak")
 def reject_record(request: Request, pengundi_id: int, user=Depends(get_current_user)):
     check_peranan(user, ["Admin"])
 
