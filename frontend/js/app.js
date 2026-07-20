@@ -2530,39 +2530,45 @@ function globalDownloadExcel() {
 }
 
 function globalDownloadPDF() {
-    const container = document.getElementById('contentArea');
-    if (!container) return;
-    const table = container.querySelector('table');
-    if (!table) { showToast('Tiada jadual untuk dieksport', 'error'); return; }
+    // IMMEDIATE: Show loading toast so browser registers visual change (Next Paint)
+    showToast('⏳ Menyediakan PDF...', 'success');
 
-    // Clone jadual untuk PDF (pastikan semua style inline untuk cetakan)
-    const clone = table.cloneNode(true);
-    
-    // Dapatkan tajuk halaman
-    const pageTitle = document.getElementById('pageTitle')?.textContent || 'Laporan';
+    // OFFLOAD heavy DOM + window.open to setTimeout to unblock main thread (INP fix)
+    setTimeout(() => {
+        const container = document.getElementById('contentArea');
+        if (!container) return;
+        const table = container.querySelector('table');
+        if (!table) { showToast('Tiada jadual untuk dieksport', 'error'); return; }
 
-    const pdfHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${pageTitle}</title>
-        <style>
-            body { font-family: 'Segoe UI', Arial, sans-serif; margin: 20px; }
-            h1 { font-size: 18pt; text-align: center; margin-bottom: 5px; }
-            .subtitle { text-align: center; color: #666; font-size: 10pt; margin-bottom: 20px; }
-            table { width: 100%; border-collapse: collapse; font-size: 9pt; }
-            th { background: #f8fafc; padding: 8px 6px; text-align: left; border-bottom: 2px solid #e2e8f0; }
-            td { padding: 6px; border-bottom: 1px solid #f1f5f9; }
-            tfoot td { font-weight: bold; background: #f3f4f6; border-top: 2px solid #d1d5db; }
-            @media print { @page { size: A4 landscape; margin: 10mm; } }
-</style></head><body>
-        <h1>${pageTitle}</h1>
-        <p class="subtitle">Dikeluarkan: ${new Date().toLocaleDateString('ms-MY')}</p>
-        ${clone.outerHTML}
-</body></html>`;
+        // Clone jadual untuk PDF (pastikan semua style inline untuk cetakan)
+        const clone = table.cloneNode(true);
+        
+        // Dapatkan tajuk halaman
+        const pageTitle = document.getElementById('pageTitle')?.textContent || 'Laporan';
 
-    const w = window.open('', '_blank', 'width=1100,height=700');
-    if (w) {
-        w.document.write(pdfHtml);
-        w.document.close();
-        setTimeout(() => { w.print(); }, 500);
-    }
+        const pdfHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${pageTitle}</title>
+            <style>
+                body { font-family: 'Segoe UI', Arial, sans-serif; margin: 20px; }
+                h1 { font-size: 18pt; text-align: center; margin-bottom: 5px; }
+                .subtitle { text-align: center; color: #666; font-size: 10pt; margin-bottom: 20px; }
+                table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+                th { background: #f8fafc; padding: 8px 6px; text-align: left; border-bottom: 2px solid #e2e8f0; }
+                td { padding: 6px; border-bottom: 1px solid #f1f5f9; }
+                tfoot td { font-weight: bold; background: #f3f4f6; border-top: 2px solid #d1d5db; }
+                @media print { @page { size: A4 landscape; margin: 10mm; } }
+    </style></head><body>
+            <h1>${pageTitle}</h1>
+            <p class="subtitle">Dikeluarkan: ${new Date().toLocaleDateString('ms-MY')}</p>
+            ${clone.outerHTML}
+    </body></html>`;
+
+        const w = window.open('', '_blank', 'width=1100,height=700');
+        if (w) {
+            w.document.write(pdfHtml);
+            w.document.close();
+            setTimeout(() => { w.print(); }, 500);
+        }
+    }, 0); // setTimeout 0 — offload to macrotask queue, unblocks main thread
 }
 
 // ============================================================
