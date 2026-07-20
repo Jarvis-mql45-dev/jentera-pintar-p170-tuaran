@@ -140,25 +140,29 @@ class PenggunaCreate(BaseModel):
 # ===== AUDIT TRAIL HELPER =====
 def log_activity(request: Request, user: dict, tindakan: str, penerangan: str, no_kp_terlibat: str = None):
     """Log aktiviti pengguna ke dalam audit_logs untuk pematuhan PDPA."""
-    db = get_db()
-    cursor = db.cursor()
-    cursor.execute("""
-        INSERT INTO audit_logs (user_id, username, peranan, tindakan, penerangan, no_kp_terlibat, endpoint, ip_address, user_agent, dicipta_pada)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        user.get("user_id"),
-        user["username"],
-        user["peranan"],
-        tindakan,
-        penerangan,
-        no_kp_terlibat,
-        request.url.path if hasattr(request, 'url') else None,
-        request.client.host if request.client else "localhost",
-        request.headers.get("user-agent") if hasattr(request, 'headers') else None,
-        datetime.now().isoformat()
-    ))
-    db.commit()
-    db.close()
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("""
+            INSERT INTO audit_logs (user_id, username, peranan, tindakan, penerangan, no_kp_terlibat, endpoint, ip_address, user_agent, dicipta_pada)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            user.get("user_id"),
+            user["username"],
+            user["peranan"],
+            tindakan,
+            penerangan,
+            no_kp_terlibat,
+            request.url.path if hasattr(request, 'url') else None,
+            request.client.host if request.client else "localhost",
+            request.headers.get("user-agent") if hasattr(request, 'headers') else None,
+            datetime.now().isoformat()
+        ))
+        db.commit()
+        db.close()
+    except Exception as e:
+        # Kegagalan logging tidak patut menjejaskan request utama (terutamanya di Vercel serverless)
+        print(f"⚠️ log_activity gagal (non-critical): {type(e).__name__}: {str(e)}")
 
 
 # ===== EVENT STARTUP =====
