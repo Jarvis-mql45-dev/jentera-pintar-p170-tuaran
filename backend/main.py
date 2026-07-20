@@ -597,7 +597,7 @@ def get_pengundi(
                pp.nama_penuh AS pegawai_penyelaras_nama
         FROM pengundi p
         LEFT JOIN pengundi kk ON p.ketua_keluarga_id = kk.id
-        LEFT JOIN pengundi pp ON p.pegawai_penyelaras_id = pp.id
+        LEFT JOIN pegawai_penyelaras pp ON p.pegawai_penyelaras_id = pp.id
         {where}
         ORDER BY p.id
         LIMIT ? OFFSET ?
@@ -643,12 +643,11 @@ def get_filter_options(user=Depends(get_current_user)):
         ORDER BY p.nama_penuh
     """)
     ketua_keluarga_list = [{"id": r[0], "nama": r[1]} for r in cursor.fetchall()]
-    # Senarai pengundi yang menjadi Pegawai Penyelaras
+    # Senarai Pegawai Penyelaras dari table rasmi
     cursor.execute("""
-        SELECT DISTINCT p.id, p.nama_penuh
-        FROM pengundi p
-        WHERE p.id IN (SELECT DISTINCT pegawai_penyelaras_id FROM pengundi WHERE pegawai_penyelaras_id IS NOT NULL)
-        ORDER BY p.nama_penuh
+        SELECT id, nama_penuh
+        FROM pegawai_penyelaras
+        ORDER BY nama_penuh
     """)
     pegawai_penyelaras_list = [{"id": r[0], "nama": r[1]} for r in cursor.fetchall()]
     db.close()
@@ -966,7 +965,7 @@ def get_pengundi_by_id(request: Request, pengundi_id: int, user=Depends(get_curr
                pp.nama_penuh AS pegawai_penyelaras_nama
         FROM pengundi p
         LEFT JOIN pengundi kk ON p.ketua_keluarga_id = kk.id
-        LEFT JOIN pengundi pp ON p.pegawai_penyelaras_id = pp.id
+        LEFT JOIN pegawai_penyelaras pp ON p.pegawai_penyelaras_id = pp.id
         WHERE p.id = ?
     """, (pengundi_id,))
     p = cursor.fetchone()
