@@ -153,7 +153,7 @@ def log_activity(request: Request, user: dict, tindakan: str, penerangan: str, n
         penerangan,
         no_kp_terlibat,
         request.url.path if hasattr(request, 'url') else None,
-        request.client.host if request.client else None,
+        request.client.host if request.client else "localhost",
         request.headers.get("user-agent") if hasattr(request, 'headers') else None,
         datetime.now().isoformat()
     ))
