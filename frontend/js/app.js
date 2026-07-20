@@ -1641,20 +1641,21 @@ async function renderPengundi() {
                     </div>
                 </div>
                 ${pengundi.length === 0 ? `<div class="text-center py-10 text-gray-400">${state.pengundiSearch ? `"${state.pengundiSearch}" tiada dalam sistem.` : 'Tiada pengundi dijumpai.'}</div>` : `
-                <div class="overflow-x-auto">
-                    <table>
-                        <thead><tr><th onclick="sortPengundi('no_kp')">No KP</th><th onclick="sortPengundi('nama_penuh')">Nama Penuh</th><th onclick="sortPengundi('jantina')">Jantina</th><th onclick="sortPengundi('umur')">Umur</th><th onclick="sortPengundi('dm')">DM / PDM</th><th onclick="sortPengundi('lokaliti')">Lokaliti</th><th onclick="sortPengundi('sokongan')">Sokongan</th><th onclick="sortPengundi('ketua_keluarga')">K. Keluarga</th><th onclick="sortPengundi('pegawai_penyelaras')">Peg. Penyelaras</th><th>Tindakan</th></tr></thead>
+                <div class="overflow-x-auto" style="scrollbar-width: thin;">
+                    <div class="text-xs text-gray-400 mb-1 italic">Gulir ke kanan → untuk lihat kolum K. Keluarga & Peg. Penyelaras</div>
+                    <table style="min-width:1100px; table-layout:fixed;">
+                        <thead><tr><th style="width:120px" onclick="sortPengundi('no_kp')">No KP</th><th style="width:160px" onclick="sortPengundi('nama_penuh')">Nama Penuh</th><th style="width:60px" onclick="sortPengundi('jantina')">Jantina</th><th style="width:60px" onclick="sortPengundi('umur')">Umur</th><th style="width:120px" onclick="sortPengundi('dm')">DM / PDM</th><th style="width:140px" onclick="sortPengundi('lokaliti')">Lokaliti</th><th style="width:100px" onclick="sortPengundi('sokongan')">Sokongan</th><th style="width:140px" onclick="sortPengundi('ketua_keluarga')">K. Keluarga</th><th style="width:140px" onclick="sortPengundi('pegawai_penyelaras')">Peg. Penyelaras</th><th style="width:100px">Tindakan</th></tr></thead>
                         <tbody>${pengundi.map(p => `<tr>
                             <td class="text-xs font-mono">${p.no_kp || '-'}</td>
-                            <td class="font-medium whitespace-nowrap">${p.nama_penuh || '-'}</td>
-                            <td>${p.jantina || '-'}</td>
-                            <td>${p.tahun_lahir ? (2026 - p.tahun_lahir) : '-'}</td>
-                            <td>${p.dm || '-'}</td>
+                            <td class="font-medium whitespace-nowrap text-sm">${p.nama_penuh || '-'}</td>
+                            <td class="text-xs">${p.jantina || '-'}</td>
+                            <td class="text-xs">${p.tahun_lahir ? (2026 - p.tahun_lahir) : '-'}</td>
+                            <td class="text-sm">${p.dm || '-'}</td>
                             <td class="text-sm">${p.lokaliti || '-'}</td>
-                            <td>${p.sokongan ? `<span class="badge ${p.sokongan==='Putih'?'badge-putih':p.sokongan==='Hitam'?'badge-hitam':p.sokongan==='Atas Pagar'?'badge-atas':'badge-tiada'}">${p.sokongan}</span>` : '<span class="badge badge-tiada">Tiada</span>'}</td>
-                            <td class="text-sm">${p.ketua_keluarga_nama || '-'}</td>
-                            <td class="text-sm">${p.pegawai_penyelaras_nama || '-'}</td>
-                            <td><button onclick="editPengundi('${p.id}')" class="btn btn-primary text-xs py-1 px-2">Edit</button> <button onclick="padamPengundi('${p.id}')" class="btn btn-outline text-xs py-1 px-2 border-red-300 text-red-600 hover:bg-red-50">Padam</button></td>
+                            <td class="text-xs">${p.sokongan ? `<span class="badge ${p.sokongan==='Putih'?'badge-putih':p.sokongan==='Hitam'?'badge-hitam':p.sokongan==='Atas Pagar'?'badge-atas':'badge-tiada'}">${p.sokongan}</span>` : '<span class="badge badge-tiada">Tiada</span>'}</td>
+                            <td class="text-xs">${p.ketua_keluarga_nama || '<span class="text-gray-400">-</span>'}</td>
+                            <td class="text-xs">${p.pegawai_penyelaras_nama || '<span class="text-gray-400">-</span>'}</td>
+                            <td class="text-xs"><button onclick="editPengundi('${p.id}')" class="btn btn-primary text-xs py-1 px-1.5">Edit</button> <button onclick="padamPengundi('${p.id}')" class="btn btn-outline text-xs py-1 px-1.5 border-red-300 text-red-600 hover:bg-red-50">Padam</button></td>
                         </tr>`).join('')}</tbody>
                     </table>
                 </div>
