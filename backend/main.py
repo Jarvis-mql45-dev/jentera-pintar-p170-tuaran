@@ -341,7 +341,7 @@ def get_dashboard_dun(request: Request, dun_kod: str, dm: Optional[str] = None, 
         THN_SEMASA = 2026
 
         # Jumlah pengundi
-        cursor.execute(f"SELECT COUNT(*) FROM pengundi {where}", params)
+        cursor.execute(f"SELECT COUNT(*) FROM pengundi p {where}", params)
         jumlah_pengundi = cursor.fetchone()[0]
 
         # Status sokongan
