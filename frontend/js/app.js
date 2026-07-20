@@ -2672,6 +2672,7 @@ document.addEventListener('click', (e) => {
         else if (page==='survey') renderSurveyList();
         else if (page==='survey-create') renderCreateSurvey();
         else if (page==='survey-view') renderSurveyView();
+        else if (page==='kpi') renderKpi();
         else renderComingSoon(page);
     };
     // Re-render current page with the real navigate function
