@@ -512,7 +512,7 @@ def get_pengundi(
     params = []
 
     if search:
-        where_parts.append("(p.no_kp LIKE ? OR p.nama_penuh LIKE ?)")
+        where_parts.append("(UPPER(p.no_kp) LIKE UPPER(?) OR UPPER(p.nama_penuh) LIKE UPPER(?))")
         params.extend([f"%{search}%", f"%{search}%"])
 
     # Multi-select dm filter — tolak jika nilai kosong
@@ -679,7 +679,7 @@ def search_pengundi_dropdown(
     cursor.execute("""
         SELECT id, no_kp, nama_penuh, dm, lokaliti
         FROM pengundi
-        WHERE (nama_penuh LIKE ? OR no_kp LIKE ?)
+        WHERE (UPPER(nama_penuh) LIKE UPPER(?) OR UPPER(no_kp) LIKE UPPER(?))
           AND status_fizikal = 'Hidup' AND status_rekod = 'Sah'
         ORDER BY nama_penuh ASC
         LIMIT ? OFFSET ?
@@ -689,7 +689,7 @@ def search_pengundi_dropdown(
     
     cursor.execute("""
         SELECT COUNT(*) FROM pengundi
-        WHERE (nama_penuh LIKE ? OR no_kp LIKE ?)
+        WHERE (UPPER(nama_penuh) LIKE UPPER(?) OR UPPER(no_kp) LIKE UPPER(?))
           AND status_fizikal = 'Hidup' AND status_rekod = 'Sah'
     """, params)
     total = cursor.fetchone()[0]
@@ -717,7 +717,7 @@ def search_ketua_keluarga_dropdown(
         SELECT DISTINCT p.id, p.no_kp, p.nama_penuh, p.dm, p.lokaliti
         FROM pengundi p
         WHERE p.id IN (SELECT DISTINCT ketua_keluarga_id FROM pengundi WHERE ketua_keluarga_id IS NOT NULL)
-          AND (p.nama_penuh LIKE ? OR p.no_kp LIKE ?)
+          AND (UPPER(p.nama_penuh) LIKE UPPER(?) OR UPPER(p.no_kp) LIKE UPPER(?))
           AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
         ORDER BY p.nama_penuh ASC
         LIMIT ? OFFSET ?
@@ -728,7 +728,7 @@ def search_ketua_keluarga_dropdown(
     cursor.execute("""
         SELECT COUNT(*) FROM pengundi p
         WHERE p.id IN (SELECT DISTINCT ketua_keluarga_id FROM pengundi WHERE ketua_keluarga_id IS NOT NULL)
-          AND (p.nama_penuh LIKE ? OR p.no_kp LIKE ?)
+          AND (UPPER(p.nama_penuh) LIKE UPPER(?) OR UPPER(p.no_kp) LIKE UPPER(?))
           AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
     """, params)
     total = cursor.fetchone()[0]
@@ -756,7 +756,7 @@ def search_pegawai_penyelaras_dropdown(
         SELECT DISTINCT p.id, p.no_kp, p.nama_penuh, p.dm, p.lokaliti
         FROM pengundi p
         WHERE p.id IN (SELECT DISTINCT pegawai_penyelaras_id FROM pengundi WHERE pegawai_penyelaras_id IS NOT NULL)
-          AND (p.nama_penuh LIKE ? OR p.no_kp LIKE ?)
+          AND (UPPER(p.nama_penuh) LIKE UPPER(?) OR UPPER(p.no_kp) LIKE UPPER(?))
           AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
         ORDER BY p.nama_penuh ASC
         LIMIT ? OFFSET ?
@@ -767,7 +767,7 @@ def search_pegawai_penyelaras_dropdown(
     cursor.execute("""
         SELECT COUNT(*) FROM pengundi p
         WHERE p.id IN (SELECT DISTINCT pegawai_penyelaras_id FROM pengundi WHERE pegawai_penyelaras_id IS NOT NULL)
-          AND (p.nama_penuh LIKE ? OR p.no_kp LIKE ?)
+          AND (UPPER(p.nama_penuh) LIKE UPPER(?) OR UPPER(p.no_kp) LIKE UPPER(?))
           AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
     """, params)
     total = cursor.fetchone()[0]
