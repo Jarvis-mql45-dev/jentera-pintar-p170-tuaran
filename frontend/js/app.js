@@ -1602,7 +1602,7 @@ async function renderPengundi() {
         // Elak duplikasi dm — jika selectedFilters.pdm ada, guna itu; jika tidak, guna state.pengundiDm
         const dmParam = selectedFilters.pdm && selectedFilters.pdm.length
             ? ''  // buildFilterParams() akan handle dm=
-            : `&dm=${encodeURIComponent(state.pengundiDm)}`;
+            : (state.pengundiDm ? `&dm=${encodeURIComponent(state.pengundiDm)}` : '');
         const [filterRes, result] = await Promise.all([
             api('/api/pengundi/filter-options'),
             api(`/api/pengundi?page=${state.pengundiPage}&search=${encodeURIComponent(state.pengundiSearch)}${dmParam}${buildFilterParams()}`)

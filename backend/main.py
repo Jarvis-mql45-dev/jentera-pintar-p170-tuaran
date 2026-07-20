@@ -511,9 +511,9 @@ def get_pengundi(
         where_parts.append("(p.no_kp LIKE ? OR p.nama_penuh LIKE ?)")
         params.extend([f"%{search}%", f"%{search}%"])
 
-    # Multi-select dm filter
+    # Multi-select dm filter — tolak jika nilai kosong
     dm_list = []
-    if dm:
+    if dm and dm.strip():
         if isinstance(dm, str):
             dm_list = [d.strip() for d in dm.split(',') if d.strip()]
         elif isinstance(dm, list):
