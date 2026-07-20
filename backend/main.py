@@ -977,8 +977,8 @@ def approve_record(request: Request, pengundi_id: int, user=Depends(get_current_
     return {"message": "Rekod berjaya diluluskan"}
 
 
-# Tolak rekod (Admin sahaja) — GUNA GET untuk elak Method Not Allowed di Vercel
-@app.get("/api/approval-queue/{pengundi_id}/tolak")
+# Tolak rekod (Admin sahaja)
+@app.post("/api/approval-queue/{pengundi_id}/tolak")
 def reject_record(request: Request, pengundi_id: int, user=Depends(get_current_user)):
     try:
         check_peranan(user, ["Admin"])
