@@ -584,7 +584,7 @@ def get_pengundi(
         where = "WHERE " + " AND ".join(where_parts)
 
     # Count total
-    cursor.execute(f"SELECT COUNT(*) FROM pengundi {where}", params)
+    cursor.execute(f"SELECT COUNT(*) FROM pengundi p {where}", params)
     total = cursor.fetchone()[0]
 
     # Get page data
