@@ -259,6 +259,49 @@ def create_dun(request: Request, data: DunCreate, user=Depends(get_current_user)
     db.close()
     return {"success": True, "id": new_id, "kod": kod, "nama": nama}
 
+@app.delete("/api/dun/{dun_kod}")
+def delete_dun(dun_kod: str, user=Depends(get_current_user)):
+    check_peranan(user, ["Admin"])
+    db = get_db()
+    cursor = db.cursor()
+    
+    kod = dun_kod.strip().upper()
+    
+    # Protect core DUNs (N12-N15)
+    if kod in ["N12", "N13", "N14", "N15"]:
+        db.close()
+        raise HTTPException(status_code=400, detail=f"DUN {kod} adalah teras sistem dan tidak boleh dipadamkan")
+    
+    # Check if DUN exists
+    cursor.execute("SELECT id FROM dun WHERE kod = ?", (kod,))
+    dun = cursor.fetchone()
+    if not dun:
+        db.close()
+        raise HTTPException(status_code=404, detail=f"DUN {kod} tidak ditemui")
+    
+    dun_id = dun[0]
+    
+    # Check if any pengundi linked to this DUN
+    cursor.execute("SELECT COUNT(*) FROM pengundi WHERE dun_id = ?", (dun_id,))
+    pengundi_count = cursor.fetchone()[0]
+    if pengundi_count > 0:
+        db.close()
+        raise HTTPException(status_code=400, detail=f"DUN {kod} masih mempunyai {pengundi_count} pengundi. Tidak boleh dipadam.")
+    
+    # Check if any pdm linked to this DUN
+    cursor.execute("SELECT COUNT(*) FROM pdm WHERE dun_id = ?", (dun_id,))
+    pdm_count = cursor.fetchone()[0]
+    if pdm_count > 0:
+        db.close()
+        raise HTTPException(status_code=400, detail=f"DUN {kod} masih mempunyai {pdm_count} PDM. Tidak boleh dipadam.")
+    
+    # Delete the DUN
+    cursor.execute("DELETE FROM dun WHERE id = ?", (dun_id,))
+    db.commit()
+    db.close()
+    
+    return {"success": True, "message": f"DUN {kod} berjaya dipadamkan"}
+
 @app.post("/api/pdm")
 def create_pdm(request: Request, data: PdmCreate, user=Depends(get_current_user)):
     check_peranan(user, ["Admin", "Petugas Padang"])

@@ -2067,11 +2067,14 @@ async function tambahPengundi() {
                 <!-- DUN -->
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">DUN <span class="text-red-500">*</span></label>
-                    <select id="tambahDun" onchange="tambahDunChanged()" class="w-full px-3 py-2 text-sm border rounded-lg">
-                        <option value="">- Pilih DUN -</option>
-                        <option value="TAMBAH_DUN" style="color:#2563eb;font-weight:600;">➕ Tambah DUN Baru</option>
-                        ${dunList.map(d => `<option value="${d.kod}">${d.nama}</option>`).join('')}
-                    </select>
+                    <div class="flex gap-2">
+                        <select id="tambahDun" onchange="tambahDunChanged()" class="flex-1 px-3 py-2 text-sm border rounded-lg">
+                            <option value="">- Pilih DUN -</option>
+                            <option value="TAMBAH_DUN" style="color:#2563eb;font-weight:600;">➕ Tambah DUN Baru</option>
+                            ${dunList.map(d => `<option value="${d.kod}">${d.nama}</option>`).join('')}
+                        </select>
+                        <button id="btnHapusDun" onclick="hapusDun()" class="btn btn-outline text-sm px-2 py-1 text-red-600 border-red-300 hover:bg-red-50 hidden" title="Padam DUN">🗑️</button>
+                    </div>
                 </div>
                 <!-- Input untuk DUN baru (tersembunyi) -->
                 <div id="tambahDunBaruContainer" style="display:none;">
@@ -2311,18 +2314,42 @@ function tambahDunBaruSekarang() {
     });
 }
 
+function hapusDun() {
+    const dunKod = document.getElementById('tambahDun').value;
+    if (!dunKod || dunKod === 'TAMBAH_DUN') return;
+    if (!confirm(`Anda pasti mahu memadamkan DUN ${dunKod}? Tindakan ini tidak boleh dikembalikan.`)) return;
+    api(`/api/dun/${dunKod}`, { method: 'DELETE' }).then(result => {
+        showToast(`DUN ${dunKod} berjaya dipadamkan!`, 'success');
+        // Re-fetch DUN list and update dropdown
+        api('/api/dun').then(dunList => {
+            const dunSelect = document.getElementById('tambahDun');
+            dunSelect.innerHTML = `
+                <option value="">- Pilih DUN -</option>
+                <option value="TAMBAH_DUN" style="color:#2563eb;font-weight:600;">➕ Tambah DUN Baru</option>
+                ${dunList.map(d => `<option value="${d.kod}">${d.nama}</option>`).join('')}
+            `;
+            dunSelect.value = '';
+            document.getElementById('btnHapusDun').classList.add('hidden');
+        });
+    }).catch(err => {
+        showToast(err.message, 'error');
+    });
+}
+
 function tambahDunChanged() {
     const dunKod = document.getElementById('tambahDun').value;
     const dunBaruContainer = document.getElementById('tambahDunBaruContainer');
     const dmDiv = document.getElementById('tambahDm')?.closest('div');
     const lokalitiDiv = document.getElementById('tambahLokaliti')?.closest('div');
+    const btnHapus = document.getElementById('btnHapusDun');
     
-    if (dunKod === 'TAMBAH_DUN') {
-        // Show DUN baru input, hide PDM & Lokaliti (since we don't know the DUN yet)
-        if (dunBaruContainer) dunBaruContainer.style.display = 'block';
+    if (dunKod === 'TAMBAH_DUN' || dunKod === '') {
+        // Show DUN baru input if TAMBAH_DUN, hide PDM & Lokaliti
+        if (dunBaruContainer) dunBaruContainer.style.display = dunKod === 'TAMBAH_DUN' ? 'block' : 'none';
         if (dmDiv) dmDiv.style.display = 'none';
         if (lokalitiDiv) lokalitiDiv.style.display = 'none';
-        document.getElementById('tambahDun').value = 'TAMBAH_DUN';
+        if (btnHapus) btnHapus.classList.add('hidden');
+        if (dunKod === 'TAMBAH_DUN') document.getElementById('tambahDun').value = 'TAMBAH_DUN';
         return;
     }
     
@@ -2333,6 +2360,16 @@ function tambahDunChanged() {
     }
     if (dmDiv) dmDiv.style.display = 'block';
     if (lokalitiDiv) lokalitiDiv.style.display = 'block';
+    
+    // Show delete button only for non-core DUNs (not N12-N15)
+    const coreDuns = ['N12', 'N13', 'N14', 'N15'];
+    if (btnHapus) {
+        if (coreDuns.includes(dunKod)) {
+            btnHapus.classList.add('hidden');
+        } else {
+            btnHapus.classList.remove('hidden');
+        }
+    }
     
     const pdmList = getPdmListForDun(dunKod);
     const dmInput = document.getElementById('tambahDm');
