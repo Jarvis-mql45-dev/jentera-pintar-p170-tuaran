@@ -1611,6 +1611,34 @@ function handlePdmFilterChange(value) {
     renderPengundi();
 }
 
+function renderSmartPagination(currentPage, totalPages, pageStateVar, renderFunc) {
+    if (totalPages <= 1) return '';
+    let html = '';
+    // Always show page 1
+    html += `<button onclick="${pageStateVar}=1;${renderFunc}()" class="${currentPage===1?'active':''}">1</button>`;
+    // Calculate start and end of the 9-page window starting from current page
+    let startPage = currentPage;
+    let endPage = Math.min(currentPage + 9, totalPages);
+    // Ellipsis after page 1 if start page > 2
+    if (startPage > 2) {
+        html += '<span class="text-sm text-gray-400">...</span>';
+    }
+    // If startPage > 1, ensure we don't duplicate page 1; else start from 2
+    const firstNum = startPage > 1 ? Math.max(startPage, 2) : 2;
+    for (let p = firstNum; p <= endPage; p++) {
+        html += `<button onclick="${pageStateVar}=${p};${renderFunc}()" class="${currentPage===p?'active':''}">${p}</button>`;
+    }
+    // Ellipsis before last page if endPage < totalPages - 1
+    if (endPage < totalPages - 1) {
+        html += '<span class="text-sm text-gray-400">...</span>';
+    }
+    // Always show last page
+    if (totalPages > 1) {
+        html += `<button onclick="${pageStateVar}=${totalPages};${renderFunc}()" class="${currentPage===totalPages?'active':''}">${totalPages}</button>`;
+    }
+    return html;
+}
+
 function clearAllFilters() {
     selectedFilters = { pdm: [], lokaliti: [], sokongan: [], ketua_keluarga: [], pegawai_penyelaras: [] };
     renderPengundi();
@@ -1691,8 +1719,7 @@ async function renderPengundi() {
                         </tr>`).join('')}</tbody>
                     </table>
                 </div>
-                <div class="pagination">${Array.from({length: Math.min(totalPages,10)},(_,i)=>i+1).map(p => `<button onclick="state.pengundiPage=${p};renderPengundi()" class="${state.pengundiPage===p?'active':''}">${p}</button>`).join('')}
-                    ${totalPages > 10 ? `<span class="text-sm text-gray-400">... ${totalPages}</span>` : ''}
+                <div class="pagination">${renderSmartPagination(state.pengundiPage, totalPages, 'state.pengundiPage', 'renderPengundi')}
                     <span class="text-sm text-gray-500 ml-2">Halaman ${state.pengundiPage}/${totalPages}</span>
                 </div>`}
             </div>`;
