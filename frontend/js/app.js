@@ -1663,8 +1663,11 @@ async function renderPengundi() {
             ? ''  // buildFilterParams() akan handle dm=
             : (state.pengundiDm ? `&dm[]=${encodeURIComponent(state.pengundiDm)}` : '');
         const dunParam = state.pengundiDun ? `&dun=${encodeURIComponent(state.pengundiDun)}` : '';
+        // Build filter params for filter-options too — so dropdowns show only relevant choices
+        const filterOptsParam = `${dunParam}${dmParam}${buildFilterParams()}`;
+        const filterOptsUrl = filterOptsParam ? `/api/pengundi/filter-options?${filterOptsParam.replace(/^&/, '')}` : '/api/pengundi/filter-options';
         const [filterRes, result] = await Promise.all([
-            api('/api/pengundi/filter-options'),
+            api(filterOptsUrl),
             api(`/api/pengundi?page=${state.pengundiPage}&search=${encodeURIComponent(state.pengundiSearch)}${dmParam}${dunParam}${buildFilterParams()}`)
         ]);
         filterOptions = filterRes;

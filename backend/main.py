@@ -630,31 +630,67 @@ def get_pengundi(
     }
 
 
-# Endpoint untuk dapatkan senarai pilihan filter
+# Endpoint untuk dapatkan senarai pilihan filter — boleh terima parameter untuk relevansi
 @app.get("/api/pengundi/filter-options")
-def get_filter_options(user=Depends(get_current_user)):
+def get_filter_options(
+    request: Request,
+    dun: Optional[str] = None,
+    dm: Optional[str] = Query(None, alias="dm[]"),
+    lokaliti: Optional[str] = Query(None, alias="lokaliti[]"),
+    sokongan: Optional[str] = Query(None, alias="sokongan[]"),
+    user=Depends(get_current_user)
+):
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT DISTINCT dm FROM pengundi WHERE dm IS NOT NULL AND dm != '' ORDER BY dm")
+
+    # Build WHERE clause based on active filters
+    where_clauses = ["1=1"]
+    params = []
+
+    if dun and dun.strip():
+        where_clauses.append("p.dun_id = (SELECT id FROM dun WHERE kod = ?)")
+        params.append(dun.strip())
+
+    if dm and dm.strip():
+        dm_list = [d.strip() for d in dm.split(',') if d.strip()]
+        if dm_list:
+            placeholders = ', '.join(['?'] * len(dm_list))
+            where_clauses.append(f"p.dm IN ({placeholders})")
+            params.extend(dm_list)
+
+    if lokaliti and lokaliti.strip():
+        lokaliti_list = [l.strip() for l in lokaliti.split(',') if l.strip()]
+        if lokaliti_list:
+            placeholders = ', '.join(['?'] * len(lokaliti_list))
+            where_clauses.append(f"p.lokaliti IN ({placeholders})")
+            params.extend(lokaliti_list)
+
+    if sokongan and sokongan.strip():
+        sokongan_list = [s.strip() for s in sokongan.split(',') if s.strip()]
+        if sokongan_list:
+            placeholders = ', '.join(['?'] * len(sokongan_list))
+            where_clauses.append(f"p.status_sokongan IN ({placeholders})")
+            params.extend(sokongan_list)
+
+    where_str = " AND ".join(where_clauses)
+
+    # Gunakan subquery untuk setiap filter supaya relevan dengan filter aktif
+    cursor.execute(f"SELECT DISTINCT p.dm FROM pengundi p WHERE {where_str} AND p.dm IS NOT NULL AND p.dm != '' ORDER BY p.dm", params)
     pdm_list = [r[0] for r in cursor.fetchall()]
-    cursor.execute("SELECT DISTINCT lokaliti FROM pengundi WHERE lokaliti IS NOT NULL AND lokaliti != '' ORDER BY lokaliti")
+
+    cursor.execute(f"SELECT DISTINCT p.lokaliti FROM pengundi p WHERE {where_str} AND p.lokaliti IS NOT NULL AND p.lokaliti != '' ORDER BY p.lokaliti", params)
     lokaliti_list = [r[0] for r in cursor.fetchall()]
-    cursor.execute("SELECT DISTINCT status_sokongan FROM pengundi WHERE status_sokongan IS NOT NULL AND status_sokongan != '' ORDER BY status_sokongan")
+
+    cursor.execute(f"SELECT DISTINCT p.status_sokongan FROM pengundi p WHERE {where_str} AND p.status_sokongan IS NOT NULL AND p.status_sokongan != '' ORDER BY p.status_sokongan", params)
     sokongan_list = [r[0] for r in cursor.fetchall()]
-    # Senarai Ketua Keluarga dari table rasmi
-    cursor.execute("""
-        SELECT id, nama_penuh
-        FROM ketua_keluarga
-        ORDER BY nama_penuh
-    """)
+
+    # Ketua Keluarga & Pegawai Penyelaras — dari table rasmi (tidak perlu filter)
+    cursor.execute("SELECT id, nama_penuh FROM ketua_keluarga ORDER BY nama_penuh")
     ketua_keluarga_list = [{"id": r[0], "nama": r[1]} for r in cursor.fetchall()]
-    # Senarai Pegawai Penyelaras dari table rasmi
-    cursor.execute("""
-        SELECT id, nama_penuh
-        FROM pegawai_penyelaras
-        ORDER BY nama_penuh
-    """)
+
+    cursor.execute("SELECT id, nama_penuh FROM pegawai_penyelaras ORDER BY nama_penuh")
     pegawai_penyelaras_list = [{"id": r[0], "nama": r[1]} for r in cursor.fetchall()]
+
     db.close()
     return {
         "pdm": pdm_list,
