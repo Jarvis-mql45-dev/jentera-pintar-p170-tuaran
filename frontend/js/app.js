@@ -2250,7 +2250,7 @@ const result = await api(`/api/approval-queue?page=${state.approvalPage}`);
 
 async function approvePengundi(id) {
     try {
-        await api(`/api/pengundi/pending/${id}/approve`, { method: 'POST' });
+        await api(`/api/approval-queue/${id}/lulus`, { method: 'POST' });
         showToast('Data diluluskan!');
         renderApprovalQueue();
         updateApprovalBadge();
@@ -2259,7 +2259,7 @@ async function approvePengundi(id) {
 
 async function rejectPengundi(id) {
     try {
-        await api(`/api/pengundi/pending/${id}/reject`, { method: 'POST' });
+        await api(`/api/approval-queue/${id}/tolak`, { method: 'POST' });
         showToast('Data ditolak');
         renderApprovalQueue();
         updateApprovalBadge();
