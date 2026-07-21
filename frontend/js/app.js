@@ -281,13 +281,12 @@ function navigate(page) {
 
 // ========= SURVEY FUNCTIONS =========
 
-async function renderSurveyList() {
+function renderSurveyList() {
     const content = document.getElementById('contentArea');
     content.innerHTML = '<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan senarai...</span></div>';
-    try {
-        const surveys = await api('/api/surveys');
+    api('/api/surveys').then(surveys => {
         const hasSurveys = surveys && surveys.length > 0;
-        content.innerHTML = `
+        const html = `
             <div class="card">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="font-semibold text-gray-800">Senarai Soal Selidik</h3>
@@ -318,9 +317,12 @@ async function renderSurveyList() {
                     </table>
                 </div>`}
             </div>`;
-    } catch (err) {
+        requestAnimationFrame(() => {
+            content.innerHTML = html;
+        });
+    }).catch(err => {
         content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`;
-    }
+    });
 }
 
 function viewSurvey(id) {
