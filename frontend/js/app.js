@@ -2067,7 +2067,7 @@ async function tambahPengundi() {
                 <!-- PDM: searchable + add new -->
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">PDM <span class="text-red-500">*</span></label>
-                    <input type="text" id="tambahDm" list="pdmList" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Taip atau pilih PDM">
+                    <input type="text" id="tambahDm" list="pdmList" onchange="tambahDmChanged()" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Taip atau pilih PDM">
                     <datalist id="pdmList">${initialPdmOptions}</datalist>
                     <p class="text-xs text-gray-400 mt-0.5">Taip untuk cari, atau masukkan PDM baru jika tiada dalam senarai</p>
                 </div>
@@ -2213,6 +2213,29 @@ function cariKetuaKeluarga(input) {
     }, 300);
 }
 
+function tambahDmChanged() {
+    const dunKod = document.getElementById('tambahDun').value;
+    const dmValue = document.getElementById('tambahDm').value.trim();
+    refreshTambahLokaliti(dunKod, dmValue);
+}
+
+async function refreshTambahLokaliti(dunKod, dmValue) {
+    // Build params to filter lokaliti by selected DUN and/or PDM
+    let params = '';
+    if (dunKod) params += `dun=${encodeURIComponent(dunKod)}`;
+    if (dmValue) params += (params ? '&' : '') + `dm[]=${encodeURIComponent(dmValue)}`;
+    const url = params ? `/api/pengundi/filter-options?${params}` : '/api/pengundi/filter-options';
+    try {
+        const res = await api(url);
+        const dl = document.getElementById('lokalitiList');
+        const lokalitiInput = document.getElementById('tambahLokaliti');
+        if (dl) dl.innerHTML = (res.lokaliti || []).map(l => `<option value="${l}">`).join('');
+        if (lokalitiInput) lokalitiInput.value = '';
+    } catch (e) {
+        // Silent fail — keep existing lokaliti list
+    }
+}
+
 function tambahDunChanged() {
     const dunKod = document.getElementById('tambahDun').value;
     const pdmList = getPdmListForDun(dunKod);
@@ -2220,6 +2243,8 @@ function tambahDunChanged() {
     const datalist = document.getElementById('pdmList');
     datalist.innerHTML = pdmList.map(p => `<option value="${p}">`).join('');
     dmInput.value = '';
+    // Refresh lokaliti based on selected DUN
+    refreshTambahLokaliti(dunKod, '');
 }
 
 async function simpanPengundiBaru() {
