@@ -2256,6 +2256,9 @@ async function simpanPengundiBaru() {
     const kkVal = document.getElementById('tambahKetuaKeluarga').value.trim();
     const pegawaiId = parsePengundiId(pegawaiVal);
     const kkId = parsePengundiId(kkVal);
+    // If value is not in "ID - Nama" format, treat it as a new name to create
+    const pegawaiNamaBaru = (!pegawaiId && pegawaiVal) ? pegawaiVal : null;
+    const kkNamaBaru = (!kkId && kkVal) ? kkVal : null;
 
     if (!nama_penuh || !dun || !dm || !lokaliti) {
         showToast('Sila isi ruangan wajib: DUN, PDM, Lokaliti, dan Nama Penuh', 'error');
@@ -2274,6 +2277,8 @@ async function simpanPengundiBaru() {
         lokaliti,
         ketua_keluarga_id: kkId,
         pegawai_penyelaras_id: pegawaiId,
+        ketua_keluarga_nama_baru: kkNamaBaru,
+        pegawai_penyelaras_nama_baru: pegawaiNamaBaru,
         jantina: document.getElementById('tambahJantina').value || null,
         tahun_lahir: tahunLahir,
         no_telefon: document.getElementById('tambahNoTelefon').value.trim() || null,

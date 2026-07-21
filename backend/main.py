@@ -113,6 +113,8 @@ class PengundiCreate(BaseModel):
     status_fizikal: Optional[str] = "Hidup"
     ketua_keluarga_id: Optional[int] = None
     pegawai_penyelaras_id: Optional[int] = None
+    ketua_keluarga_nama_baru: Optional[str] = None
+    pegawai_penyelaras_nama_baru: Optional[str] = None
 
 
 class PengundiUpdate(BaseModel):
@@ -1025,6 +1027,21 @@ def create_pengundi(request: Request, data: PengundiCreate, user=Depends(get_cur
 
     db = get_db()
     cursor = db.cursor()
+
+    # If new pegawai_penyelaras name provided (not an existing ID), insert first
+    pegawai_id = data.pegawai_penyelaras_id
+    if data.pegawai_penyelaras_nama_baru and not pegawai_id:
+        cursor.execute("INSERT INTO pegawai_penyelaras (nama_penuh) VALUES (?)", (data.pegawai_penyelaras_nama_baru.strip(),))
+        db.commit()
+        pegawai_id = cursor.lastrowid
+
+    # If new ketua_keluarga name provided (not an existing ID), insert first
+    ketua_id = data.ketua_keluarga_id
+    if data.ketua_keluarga_nama_baru and not ketua_id:
+        cursor.execute("INSERT INTO ketua_keluarga (nama_penuh) VALUES (?)", (data.ketua_keluarga_nama_baru.strip(),))
+        db.commit()
+        ketua_id = cursor.lastrowid
+
     cursor.execute("""
         INSERT INTO pengundi
         (no_kp, nama_penuh, jantina, tahun_lahir, dm, lokaliti, no_telefon,
@@ -1036,7 +1053,7 @@ def create_pengundi(request: Request, data: PengundiCreate, user=Depends(get_cur
         data.dm, data.lokaliti, data.no_telefon,
         data.status_sokongan, data.status_fizikal, 0,
         status_rekod, f"Didaftar oleh {user['username']}", datetime.now().isoformat(),
-        data.ketua_keluarga_id, data.pegawai_penyelaras_id
+        ketua_id, pegawai_id
     ))
     db.commit()
     new_id = cursor.lastrowid
