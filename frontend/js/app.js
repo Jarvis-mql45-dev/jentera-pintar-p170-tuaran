@@ -2023,14 +2023,6 @@ async function tambahPengundi() {
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     // Paparkan loading sementara menunggu data API
     overlay.innerHTML = `<div class="bg-white rounded-xl p-6 text-center shadow-lg font-medium">Memuatkan borang tambah pengundi...</div>`;
-    // Reset guard when modal is closed via overlay click
-    const origOnClick = overlay.onclick;
-    overlay.onclick = (e) => { 
-        if (e.target === overlay) { 
-            overlay.remove(); 
-            window._tambahModalBusy = false; 
-        } 
-    };
     document.body.appendChild(overlay);
 
     try {
@@ -2054,7 +2046,7 @@ async function tambahPengundi() {
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between p-4 border-b">
                 <h3 class="text-lg font-semibold text-gray-800">Tambah Pengundi Baru</h3>
-                <button onclick="this.closest('#tambahModalOverlay').remove();window._tambahModalBusy=false" class="text-gray-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+                <button onclick="this.closest('#tambahModalOverlay').remove()" class="text-gray-400 hover:text-red-500 text-2xl leading-none">&times;</button>
             </div>
             <div class="p-4 space-y-3">
                 <!-- Parlimen -->
@@ -2159,7 +2151,7 @@ async function tambahPengundi() {
                 </div>
             </div>
             <div class="flex gap-2 p-4 border-t">
-                <button onclick="this.closest('#tambahModalOverlay').remove();window._tambahModalBusy=false" class="btn btn-outline flex-1">Batal</button>
+                <button onclick="this.closest('#tambahModalOverlay').remove()" class="btn btn-outline flex-1">Batal</button>
                 <button onclick="simpanPengundiBaru()" class="btn btn-primary flex-1">Daftar Pengundi</button>
             </div>
         </div>
