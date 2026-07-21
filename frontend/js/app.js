@@ -30,16 +30,18 @@ function groupPdmByDun(pdmList) {
     return { groups, order: order.filter(dun => groups[dun]) };
 }
 
-function renderGroupedPdmOptions(pdmList, selectedValue) {
+function renderGroupedPdmOptions(pdmList, selectedValue, selectedDun) {
     const { groups, order } = groupPdmByDun(pdmList);
     let html = '';
     order.forEach(dun => {
-        html += `<optgroup label="${dun}">`;
+        const dunKod = dun.split(' ')[0]; // "N12 SULAMAN" -> "N12"
+        const dunSel = dunKod === selectedDun ? ' selected' : '';
+        // DUN header — boleh diklik (value = kod DUN)
+        html += `<option value="${dunKod}"${dunSel} style="font-weight:bold;background:#f3f4f6;">— ${dun} —</option>`;
         groups[dun].forEach(pdm => {
             const sel = pdm === selectedValue ? ' selected' : '';
-            html += `<option value="${pdm}"${sel}>${pdm}</option>`;
+            html += `<option value="${pdm}"${sel}>&nbsp;&nbsp;${pdm}</option>`;
         });
-        html += '</optgroup>';
     });
     return html;
 }
@@ -1593,6 +1595,22 @@ function buildFilterParams() {
     return parts.length ? '&' + parts.join('&') : '';
 }
 
+function handlePdmFilterChange(value) {
+    // Check if value is a DUN code (N12, N13, N14, N15)
+    if (value === 'N12' || value === 'N13' || value === 'N14' || value === 'N15') {
+        state.pengundiDun = value;
+        state.pengundiDm = '';
+    } else if (value === '') {
+        state.pengundiDun = '';
+        state.pengundiDm = '';
+    } else {
+        state.pengundiDm = value;
+        state.pengundiDun = '';
+    }
+    state.pengundiPage = 1;
+    renderPengundi();
+}
+
 function clearAllFilters() {
     selectedFilters = { pdm: [], lokaliti: [], sokongan: [], ketua_keluarga: [], pegawai_penyelaras: [] };
     renderPengundi();
@@ -1643,7 +1661,7 @@ async function renderPengundi() {
                     <div class="relative flex-1 min-w-[200px]"><input type="text" id="pengundiSearch" placeholder="Cari nama, No KP..." value="${state.pengundiSearch}" onkeyup="if(event.key==='Enter'){state.pengundiSearch=this.value;state.pengundiPage=1;renderPengundi();}" class="w-full pl-8 pr-3 py-2 text-sm"><svg class="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg></div>
                     <button onclick="state.pengundiSearch=document.getElementById('pengundiSearch').value;state.pengundiPage=1;renderPengundi();" class="btn btn-primary text-sm py-2 px-3 whitespace-nowrap">Cari</button>
                     <button onclick="document.getElementById('pengundiSearch').value='';state.pengundiSearch='';state.pengundiPage=1;renderPengundi();" class="btn btn-outline text-sm py-2 px-3 whitespace-nowrap">Reset</button>
-                    <select id="pdmFilterSelect" onchange="state.pengundiDm=this.value;state.pengundiPage=1;renderPengundi()" class="w-auto text-sm"><option value="">Semua PDM</option>${renderGroupedPdmOptions(pdmList, state.pengundiDm)}</select>
+                    <select id="pdmFilterSelect" onchange="handlePdmFilterChange(this.value)" class="w-auto text-sm"><option value="">P170 Tuaran</option>${renderGroupedPdmOptions(pdmList, state.pengundiDm, state.pengundiDun)}</select>
                     <div class="flex items-center gap-1 ml-2 flex-wrap">
                         <button id="filterBtnPdm" onclick="toggleFilterDropdown('pdm')" class="btn btn-outline text-xs py-1.5 px-2 ${selectedFilters.pdm.length ? 'border-blue-500 bg-blue-50 text-blue-700' : ''}">PDM${selectedFilters.pdm.length ? ' ('+selectedFilters.pdm.length+')' : ''}</button>
                         <button id="filterBtnLokaliti" onclick="toggleFilterDropdown('lokaliti')" class="btn btn-outline text-xs py-1.5 px-2 ${selectedFilters.lokaliti.length ? 'border-blue-500 bg-blue-50 text-blue-700' : ''}">Lokaliti${selectedFilters.lokaliti.length ? ' ('+selectedFilters.lokaliti.length+')' : ''}</button>

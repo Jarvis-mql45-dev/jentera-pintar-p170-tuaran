@@ -498,6 +498,7 @@ def get_pengundi(
     per_page: int = 50,
     search: Optional[str] = None,
     dm: Optional[str] = Query(None, alias="dm[]"),
+    dun: Optional[str] = None,
     lokaliti: Optional[str] = Query(None, alias="lokaliti[]"),
     sokongan: Optional[str] = Query(None, alias="sokongan[]"),
     status_rekod: Optional[str] = None,
@@ -526,6 +527,11 @@ def get_pengundi(
         placeholders = ', '.join(['?'] * len(dm_list))
         where_parts.append(f"p.dm IN ({placeholders})")
         params.extend(dm_list)
+
+    # DUN filter — filter by DUN code (p.dun_id -> dun.kod)
+    if dun and dun.strip():
+        where_parts.append("p.dun_id = (SELECT id FROM dun WHERE kod = ?)")
+        params.append(dun.strip())
 
     # Multi-select lokaliti filter
     lokaliti_list = []
