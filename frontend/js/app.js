@@ -1585,7 +1585,7 @@ function clearFilterType(type) {
 
 function buildFilterParams() {
     const parts = [];
-    if (selectedFilters.pdm.length) parts.push(`dm=${encodeURIComponent(selectedFilters.pdm.join(','))}`);
+    if (selectedFilters.pdm.length) parts.push(`dm[]=${encodeURIComponent(selectedFilters.pdm.join(','))}`);
     if (selectedFilters.lokaliti.length) parts.push(`lokaliti=${encodeURIComponent(selectedFilters.lokaliti.join(','))}`);
     if (selectedFilters.sokongan.length) parts.push(`sokongan=${encodeURIComponent(selectedFilters.sokongan.join(','))}`);
     if (selectedFilters.ketua_keluarga.length) parts.push(`ketua_keluarga[]=${encodeURIComponent(selectedFilters.ketua_keluarga.join(','))}`);
@@ -1615,7 +1615,7 @@ async function renderPengundi() {
         // Elak duplikasi dm — jika selectedFilters.pdm ada, guna itu; jika tidak, guna state.pengundiDm
         const dmParam = selectedFilters.pdm && selectedFilters.pdm.length
             ? ''  // buildFilterParams() akan handle dm=
-            : (state.pengundiDm ? `&dm=${encodeURIComponent(state.pengundiDm)}` : '');
+            : (state.pengundiDm ? `&dm[]=${encodeURIComponent(state.pengundiDm)}` : '');
         const [filterRes, result] = await Promise.all([
             api('/api/pengundi/filter-options'),
             api(`/api/pengundi?page=${state.pengundiPage}&search=${encodeURIComponent(state.pengundiSearch)}${dmParam}${buildFilterParams()}`)
