@@ -260,6 +260,29 @@ def get_dun_list(user=Depends(get_current_user)):
     db.close()
     return duns
 
+# Tambah DUN baru
+class DunCreate(BaseModel):
+    kod: str
+    nama: str
+
+@app.post("/api/dun")
+def create_dun(request: Request, data: DunCreate, user=Depends(get_current_user)):
+    check_peranan(user, ["Admin", "Petugas Padang"])
+    db = get_db()
+    cursor = db.cursor()
+    kod = data.kod.strip().upper()
+    nama = data.nama.strip().upper()
+    # Check if DUN already exists
+    cursor.execute("SELECT id FROM dun WHERE kod = ?", (kod,))
+    if cursor.fetchone():
+        db.close()
+        raise HTTPException(status_code=400, detail=f"DUN {kod} sudah wujud")
+    cursor.execute("INSERT INTO dun (kod, nama) VALUES (?, ?)", (kod, nama))
+    db.commit()
+    db.close()
+    log_activity(request, user, "Tambah DUN", f"Tambah DUN baru: {kod} {nama}")
+    return {"message": f"DUN {kod} {nama} berjaya ditambah", "kod": kod, "nama": nama}
+
 # Senarai PDM mengikut DUN
 @app.get("/api/pdm/dun/{dun_kod}")
 def get_pdm_by_dun(dun_kod: str, user=Depends(get_current_user)):

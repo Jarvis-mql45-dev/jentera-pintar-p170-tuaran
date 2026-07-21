@@ -2060,7 +2060,7 @@ async function tambahPengundi() {
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">DUN <span class="text-red-500">*</span></label>
                     <select id="tambahDun" onchange="tambahDunChanged()" class="w-full px-3 py-2 text-sm border rounded-lg">
-                        <option value="">- Pilih DUN -</option>
+                        <option value="TAMBAH_DUN">+ Tambah DUN</option>
                         ${DUN_OPTIONS.map(d => `<option value="${d.kod}">${d.nama}</option>`).join('')}
                     </select>
                 </div>
@@ -2238,6 +2238,15 @@ async function refreshTambahLokaliti(dunKod, dmValue) {
 
 function tambahDunChanged() {
     const dunKod = document.getElementById('tambahDun').value;
+    
+    // Handle "Tambah DUN" selection
+    if (dunKod === 'TAMBAH_DUN') {
+        // Reset dropdown to no selection
+        document.getElementById('tambahDun').value = '';
+        showTambahDunModal();
+        return;
+    }
+    
     const pdmList = getPdmListForDun(dunKod);
     const dmInput = document.getElementById('tambahDm');
     const datalist = document.getElementById('pdmList');
@@ -2245,6 +2254,78 @@ function tambahDunChanged() {
     dmInput.value = '';
     // Refresh lokaliti based on selected DUN
     refreshTambahLokaliti(dunKod, '');
+}
+
+function showTambahDunModal() {
+    // Remove existing overlay if any
+    const existing = document.getElementById('tambahDunOverlay');
+    if (existing) existing.remove();
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'tambahDunOverlay';
+    overlay.className = 'fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    
+    overlay.innerHTML = `
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+            <div class="flex items-center justify-between p-4 border-b">
+                <h3 class="text-lg font-semibold text-gray-800">Tambah DUN Baru</h3>
+                <button onclick="this.closest('#tambahDunOverlay').remove()" class="text-gray-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="p-4 space-y-3">
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">Kod DUN <span class="text-red-500">*</span></label>
+                    <input type="text" id="dunBaruKod" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Contoh: N16" maxlength="3">
+                    <p class="text-xs text-gray-400 mt-0.5">Kod DUN baru, cth: N16</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">Nama DUN <span class="text-red-500">*</span></label>
+                    <input type="text" id="dunBaruNama" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Contoh: SULAMAN BARU">
+                    <p class="text-xs text-gray-400 mt-0.5">Nama penuh DUN baru</p>
+                </div>
+            </div>
+            <div class="flex gap-2 p-4 border-t">
+                <button onclick="this.closest('#tambahDunOverlay').remove()" class="btn btn-outline flex-1">Batal</button>
+                <button onclick="simpanDunBaru()" class="btn btn-primary flex-1">Simpan DUN</button>
+            </div>
+        </div>`;
+    
+    document.body.appendChild(overlay);
+    
+    // Auto-focus on kod input
+    setTimeout(() => document.getElementById('dunBaruKod')?.focus(), 100);
+}
+
+async function simpanDunBaru() {
+    const kod = document.getElementById('dunBaruKod').value.trim().toUpperCase();
+    const nama = document.getElementById('dunBaruNama').value.trim().toUpperCase();
+    
+    if (!kod || !nama) {
+        showToast('Sila isi kedua-dua Kod DUN dan Nama DUN', 'error');
+        return;
+    }
+    
+    // Validate kod format (N + 2 digits)
+    if (!/^N\d{2}$/.test(kod)) {
+        showToast('Format Kod DUN tidak sah. Guna format N diikuti 2 digit, cth: N16', 'error');
+        return;
+    }
+    
+    try {
+        await api('/api/dun', {
+            method: 'POST',
+            body: JSON.stringify({ kod, nama })
+        });
+        
+        // Close modal
+        document.getElementById('tambahDunOverlay')?.remove();
+        showToast(`DUN ${kod} ${nama} berjaya ditambah!`, 'success');
+        
+        // Reload the current page to refresh DUN options
+        renderPengundi();
+    } catch (err) {
+        showToast('Ralat: ' + err.message, 'error');
+    }
 }
 
 async function simpanPengundiBaru() {
