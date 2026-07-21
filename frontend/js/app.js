@@ -1836,8 +1836,8 @@ async function editPengundi(id) {
                             <label class="block text-sm font-medium text-gray-600 mb-1">Jantina</label>
                             <select id="editJantina" class="w-full px-3 py-2 text-sm border rounded-lg">
                                 <option value="">- Pilih -</option>
-                                <option value="Lelaki" ${p.jantina === 'Lelaki' ? 'selected' : ''}>Lelaki</option>
-                                <option value="Perempuan" ${p.jantina === 'Perempuan' ? 'selected' : ''}>Perempuan</option>
+                                <option value="L" ${p.jantina === 'L' || p.jantina === 'Lelaki' ? 'selected' : ''}>Lelaki</option>
+                                <option value="P" ${p.jantina === 'P' || p.jantina === 'Perempuan' ? 'selected' : ''}>Perempuan</option>
                             </select>
                         </div>
                         <div class="flex-1">
@@ -2135,8 +2135,8 @@ async function tambahPengundi() {
                         <label class="block text-sm font-medium text-gray-600 mb-1">Jantina</label>
                         <select id="tambahJantina" class="w-full px-3 py-2 text-sm border rounded-lg">
                             <option value="">- Pilih -</option>
-                            <option value="Lelaki">Lelaki</option>
-                            <option value="Perempuan">Perempuan</option>
+                            <option value="L">Lelaki</option>
+                            <option value="P">Perempuan</option>
                         </select>
                     </div>
                     <div class="flex-1">
