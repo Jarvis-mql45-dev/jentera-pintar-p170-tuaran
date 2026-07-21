@@ -1890,14 +1890,21 @@ function cariEditKetuaKeluarga(input) {
 }
 
 async function padamPengundi(id) {
-    if (!confirm('Anda pasti mahu memadamkan rekod pengundi ini? Tindakan ini tidak boleh dikembalikan.')) return;
-    try {
-        await api(`/api/pengundi/${id}`, { method: 'DELETE' });
-        showToast('Pengundi berjaya dipadamkan', 'success');
-        renderPengundi();
-    } catch (err) {
-        showToast('Ralat: ' + err.message, 'error');
-    }
+    // OFFLOAD to next macrotask to unblock INP
+    setTimeout(() => {
+        // Gunakan confirm() yang sudah sedia — tiada blok INP kerana ia dalam setTimeout
+        if (!confirm('Anda pasti mahu memadamkan rekod pengundi ini? Tindakan ini tidak boleh dikembalikan.')) return;
+        // Gunakan API terus tanpa await (biarkan background)
+        api(`/api/pengundi/${id}`, { method: 'DELETE' }).then(() => {
+            showToast('Pengundi berjaya dipadamkan', 'success');
+            // Offload render ke next animation frame
+            requestAnimationFrame(() => {
+                renderPengundi();
+            });
+        }).catch(err => {
+            showToast('Ralat: ' + err.message, 'error');
+        });
+    }, 0);
 }
 
 const DUN_OPTIONS = [
