@@ -328,34 +328,40 @@ function viewSurvey(id) {
     navigate('survey-view');
 }
 
-async function viewSurveyResponses(id) {
-    const content = document.getElementById('contentArea');
-    content.innerHTML = '<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan respons...</span></div>';
-    try {
-        const survey = await api(`/api/surveys/${id}`);
-        const responses = await api(`/api/surveys/${id}/responses`);
-        const qs = typeof survey.questions === 'string' ? JSON.parse(survey.questions) : (survey.questions || []);
-        content.innerHTML = `
-            <div class="card">
-                <div class="flex items-center justify-between mb-4">
-                    <div><h3 class="font-semibold text-gray-800">Respons: ${survey.title}</h3><p class="text-sm text-gray-500">${responses.length} respons diterima</p></div>
-                    <button onclick="navigate('survey')" class="btn btn-outline text-sm">← Kembali</button>
-                </div>
-                ${responses.length === 0 ? '<div class="text-center py-10 text-gray-400">Belum ada respons.</div>' : 
-                responses.map((r, ri) => {
-                    const ans = typeof r.answers === 'string' ? JSON.parse(r.answers) : (r.answers || {});
-                    return `<div class="mb-4 p-4 bg-gray-50 rounded-lg">
-                        <p class="text-xs text-gray-400 mb-2">Respons #${ri+1} · ${r.submitted_at ? new Date(r.submitted_at).toLocaleString('ms-MY') : '-'}</p>
-                        ${Array.isArray(qs) ? qs.map(q => `
-                            <div class="mb-2"><p class="text-sm font-medium text-gray-700">${q.question}</p>
-                            <p class="text-sm text-gray-600 ml-2">${ans[q.id] || ans[q.id] === 0 ? (Array.isArray(ans[q.id]) ? ans[q.id].join(', ') : ans[q.id]) : '<span class="text-gray-400">Tiada jawapan</span>'}</p></div>
-                        `).join('') : ''}
+function viewSurveyResponses(id) {
+    // OFFLOAD ke setTimeout untuk INP
+    setTimeout(() => {
+        const content = document.getElementById('contentArea');
+        content.innerHTML = '<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan respons...</span></div>';
+        Promise.all([
+            api(`/api/surveys/${id}`),
+            api(`/api/surveys/${id}/responses`)
+        ]).then(([survey, responses]) => {
+            const qs = typeof survey.questions === 'string' ? JSON.parse(survey.questions) : (survey.questions || []);
+            requestAnimationFrame(() => {
+                content.innerHTML = `
+                    <div class="card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div><h3 class="font-semibold text-gray-800">Respons: ${survey.title}</h3><p class="text-sm text-gray-500">${responses.length} respons diterima</p></div>
+                            <button onclick="navigate('survey')" class="btn btn-outline text-sm">← Kembali</button>
+                        </div>
+                        ${responses.length === 0 ? '<div class="text-center py-10 text-gray-400">Belum ada respons.</div>' : 
+                        responses.map((r, ri) => {
+                            const ans = typeof r.answers === 'string' ? JSON.parse(r.answers) : (r.answers || {});
+                            return `<div class="mb-4 p-4 bg-gray-50 rounded-lg">
+                                <p class="text-xs text-gray-400 mb-2">Respons #${ri+1} · ${r.submitted_at ? new Date(r.submitted_at).toLocaleString('ms-MY') : '-'}</p>
+                                ${Array.isArray(qs) ? qs.map(q => `
+                                    <div class="mb-2"><p class="text-sm font-medium text-gray-700">${q.question}</p>
+                                    <p class="text-sm text-gray-600 ml-2">${ans[q.id] || ans[q.id] === 0 ? (Array.isArray(ans[q.id]) ? ans[q.id].join(', ') : ans[q.id]) : '<span class="text-gray-400">Tiada jawapan</span>'}</p></div>
+                                `).join('') : ''}
+                            </div>`;
+                        }).join('')}
                     </div>`;
-                }).join('')}
-            </div>`;
-    } catch (err) {
-        content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`;
-    }
+            });
+        }).catch(err => {
+            content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`;
+        });
+    }, 0);
 }
 
 function copySurveyLink(id) {
@@ -363,23 +369,28 @@ function copySurveyLink(id) {
     navigator.clipboard.writeText(link).then(() => {
         showToast('Pautan borang disalin!');
     }).catch(() => {
-        const textarea = document.createElement('textarea');
-        textarea.value = link;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        showToast('Pautan borang disalin!');
+        setTimeout(() => {
+            const textarea = document.createElement('textarea');
+            textarea.value = link;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showToast('Pautan borang disalin!');
+        }, 0);
     });
 }
 
-async function deleteSurvey(id) {
-    if (!confirm('Padamkan soal selidik ini? Semua respons juga akan dipadamkan.')) return;
-    try {
-        await api(`/api/surveys/${id}`, { method: 'DELETE' });
-        showToast('Soal selidik dipadamkan');
-        renderSurveyList();
-    } catch (err) { showToast(err.message, 'error'); }
+function deleteSurvey(id) {
+    setTimeout(() => {
+        if (!confirm('Padamkan soal selidik ini? Semua respons juga akan dipadamkan.')) return;
+        api(`/api/surveys/${id}`, { method: 'DELETE' }).then(() => {
+            showToast('Soal selidik dipadamkan');
+            requestAnimationFrame(() => {
+                renderSurveyList();
+            });
+        }).catch(err => { showToast(err.message, 'error'); });
+    }, 0);
 }
 
 // ========= CREATE SURVEY =========
