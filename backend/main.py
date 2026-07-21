@@ -223,6 +223,71 @@ def startup():
         print("⚠️ App masih berjalan — endpoint akan return error 500 jika guna database.")
 
 
+# ===== AUTO-CREATE DUN / PDM =====
+class DunCreate(BaseModel):
+    kod: str
+    nama: str
+
+class PdmCreate(BaseModel):
+    nama: str
+    dun_kod: str
+
+@app.post("/api/dun")
+def create_dun(request: Request, data: DunCreate, user=Depends(get_current_user)):
+    check_peranan(user, ["Admin", "Petugas Padang"])
+    db = get_db()
+    cursor = db.cursor()
+    kod = data.kod.strip().upper()
+    nama = data.nama.strip().upper()
+    # Check if DUN already exists
+    cursor.execute("SELECT id FROM dun WHERE kod = ?", (kod,))
+    existing = cursor.fetchone()
+    if existing:
+        db.close()
+        return {"success": True, "id": existing[0], "kod": kod, "nama": nama, "existing": True}
+    # Get parlimen_id for P170
+    cursor.execute("SELECT id FROM parlimen WHERE kod = 'P170'")
+    parlimen = cursor.fetchone()
+    if not parlimen:
+        db.close()
+        raise HTTPException(status_code=500, detail="Parlimen P170 not found")
+    parlimen_id = parlimen[0]
+    cursor.execute("INSERT INTO dun (parlimen_id, kod, nama) VALUES (?, ?, ?)", (parlimen_id, kod, nama))
+    db.commit()
+    new_id = cursor.lastrowid
+    db.close()
+    return {"success": True, "id": new_id, "kod": kod, "nama": nama}
+
+@app.post("/api/pdm")
+def create_pdm(request: Request, data: PdmCreate, user=Depends(get_current_user)):
+    check_peranan(user, ["Admin", "Petugas Padang"])
+    db = get_db()
+    cursor = db.cursor()
+    nama = data.nama.strip().upper()
+    dun_kod = data.dun_kod.strip().upper()
+    # Check if PDM already exists in same DUN
+    cursor.execute("""
+        SELECT p.id FROM pdm p 
+        JOIN dun d ON d.id = p.dun_id 
+        WHERE p.nama = ? AND d.kod = ?
+    """, (nama, dun_kod))
+    existing = cursor.fetchone()
+    if existing:
+        db.close()
+        return {"success": True, "id": existing[0], "nama": nama, "existing": True}
+    # Get dun_id
+    cursor.execute("SELECT id FROM dun WHERE kod = ?", (dun_kod,))
+    dun = cursor.fetchone()
+    if not dun:
+        db.close()
+        raise HTTPException(status_code=400, detail=f"DUN {dun_kod} not found")
+    dun_id = dun[0]
+    cursor.execute("INSERT INTO pdm (dun_id, nama) VALUES (?, ?)", (dun_id, nama))
+    db.commit()
+    new_id = cursor.lastrowid
+    db.close()
+    return {"success": True, "id": new_id, "nama": nama}
+
 # ===== FUNGSI CHECK PERANAN =====
 def check_peranan(user: dict, peranan_dibenarkan: list):
     if user["peranan"] not in peranan_dibenarkan:

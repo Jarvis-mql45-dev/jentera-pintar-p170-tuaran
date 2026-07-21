@@ -2038,6 +2038,14 @@ async function tambahPengundi() {
         const kkOptHtml = kkOptions.map(k => `<option value="${k.id} - ${k.nama_penuh}">`).join('');
         const ppOptHtml = ppOptions.map(p => `<option value="${p.id} - ${p.nama_penuh}">`).join('');
 
+        // Fetch DUN list from API — dynamically
+        let dunList = [];
+        try {
+            dunList = await api('/api/dun');
+        } catch (e) {
+            dunList = DUN_OPTIONS;
+        }
+
         // Default DUN = N12 for initial PDM list
         const defaultDun = 'N12';
         const initialPdmOptions = renderDunPdmDataList(defaultDun);
@@ -2061,8 +2069,15 @@ async function tambahPengundi() {
                     <label class="block text-sm font-medium text-gray-600 mb-1">DUN <span class="text-red-500">*</span></label>
                     <select id="tambahDun" onchange="tambahDunChanged()" class="w-full px-3 py-2 text-sm border rounded-lg">
                         <option value="">- Pilih DUN -</option>
-                        ${DUN_OPTIONS.map(d => `<option value="${d.kod}">${d.nama}</option>`).join('')}
+                        <option value="TAMBAH_DUN" style="color:#2563eb;font-weight:600;">➕ Tambah DUN Baru</option>
+                        ${dunList.map(d => `<option value="${d.kod}">${d.nama}</option>`).join('')}
                     </select>
+                </div>
+                <!-- Input untuk DUN baru (tersembunyi) -->
+                <div id="tambahDunBaruContainer" style="display:none;">
+                    <label class="block text-sm font-medium text-gray-600 mb-1">Nama DUN Baru <span class="text-red-500">*</span></label>
+                    <input type="text" id="tambahDunBaru" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Contoh: N16 - BANGGI">
+                    <p class="text-xs text-gray-400 mt-0.5">Masukkan kod dan nama DUN baru, cth: N16 - BANGGI</p>
                 </div>
                 <!-- PDM: searchable + add new -->
                 <div>
@@ -2238,6 +2253,27 @@ async function refreshTambahLokaliti(dunKod, dmValue) {
 
 function tambahDunChanged() {
     const dunKod = document.getElementById('tambahDun').value;
+    const dunBaruContainer = document.getElementById('tambahDunBaruContainer');
+    const dmDiv = document.getElementById('tambahDm')?.closest('div');
+    const lokalitiDiv = document.getElementById('tambahLokaliti')?.closest('div');
+    
+    if (dunKod === 'TAMBAH_DUN') {
+        // Show DUN baru input, hide PDM & Lokaliti (since we don't know the DUN yet)
+        if (dunBaruContainer) dunBaruContainer.style.display = 'block';
+        if (dmDiv) dmDiv.style.display = 'none';
+        if (lokalitiDiv) lokalitiDiv.style.display = 'none';
+        document.getElementById('tambahDun').value = 'TAMBAH_DUN';
+        return;
+    }
+    
+    // Hide DUN baru container if visible
+    if (dunBaruContainer) {
+        dunBaruContainer.style.display = 'none';
+        document.getElementById('tambahDunBaru').value = '';
+    }
+    if (dmDiv) dmDiv.style.display = 'block';
+    if (lokalitiDiv) lokalitiDiv.style.display = 'block';
+    
     const pdmList = getPdmListForDun(dunKod);
     const dmInput = document.getElementById('tambahDm');
     const datalist = document.getElementById('pdmList');
@@ -2249,7 +2285,7 @@ function tambahDunChanged() {
 
 async function simpanPengundiBaru() {
     const nama_penuh = document.getElementById('tambahNama').value.trim();
-    const dun = document.getElementById('tambahDun').value;
+    let dun = document.getElementById('tambahDun').value;
     const dm = document.getElementById('tambahDm').value.trim();
     const lokaliti = document.getElementById('tambahLokaliti').value.trim();
     const pegawaiVal = document.getElementById('tambahPegawai').value.trim();
@@ -2259,6 +2295,39 @@ async function simpanPengundiBaru() {
     // If value is not in "ID - Nama" format, treat it as a new name to create
     const pegawaiNamaBaru = (!pegawaiId && pegawaiVal) ? pegawaiVal : null;
     const kkNamaBaru = (!kkId && kkVal) ? kkVal : null;
+
+    // Jika "Tambah DUN Baru" dipilih, auto-create DUN dulu
+    if (dun === 'TAMBAH_DUN') {
+        const dunBaruVal = document.getElementById('tambahDunBaru').value.trim();
+        if (!dunBaruVal) {
+            showToast('Sila masukkan nama DUN baru (cth: N16 - BANGGI)', 'error');
+            return;
+        }
+        // Parse "N16 - BANGGI" → kod: "N16", nama: "BANGGI"
+        const dashIdx = dunBaruVal.indexOf('-');
+        let dunKod = '', dunNama = '';
+        if (dashIdx > -1) {
+            dunKod = dunBaruVal.substring(0, dashIdx).trim().toUpperCase();
+            dunNama = dunBaruVal.substring(dashIdx + 1).trim().toUpperCase();
+        } else {
+            dunKod = dunBaruVal.trim().toUpperCase();
+            dunNama = dunKod;
+        }
+        if (!dunKod) {
+            showToast('Format DUN baru tidak sah. Guna format: N16 - BANGGI', 'error');
+            return;
+        }
+        try {
+            const result = await api('/api/dun', {
+                method: 'POST',
+                body: JSON.stringify({ kod: dunKod, nama: dunNama })
+            });
+            dun = result.kod;
+        } catch (err) {
+            showToast('Gagal cipta DUN baru: ' + err.message, 'error');
+            return;
+        }
+    }
 
     if (!nama_penuh || !dun || !dm || !lokaliti) {
         showToast('Sila isi ruangan wajib: DUN, PDM, Lokaliti, dan Nama Penuh', 'error');
