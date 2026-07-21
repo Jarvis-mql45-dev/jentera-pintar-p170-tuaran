@@ -205,12 +205,12 @@ function renderSidebar() {
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> Cipta Soal Selidik
             </button>
             <div class="text-xs text-gray-400 uppercase font-semibold mb-2 mt-2 px-3">INFO PARTI</div>
-            <button onclick="navigate('berita')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='berita'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg> Berita & Amanat
+            <button onclick="navigate('berita')" class="sidebar-item w-full flex items-start gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='berita'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
+                <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg> <span style="text-align:left;display:block;line-height:1.4;">Berita & Amanat</span>
                 <span class="ml-auto bg-amber-400 text-amber-900 text-xs px-1.5 py-0.5 rounded-full">Akan Datang</span>
             </button>
-            <button onclick="navigate('kalendar')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='kalendar'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> Kalendar Aktiviti
+            <button onclick="navigate('kalendar')" class="sidebar-item w-full flex items-start gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='kalendar'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
+                <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> <span style="text-align:left;display:block;line-height:1.4;">Kalendar Aktiviti</span>
                 <span class="ml-auto bg-amber-400 text-amber-900 text-xs px-1.5 py-0.5 rounded-full">Akan Datang</span>
             </button>
             <div class="text-xs text-gray-400 uppercase font-semibold mb-2 mt-2 px-3">SOKONGAN & MAKLUM BALAS</div>
