@@ -1588,8 +1588,8 @@ function clearFilterType(type) {
 function buildFilterParams() {
     const parts = [];
     if (selectedFilters.pdm.length) parts.push(`dm[]=${encodeURIComponent(selectedFilters.pdm.join(','))}`);
-    if (selectedFilters.lokaliti.length) parts.push(`lokaliti=${encodeURIComponent(selectedFilters.lokaliti.join(','))}`);
-    if (selectedFilters.sokongan.length) parts.push(`sokongan=${encodeURIComponent(selectedFilters.sokongan.join(','))}`);
+    if (selectedFilters.lokaliti.length) parts.push(`lokaliti[]=${encodeURIComponent(selectedFilters.lokaliti.join(','))}`);
+    if (selectedFilters.sokongan.length) parts.push(`sokongan[]=${encodeURIComponent(selectedFilters.sokongan.join(','))}`);
     if (selectedFilters.ketua_keluarga.length) parts.push(`ketua_keluarga[]=${encodeURIComponent(selectedFilters.ketua_keluarga.join(','))}`);
     if (selectedFilters.pegawai_penyelaras.length) parts.push(`pegawai_penyelaras[]=${encodeURIComponent(selectedFilters.pegawai_penyelaras.join(','))}`);
     return parts.length ? '&' + parts.join('&') : '';
