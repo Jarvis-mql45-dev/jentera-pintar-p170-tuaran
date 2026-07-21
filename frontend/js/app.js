@@ -2259,7 +2259,7 @@ async function approvePengundi(id) {
 
 async function rejectPengundi(id) {
     try {
-        await api(`/api/approval-queue/${id}/tolak`, { method: 'POST' });
+        await api(`/api/approval-queue/${id}/tolak`, { method: 'DELETE' });
         showToast('Data ditolak');
         renderApprovalQueue();
         updateApprovalBadge();
