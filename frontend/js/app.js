@@ -2295,8 +2295,9 @@ function tambahDunBaruSekarang() {
                 <option value="TAMBAH_DUN" style="color:#2563eb;font-weight:600;">➕ Tambah DUN Baru</option>
                 ${dunList.map(d => `<option value="${d.kod}">${d.nama}</option>`).join('')}
             `;
-            // Auto-pilih DUN baru
+            // Auto-pilih DUN baru dan trigger onChange untuk 🗑️ button
             dunSelect.value = result.kod;
+            tambahDunChanged();
             // Show PDM & Lokaliti fields
             const dmDiv = document.getElementById('tambahDm')?.closest('div');
             const lokalitiDiv = document.getElementById('tambahLokaliti')?.closest('div');
