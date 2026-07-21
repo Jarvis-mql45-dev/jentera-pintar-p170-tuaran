@@ -106,6 +106,7 @@ class PengundiCreate(BaseModel):
     nama_penuh: str
     jantina: Optional[str] = None
     tahun_lahir: Optional[int] = None
+    dun: Optional[str] = None  # Kod DUN (contoh: "N12") — akan resolve ke dun_id
     dm: str
     lokaliti: Optional[str] = None
     no_telefon: Optional[str] = None
@@ -1107,18 +1108,26 @@ def create_pengundi(request: Request, data: PengundiCreate, user=Depends(get_cur
         db.commit()
         ketua_id = cursor.lastrowid
 
+    # Resolve dun_kod -> dun_id (frontend sends DUN code like "N12")
+    dun_id = None
+    if data.dun:
+        cursor.execute("SELECT id FROM dun WHERE kod = ?", (data.dun.strip().upper(),))
+        dun_row = cursor.fetchone()
+        if dun_row:
+            dun_id = dun_row[0]
+
     cursor.execute("""
         INSERT INTO pengundi
         (no_kp, nama_penuh, jantina, tahun_lahir, dm, lokaliti, no_telefon,
          status_sokongan, status_fizikal, adalah_pemilik_apps, status_rekod, sumber_pdm, dicipta_pada,
-         ketua_keluarga_id, pegawai_penyelaras_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ketua_keluarga_id, pegawai_penyelaras_id, dun_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         data.no_kp, data.nama_penuh, data.jantina, data.tahun_lahir,
         data.dm, data.lokaliti, data.no_telefon,
         data.status_sokongan, data.status_fizikal, 0,
         status_rekod, f"Didaftar oleh {user['username']}", datetime.now().isoformat(),
-        ketua_id, pegawai_id
+        ketua_id, pegawai_id, dun_id
     ))
     db.commit()
     new_id = cursor.lastrowid
@@ -1126,7 +1135,7 @@ def create_pengundi(request: Request, data: PengundiCreate, user=Depends(get_cur
 
     # Log aktiviti
     log_activity(request, user, "Tambah Pengundi", 
-                 f"Tambah pengundi baru: {data.nama_penuh} (KP: {data.no_kp}, PDM: {data.dm}, status: {status_rekod})",
+                 f"Tambah pengundi baru: {data.nama_penuh} (KP: {data.no_kp}, PDM: {data.dm}, DUN: {data.dun}, status: {status_rekod})",
                  no_kp_terlibat=data.no_kp)
 
     return {"message": "Pengundi berjaya didaftarkan", "id": new_id, "status_rekod": status_rekod}
