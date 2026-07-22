@@ -1840,6 +1840,7 @@ async function editPengundi(id) {
                             <select id="editDm" onchange="editPdmChanged()" class="flex-1 px-3 py-2 text-sm border rounded-lg">
                                 <option value="">- Pilih PDM -</option>
                                 <option value="TAMBAH_PDM" style="color:#2563eb;font-weight:600;">➕ Tambah PDM Baru</option>
+                                ${pdmOptions}
                             </select>
                             <button id="editBtnHapusPdm" onclick="editHapusPdm()" class="btn btn-outline text-sm px-2 py-1 text-red-600 border-red-300 hover:bg-red-50 hidden" title="Padam PDM">🗑️</button>
                         </div>
