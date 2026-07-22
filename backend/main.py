@@ -1733,6 +1733,27 @@ def patch_user(request: Request, user_id: int, data: dict = Body(...), user=Depe
     return {"message": "Pengguna berjaya dikemaskini"}
 
 
+@app.delete("/api/users/{user_id}")
+def delete_user(request: Request, user_id: int, user=Depends(get_current_user)):
+    """Padam pengguna (Admin sahaja). Tidak boleh padam diri sendiri."""
+    check_peranan(user, ["Admin"])
+    if user.get("user_id") == user_id:
+        raise HTTPException(status_code=400, detail="Tidak boleh memadamkan akaun sendiri")
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id, username, nama_penuh FROM users WHERE id = ?", (user_id,))
+    existing = cursor.fetchone()
+    if not existing:
+        db.close()
+        raise HTTPException(status_code=404, detail="Pengguna tidak ditemui")
+    cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    db.commit()
+    db.close()
+    log_activity(request, user, "Padam Pengguna",
+                 f"Padam pengguna ID {user_id}: {existing['username']} ({existing['nama_penuh']})")
+    return {"message": f"Pengguna '{existing['username']}' berjaya dipadamkan"}
+
+
 # ===== SURVEY MODELS =====
 class SurveyCreate(BaseModel):
     title: str

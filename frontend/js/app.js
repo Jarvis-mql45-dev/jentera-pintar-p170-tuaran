@@ -2783,7 +2783,7 @@ async function renderUserManagement() {
                             <td>${u.nama_penuh || '-'}</td>
                             <td><span class="badge ${u.peranan==='Admin'?'badge-putih':u.peranan==='Petugas Padang'?'badge-atas':'badge-tiada'}">${u.peranan || '-'}</span></td>
                             <td>${u.aktif ? '<span class="text-green-600 font-medium">Aktif</span>' : '<span class="text-red-500">Tidak Aktif</span>'}</td>
-                            <td><button onclick="toggleUserActive(${u.id},${!u.aktif})" class="btn ${u.aktif?'btn-warning':'btn-success'} text-xs py-1 px-2">${u.aktif?'Nyahaktif':'Aktifkan'}</button></td>
+                            <td><div class="flex gap-1"><button onclick="toggleUserActive(${u.id},${!u.aktif})" class="btn ${u.aktif?'btn-warning':'btn-success'} text-xs py-1 px-2">${u.aktif?'Nyahaktif':'Aktifkan'}</button><button onclick="deleteUser(${u.id})" class="btn btn-danger text-xs py-1 px-2">Padam</button></div></td>
                         </tr>`).join('')}</tbody>
                     </table>
                 </div>
@@ -2828,6 +2828,15 @@ async function toggleUserActive(id, aktif) {
     try {
         await api(`/api/users/${id}`, { method: 'PATCH', body: JSON.stringify({ aktif }) });
         showToast(`Pengguna ${aktif?'diaktifkan':'dinyahaktifkan'}`);
+        renderUserManagement();
+    } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function deleteUser(id) {
+    if (!confirm('Anda pasti mahu memadamkan pengguna ini? Tindakan ini tidak boleh dikembalikan.')) return;
+    try {
+        await api(`/api/users/${id}`, { method: 'DELETE' });
+        showToast('Pengguna berjaya dipadamkan!');
         renderUserManagement();
     } catch (err) { showToast(err.message, 'error'); }
 }
