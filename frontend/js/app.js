@@ -2071,7 +2071,7 @@ async function tambahPengundi() {
                         <select id="tambahDun" onchange="tambahDunChanged()" class="flex-1 px-3 py-2 text-sm border rounded-lg">
                             <option value="">- Pilih DUN -</option>
                             <option value="TAMBAH_DUN" style="color:#2563eb;font-weight:600;">➕ Tambah DUN Baru</option>
-                            ${dunList.map(d => `<option value="${d.kod}">${d.nama}</option>`).join('')}
+                        ${dunList.map(d => `<option value="${d.kod}">${d.nama} (${d.jumlah_pengundi || 0})</option>`).join('')}
                         </select>
                         <button id="btnHapusDun" onclick="hapusDun()" class="btn btn-outline text-sm px-2 py-1 text-red-600 border-red-300 hover:bg-red-50 hidden" title="Padam DUN">🗑️</button>
                     </div>
@@ -2293,7 +2293,7 @@ function tambahDunBaruSekarang() {
             dunSelect.innerHTML = `
                 <option value="">- Pilih DUN -</option>
                 <option value="TAMBAH_DUN" style="color:#2563eb;font-weight:600;">➕ Tambah DUN Baru</option>
-                ${dunList.map(d => `<option value="${d.kod}">${d.nama}</option>`).join('')}
+                ${dunList.map(d => `<option value="${d.kod}">${d.nama} (${d.jumlah_pengundi || 0})</option>`).join('')}
             `;
             // Auto-pilih DUN baru dan trigger onChange untuk 🗑️ button
             dunSelect.value = result.kod;

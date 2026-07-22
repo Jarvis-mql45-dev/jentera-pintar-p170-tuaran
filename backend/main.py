@@ -359,13 +359,19 @@ def get_pdm_list(user=Depends(get_current_user)):
     db.close()
     return pdms
 
-# Senarai DUN
+# Senarai DUN (sertakan jumlah pengundi)
 @app.get("/api/dun")
 def get_dun_list(user=Depends(get_current_user)):
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT kod, nama FROM dun ORDER BY id")
-    duns = [{"kod": row[0], "nama": row[1]} for row in cursor.fetchall()]
+    cursor.execute("""
+        SELECT d.kod, d.nama, COUNT(p.id) AS jumlah_pengundi
+        FROM dun d
+        LEFT JOIN pengundi p ON p.dun_id = d.id AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
+        GROUP BY d.kod, d.nama
+        ORDER BY d.id
+    """)
+    duns = [{"kod": row[0], "nama": row[1], "jumlah_pengundi": row[2]} for row in cursor.fetchall()]
     db.close()
     return duns
 
