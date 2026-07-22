@@ -1784,9 +1784,19 @@ async function editPengundi(id) {
             dunList = [];
         }
 
-        // Initialize PDM list based on current DUN
+        // Fetch PDM list from API (single source of truth from pdm table)
+        let allPdms = [];
+        try {
+            allPdms = await api('/api/pdm');
+        } catch (e) {
+            allPdms = [];
+        }
+        // Filter PDMs by current DUN if selected
         const dunKod = p.dun || 'N12';
-        const pdmOptions = renderDunPdmDataList(dunKod);
+        const pdmOptions = allPdms
+            .filter(pdm => !dunKod || pdm.dun_kod === dunKod || !pdm.dun_kod)
+            .map(pdm => `<option value="${pdm.nama}" ${p.dm === pdm.nama ? 'selected' : ''}>${pdm.nama} (${pdm.jumlah_pengundi || 0})</option>`)
+            .join('');
 
         overlay.innerHTML = `
             <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
