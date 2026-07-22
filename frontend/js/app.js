@@ -1708,7 +1708,18 @@ async function renderPengundi() {
                 <div class="overflow-x-auto" style="scrollbar-width: thin;">
                     <div class="text-xs text-gray-400 mb-1 italic">Gulir ke kanan → untuk lihat kolum K. Keluarga & Peg. Penyelaras</div>
                     <table style="min-width:1100px; table-layout:fixed;">
-                        <thead><tr><th style="width:120px" onclick="sortPengundi('no_kp')">No KP</th><th style="width:160px" onclick="sortPengundi('nama_penuh')">Nama Penuh</th><th style="width:60px" onclick="sortPengundi('jantina')">Jantina</th><th style="width:60px" onclick="sortPengundi('umur')">Umur</th><th style="width:120px" onclick="sortPengundi('dm')">DM / PDM</th><th style="width:140px" onclick="sortPengundi('lokaliti')">Lokaliti</th><th style="width:100px" onclick="sortPengundi('sokongan')">Sokongan</th><th style="width:140px" onclick="sortPengundi('ketua_keluarga')">K. Keluarga</th><th style="width:140px" onclick="sortPengundi('pegawai_penyelaras')">Peg. Penyelaras</th><th style="width:100px">Tindakan</th></tr></thead>
+                        <thead><tr>
+                            <th style="width:120px" onclick="sortPengundi('no_kp')">No KP (${pengundi.filter(p=>p.no_kp).length.toLocaleString()})</th>
+                            <th style="width:160px" onclick="sortPengundi('nama_penuh')">Nama Penuh (${pengundi.filter(p=>p.nama_penuh).length.toLocaleString()})</th>
+                            <th style="width:60px" onclick="sortPengundi('jantina')">Jantina (${pengundi.filter(p=>p.jantina).length.toLocaleString()})</th>
+                            <th style="width:60px" onclick="sortPengundi('umur')">Umur (${pengundi.filter(p=>p.tahun_lahir).length.toLocaleString()})</th>
+                            <th style="width:120px" onclick="sortPengundi('dm')">DM / PDM (${pengundi.filter(p=>p.dm).length.toLocaleString()})</th>
+                            <th style="width:140px" onclick="sortPengundi('lokaliti')">Lokaliti (${pengundi.filter(p=>p.lokaliti).length.toLocaleString()})</th>
+                            <th style="width:100px" onclick="sortPengundi('sokongan')">Sokongan (${pengundi.filter(p=>p.status_sokongan).length.toLocaleString()})</th>
+                            <th style="width:140px" onclick="sortPengundi('ketua_keluarga')">K. Keluarga (${pengundi.filter(p=>p.ketua_keluarga_nama).length.toLocaleString()})</th>
+                            <th style="width:140px" onclick="sortPengundi('pegawai_penyelaras')">Peg. Penyelaras (${pengundi.filter(p=>p.pegawai_penyelaras_nama).length.toLocaleString()})</th>
+                            <th style="width:100px">Tindakan</th>
+                        </tr></thead>
                         <tbody>${pengundi.map(p => `<tr>
                             <td class="text-xs font-mono">${p.no_kp || '-'}</td>
                             <td class="font-medium whitespace-nowrap text-sm">${p.nama_penuh || '-'}</td>
