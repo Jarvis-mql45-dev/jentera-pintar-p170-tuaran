@@ -1823,20 +1823,21 @@ async function editPengundi(id) {
                         <input type="text" id="editNoKp" value="${(p.no_kp || '').replace(/"/g, '"')}" class="w-full px-3 py-2 text-sm border rounded-lg bg-gray-100 text-gray-500" disabled placeholder="000101-01-0001">
                     </div>
                     <!-- Hari/Bulan/Tahun Lahir (manual) -->
+                    ${(() => { const dob = parseIcToDob(p.no_kp || ''); return `
                     <div class="flex gap-2">
                         <div class="flex-1">
                             <label class="block text-sm font-medium text-gray-600 mb-1">Hari Lahir</label>
-                            <input type="text" id="editHariLahir" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="DD">
+                            <input type="text" id="editHariLahir" value="${dob.hari}" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="DD">
                         </div>
                         <div class="flex-1">
                             <label class="block text-sm font-medium text-gray-600 mb-1">Bulan Lahir</label>
-                            <input type="text" id="editBulanLahir" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="MM">
+                            <input type="text" id="editBulanLahir" value="${dob.bulan}" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="MM">
                         </div>
                         <div class="flex-1">
                             <label class="block text-sm font-medium text-gray-600 mb-1">Tahun Lahir</label>
-                            <input type="text" id="editTahunLahir" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="YYYY">
+                            <input type="text" id="editTahunLahir" value="${p.tahun_lahir || dob.tahun}" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="YYYY">
                         </div>
-                    </div>
+                    </div>`; })()}
                     <div class="flex gap-3">
                         <div class="flex-1">
                             <label class="block text-sm font-medium text-gray-600 mb-1">Jantina</label>

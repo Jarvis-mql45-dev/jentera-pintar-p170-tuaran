@@ -1292,9 +1292,11 @@ def get_pengundi_by_id(request: Request, pengundi_id: int, user=Depends(get_curr
     cursor = db.cursor()
     cursor.execute("""
         SELECT p.*, 
+               d.kod AS dun,
                kk.nama_penuh AS ketua_keluarga_nama, 
                pp.nama_penuh AS pegawai_penyelaras_nama
         FROM pengundi p
+        LEFT JOIN dun d ON d.id = p.dun_id
         LEFT JOIN ketua_keluarga kk ON p.ketua_keluarga_id = kk.id
         LEFT JOIN pegawai_penyelaras pp ON p.pegawai_penyelaras_id = pp.id
         WHERE p.id = ?
