@@ -1776,6 +1776,14 @@ async function editPengundi(id) {
         const kkOptHtml = kkOptions.map(k => `<option value="${k.id} - ${k.nama_penuh}">`).join('');
         const ppOptHtml = ppOptions.map(p2 => `<option value="${p2.id} - ${p2.nama_penuh}">`).join('');
 
+        // Pre-fetch DUN list with voter counts from API (same as tambahPengundi)
+        let dunList = [];
+        try {
+            dunList = await api('/api/dun');
+        } catch (e) {
+            dunList = [];
+        }
+
         // Initialize PDM list based on current DUN
         const dunKod = p.dun || 'N12';
         const pdmOptions = renderDunPdmDataList(dunKod);
@@ -1797,10 +1805,23 @@ async function editPengundi(id) {
                     <!-- DUN -->
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">DUN <span class="text-red-500">*</span></label>
-                        <select id="editDun" onchange="editDunChanged()" class="w-full px-3 py-2 text-sm border rounded-lg">
-                            <option value="">- Pilih DUN -</option>
-                            ${DUN_OPTIONS.map(d => `<option value="${d.kod}" ${p.dun === d.kod ? 'selected' : ''}>${d.nama}</option>`).join('')}
-                        </select>
+                        <div class="flex gap-2">
+                            <select id="editDun" onchange="editDunChanged()" class="flex-1 px-3 py-2 text-sm border rounded-lg">
+                                <option value="">- Pilih DUN -</option>
+                                <option value="TAMBAH_DUN" style="color:#2563eb;font-weight:600;">➕ Tambah DUN Baru</option>
+                                ${dunList.map(d => `<option value="${d.kod}" ${p.dun === d.kod ? 'selected' : ''}>${d.nama} (${d.jumlah_pengundi || 0})</option>`).join('')}
+                            </select>
+                            <button id="editBtnHapusDun" onclick="editHapusDun()" class="btn btn-outline text-sm px-2 py-1 text-red-600 border-red-300 hover:bg-red-50 hidden" title="Padam DUN">🗑️</button>
+                        </div>
+                    </div>
+                    <!-- Input untuk DUN baru (tersembunyi) -->
+                    <div id="editDunBaruContainer" style="display:none;">
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Nama DUN Baru <span class="text-red-500">*</span></label>
+                        <div class="flex gap-2">
+                            <input type="text" id="editDunBaru" class="flex-1 px-3 py-2 text-sm border rounded-lg" placeholder="Contoh: N16 - BANGGI">
+                            <button onclick="editTambahDunBaruSekarang()" class="btn btn-primary whitespace-nowrap text-sm px-3">➕ Tambah DUN</button>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-0.5">Masukkan kod dan nama DUN baru, cth: N16 - BANGGI. Klik "Tambah DUN" untuk create.</p>
                     </div>
                     <!-- PDM: searchable + add new -->
                     <div>
@@ -1896,6 +1917,28 @@ async function editPengundi(id) {
             </div>
         `;
         document.body.appendChild(overlay);
+        
+        // Show/hide 🗑️ button for DUN (poka-yoke: core DUNs N12-N15 cannot be deleted)
+        const editDunSelect = document.getElementById('editDun');
+        const editBtnHapus = document.getElementById('editBtnHapusDun');
+        if (editDunSelect && editBtnHapus) {
+            const coreDuns = ['N12', 'N13', 'N14', 'N15'];
+            editDunSelect.addEventListener('change', function() {
+                if (coreDuns.includes(this.value)) {
+                    editBtnHapus.classList.add('hidden');
+                } else if (this.value && this.value !== 'TAMBAH_DUN') {
+                    editBtnHapus.classList.remove('hidden');
+                } else {
+                    editBtnHapus.classList.add('hidden');
+                }
+            });
+            // Initial state
+            if (coreDuns.includes(editDunSelect.value)) {
+                editBtnHapus.classList.add('hidden');
+            } else if (editDunSelect.value && editDunSelect.value !== 'TAMBAH_DUN') {
+                editBtnHapus.classList.remove('hidden');
+            }
+        }
     } catch (err) {
         showToast('Gagal memuat data pengundi: ' + err.message, 'error');
     } finally {
@@ -1939,6 +1982,16 @@ function editDunChanged() {
     const dunKod = document.getElementById('editDun').value;
     const dmInput = document.getElementById('editDm');
     const dl = document.getElementById('editPdmList');
+    const dunBaruContainer = document.getElementById('editDunBaruContainer');
+    
+    // Handle Tambah DUN Baru option
+    if (dunKod === 'TAMBAH_DUN') {
+        if (dunBaruContainer) dunBaruContainer.style.display = 'block';
+        return;
+    } else {
+        if (dunBaruContainer) dunBaruContainer.style.display = 'none';
+    }
+    
     if (dl) {
         if (dunKod) {
             const list = getPdmListForDun(dunKod);
@@ -1948,6 +2001,69 @@ function editDunChanged() {
         }
     }
     dmInput.value = '';
+}
+
+function editTambahDunBaruSekarang() {
+    const dunBaruInput = document.getElementById('editDunBaru');
+    const dunBaruVal = dunBaruInput.value.trim();
+    if (!dunBaruVal) {
+        showToast('Sila masukkan nama DUN baru (cth: N16 - BANGGI)', 'error');
+        return;
+    }
+    const dashIdx = dunBaruVal.indexOf('-');
+    let dunKod = '', dunNama = '';
+    if (dashIdx > -1) {
+        dunKod = dunBaruVal.substring(0, dashIdx).trim().toUpperCase();
+        dunNama = dunBaruVal.substring(dashIdx + 1).trim().toUpperCase();
+    } else {
+        dunKod = dunBaruVal.trim().toUpperCase();
+        dunNama = dunKod;
+    }
+    if (!dunKod) {
+        showToast('Format DUN baru tidak sah. Guna format: N16 - BANGGI', 'error');
+        return;
+    }
+    api('/api/dun', {
+        method: 'POST',
+        body: JSON.stringify({ kod: dunKod, nama: dunNama })
+    }).then(result => {
+        showToast(`DUN ${dunKod} - ${dunNama} berjaya ditambah!`, 'success');
+        dunBaruInput.value = '';
+        document.getElementById('editDunBaruContainer').style.display = 'none';
+        api('/api/dun').then(dunList => {
+            const dunSelect = document.getElementById('editDun');
+            dunSelect.innerHTML = `
+                <option value="">- Pilih DUN -</option>
+                <option value="TAMBAH_DUN" style="color:#2563eb;font-weight:600;">➕ Tambah DUN Baru</option>
+                ${dunList.map(d => `<option value="${d.kod}" ${d.kod === result.kod ? 'selected' : ''}>${d.nama} (${d.jumlah_pengundi || 0})</option>`).join('')}
+            `;
+            editDunChanged();
+        });
+    }).catch(err => {
+        showToast('Gagal cipta DUN baru: ' + err.message, 'error');
+    });
+}
+
+function editHapusDun() {
+    const dunKod = document.getElementById('editDun').value;
+    if (!dunKod || dunKod === 'TAMBAH_DUN') return;
+    if (!confirm(`Anda pasti mahu memadamkan DUN ${dunKod}? Tindakan ini tidak boleh dikembalikan.`)) return;
+    api(`/api/dun/${dunKod}`, { method: 'DELETE' }).then(result => {
+        showToast(`DUN ${dunKod} berjaya dipadamkan!`, 'success');
+        api('/api/dun').then(dunList => {
+            const dunSelect = document.getElementById('editDun');
+            dunSelect.innerHTML = `
+                <option value="">- Pilih DUN -</option>
+                <option value="TAMBAH_DUN" style="color:#2563eb;font-weight:600;">➕ Tambah DUN Baru</option>
+                ${dunList.map(d => `<option value="${d.kod}">${d.nama} (${d.jumlah_pengundi || 0})</option>`).join('')}
+            `;
+            dunSelect.value = '';
+            document.getElementById('editBtnHapusDun').classList.add('hidden');
+            editDunChanged();
+        });
+    }).catch(err => {
+        showToast(err.message, 'error');
+    });
 }
 
 let editPengundiSearchTimeout = null;

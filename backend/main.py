@@ -510,46 +510,25 @@ PDM_TO_DUN = {
     "TIONG SIMPODON": "N15", "TOGOP": "N15", "TOMIS": "N15", "TUDAN": "N15"
 }
 
-# Senarai DUN (sertakan jumlah pengundi)
+# Senarai DUN (sertakan jumlah pengundi) — single source of truth dari table pengundi
 @app.get("/api/dun")
 def get_dun_list(user=Depends(get_current_user)):
     db = get_db()
     cursor = db.cursor()
     
-    # Dapatkan semua DUN
-    cursor.execute("SELECT id, kod, nama FROM dun ORDER BY id")
-    dun_rows = cursor.fetchall()
-    
-    # Count pengundi yang sudah ada dun_id
+    # Poka-yoke: LEFT JOIN dengan table pengundi untuk count tepat (bukan guna PDM fallback)
     cursor.execute("""
-        SELECT dun_id, COUNT(*) FROM pengundi 
-        WHERE dun_id IS NOT NULL AND status_fizikal = 'Hidup' AND status_rekod = 'Sah'
-        GROUP BY dun_id
+        SELECT d.kod, d.nama, COUNT(p.id) AS jumlah_pengundi
+        FROM dun d
+        LEFT JOIN pengundi p ON p.dun_id = d.id
+            AND p.status_fizikal = 'Hidup'
+            AND p.status_rekod = 'Sah'
+        GROUP BY d.kod, d.nama
+        ORDER BY d.kod
     """)
-    dun_id_counts = {row[0]: row[1] for row in cursor.fetchall()}
     
-    # Count pengundi yang belum ada dun_id — guna dm (PDM) untuk fallback mapping
-    cursor.execute("""
-        SELECT UPPER(dm), COUNT(*) FROM pengundi 
-        WHERE (dun_id IS NULL OR dun_id = 0) AND dm IS NOT NULL AND dm != ''
-          AND status_fizikal = 'Hidup' AND status_rekod = 'Sah'
-        GROUP BY UPPER(dm)
-    """)
-    dm_counts = {row[0]: row[1] for row in cursor.fetchall()}
-    
+    duns = [{"kod": row[0], "nama": row[0] + " " + row[1], "jumlah_pengundi": row[2]} for row in cursor.fetchall()]
     db.close()
-    
-    # Gabungkan kedua-dua count untuk setiap DUN
-    duns = []
-    for row in dun_rows:
-        dun_id, kod, nama = row[0], row[1], row[2]
-        count = dun_id_counts.get(dun_id, 0)
-        # Tambah pengundi lama (dun_id NULL) yang dm-nya berada dalam DUN ini
-        for pdm_name, dun_kod in PDM_TO_DUN.items():
-            if dun_kod == kod:
-                count += dm_counts.get(pdm_name, 0)
-        duns.append({"kod": kod, "nama": nama, "jumlah_pengundi": count})
-    
     return duns
 
 # Senarai PDM mengikut DUN
