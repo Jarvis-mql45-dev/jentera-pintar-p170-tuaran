@@ -1992,7 +1992,7 @@ function getPdmListForDun(dunKod) {
 
 function renderDunPdmDataList(dunKod) {
     const pdmList = getPdmListForDun(dunKod);
-    return pdmList.map(p => `<option value="${p}">`).join('');
+    return pdmList.map(p => `<option value="${p}">${p}</option>`).join('');
 }
 
 let cachedLokaliti = null;
