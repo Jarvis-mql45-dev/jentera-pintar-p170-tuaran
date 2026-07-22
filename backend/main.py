@@ -430,31 +430,40 @@ def delete_lokaliti(lokaliti_nama: str, data: LokalitiCreate = None, user=Depend
     return {"success": True, "message": f"Lokaliti {nama} berjaya dipadamkan"}
 
 @app.get("/api/lokaliti")
-def get_lokaliti_list(dm: Optional[str] = None, user=Depends(get_current_user)):
-    """Pulangkan senarai lokaliti dari table kampung + jumlah pengundi, boleh filter oleh PDM."""
+def get_lokaliti_list(dun: Optional[str] = None, dm: Optional[str] = None, user=Depends(get_current_user)):
+    """Pulangkan senarai lokaliti dari table kampung + jumlah pengundi.
+       Boleh filter oleh DUN (dun) dan/atau PDM (dm)."""
     db = get_db()
     cursor = db.cursor()
+    where_clauses = []
+    params = []
+    
     if dm and dm.strip():
         dm_val = dm.strip().upper()
-        cursor.execute("""
-            SELECT k.nama, COUNT(p.id) AS jumlah_pengundi
-            FROM kampung k
-            JOIN pdm p ON p.id = k.pdm_id
-            LEFT JOIN pengundi p2 ON UPPER(p2.lokaliti) = UPPER(k.nama)
-                AND p2.status_fizikal = 'Hidup' AND p2.status_rekod = 'Sah'
-            WHERE p.nama = ?
-            GROUP BY k.nama
-            ORDER BY k.nama
-        """, (dm_val,))
-    else:
-        cursor.execute("""
-            SELECT k.nama, COUNT(p.id) AS jumlah_pengundi
-            FROM kampung k
-            LEFT JOIN pengundi p ON UPPER(p.lokaliti) = UPPER(k.nama)
-                AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
-            GROUP BY k.nama
-            ORDER BY k.nama
-        """)
+        where_clauses.append("p.nama = ?")
+        params.append(dm_val)
+    
+    if dun and dun.strip():
+        dun_val = dun.strip().upper()
+        where_clauses.append("d.kod = ?")
+        params.append(dun_val)
+    
+    where_sql = ""
+    if where_clauses:
+        where_sql = "WHERE " + " AND ".join(where_clauses)
+    
+    cursor.execute(f"""
+        SELECT k.nama, COUNT(p2.id) AS jumlah_pengundi
+        FROM kampung k
+        JOIN pdm p ON p.id = k.pdm_id
+        JOIN dun d ON d.id = p.dun_id
+        LEFT JOIN pengundi p2 ON UPPER(p2.lokaliti) = UPPER(k.nama)
+            AND p2.status_fizikal = 'Hidup' AND p2.status_rekod = 'Sah'
+        {where_sql}
+        GROUP BY k.nama
+        ORDER BY k.nama
+    """, params)
+    
     lokaliti = [{"nama": row[0], "jumlah_pengundi": row[1]} for row in cursor.fetchall()]
     db.close()
     return lokaliti

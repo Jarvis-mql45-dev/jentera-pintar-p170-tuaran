@@ -2405,7 +2405,8 @@ function hapusLokaliti() {
 async function refreshTambahLokaliti(dunKod, dmValue) {
     // Build params to filter lokaliti by selected DUN and/or PDM
     let params = '';
-    if (dmValue) params += `dm=${encodeURIComponent(dmValue)}`;
+    if (dunKod) params += `dun=${encodeURIComponent(dunKod)}`;
+    if (dmValue) params += (params ? '&' : '') + `dm=${encodeURIComponent(dmValue)}`;
     const url = params ? `/api/lokaliti?${params}` : '/api/lokaliti';
     try {
         const res = await api(url);
