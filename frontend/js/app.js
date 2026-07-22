@@ -1784,17 +1784,15 @@ async function editPengundi(id) {
             dunList = [];
         }
 
-        // Fetch PDM list from API (single source of truth from pdm table)
-        let allPdms = [];
-        try {
-            allPdms = await api('/api/pdm');
-        } catch (e) {
-            allPdms = [];
-        }
-        // Filter PDMs by current DUN if selected
+        // Fetch PDM list specifically for this DUN (poka-yoke: single source of truth from backend)
         const dunKod = p.dun || 'N12';
-        const pdmOptions = allPdms
-            .filter(pdm => !dunKod || pdm.dun_kod === dunKod || !pdm.dun_kod)
+        let pdmList = [];
+        try {
+            pdmList = await api(`/api/pdm/dun/${dunKod}`);
+        } catch (e) {
+            pdmList = [];
+        }
+        const pdmOptions = pdmList
             .map(pdm => `<option value="${pdm.nama}" ${p.dm === pdm.nama ? 'selected' : ''}>${pdm.nama} (${pdm.jumlah_pengundi || 0})</option>`)
             .join('');
 
@@ -2005,7 +2003,6 @@ async function savePengundi(id) {
 function editDunChanged() {
     const dunKod = document.getElementById('editDun').value;
     const dmInput = document.getElementById('editDm');
-    const dl = document.getElementById('editPdmList');
     const dunBaruContainer = document.getElementById('editDunBaruContainer');
     
     // Handle Tambah DUN Baru option
@@ -2016,15 +2013,21 @@ function editDunChanged() {
         if (dunBaruContainer) dunBaruContainer.style.display = 'none';
     }
     
-    if (dl) {
-        if (dunKod) {
-            const list = getPdmListForDun(dunKod);
-            dl.innerHTML = list.map(p => `<option value="${p}">`).join('');
-        } else {
-            dl.innerHTML = '';
-        }
+    // Refresh PDM dropdown using API (poka-yoke: single source of truth from backend)
+    if (dunKod && dmInput) {
+        api(`/api/pdm/dun/${dunKod}`).then(pdms => {
+            if (dmInput) {
+                dmInput.innerHTML = '<option value="">- Pilih PDM -</option>' +
+                    '<option value="TAMBAH_PDM" style="color:#2563eb;font-weight:600;">➕ Tambah PDM Baru</option>' +
+                    (pdms || []).map(p => `<option value="${p.nama}">${p.nama} (${p.jumlah_pengundi || 0})</option>`).join('');
+                dmInput.value = '';
+            }
+        }).catch(() => {
+            if (dmInput) dmInput.value = '';
+        });
+    } else if (dmInput) {
+        dmInput.value = '';
     }
-    dmInput.value = '';
 }
 
 function editTambahDunBaruSekarang() {
