@@ -359,20 +359,61 @@ def get_pdm_list(user=Depends(get_current_user)):
     db.close()
     return pdms
 
+# Mapping PDM → DUN untuk fallback — pengundi lama belum ada dun_id
+PDM_TO_DUN = {
+    "BARU-BARU": "N12", "BATANGAN": "N12", "INDAI": "N12", "KINDU": "N12",
+    "PENIMBAWAN": "N12", "SERUSUP": "N12", "TAMBALANG": "N12",
+    "BERUNGIS": "N13", "GAYANG": "N13", "MARABAHAI": "N13", "MENGKABONG": "N13",
+    "NONGKOULUD": "N13", "TELIPOK": "N13", "TUARAN BANDAR": "N13",
+    "GAYARATAU": "N14", "KILANG BATA": "N14", "MENGKALADOI": "N14", "RANI": "N14",
+    "RENGALIS": "N14", "RUNGUS": "N14", "SAWAH": "N14", "TAMPARULI": "N14",
+    "TELIBONG": "N14", "TENGHILAN": "N14", "TOPOKON": "N14",
+    "BONGOL": "N15", "KELAWAT": "N15", "KIULU": "N15", "MALANGANG": "N15",
+    "MANTOB": "N15", "PAHU": "N15", "PORING": "N15", "PUKAK": "N15",
+    "RANGALAU": "N15", "SIMPANGAN": "N15", "TAGINAMBUR": "N15",
+    "TIONG SIMPODON": "N15", "TOGOP": "N15", "TOMIS": "N15", "TUDAN": "N15"
+}
+
 # Senarai DUN (sertakan jumlah pengundi)
 @app.get("/api/dun")
 def get_dun_list(user=Depends(get_current_user)):
     db = get_db()
     cursor = db.cursor()
+    
+    # Dapatkan semua DUN
+    cursor.execute("SELECT id, kod, nama FROM dun ORDER BY id")
+    dun_rows = cursor.fetchall()
+    
+    # Count pengundi yang sudah ada dun_id
     cursor.execute("""
-        SELECT d.kod, d.nama, COUNT(p.id) AS jumlah_pengundi
-        FROM dun d
-        LEFT JOIN pengundi p ON p.dun_id = d.id AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
-        GROUP BY d.kod, d.nama
-        ORDER BY d.id
+        SELECT dun_id, COUNT(*) FROM pengundi 
+        WHERE dun_id IS NOT NULL AND status_fizikal = 'Hidup' AND status_rekod = 'Sah'
+        GROUP BY dun_id
     """)
-    duns = [{"kod": row[0], "nama": row[1], "jumlah_pengundi": row[2]} for row in cursor.fetchall()]
+    dun_id_counts = {row[0]: row[1] for row in cursor.fetchall()}
+    
+    # Count pengundi yang belum ada dun_id — guna dm (PDM) untuk fallback mapping
+    cursor.execute("""
+        SELECT UPPER(dm), COUNT(*) FROM pengundi 
+        WHERE (dun_id IS NULL OR dun_id = 0) AND dm IS NOT NULL AND dm != ''
+          AND status_fizikal = 'Hidup' AND status_rekod = 'Sah'
+        GROUP BY UPPER(dm)
+    """)
+    dm_counts = {row[0]: row[1] for row in cursor.fetchall()}
+    
     db.close()
+    
+    # Gabungkan kedua-dua count untuk setiap DUN
+    duns = []
+    for row in dun_rows:
+        dun_id, kod, nama = row[0], row[1], row[2]
+        count = dun_id_counts.get(dun_id, 0)
+        # Tambah pengundi lama (dun_id NULL) yang dm-nya berada dalam DUN ini
+        for pdm_name, dun_kod in PDM_TO_DUN.items():
+            if dun_kod == kod:
+                count += dm_counts.get(pdm_name, 0)
+        duns.append({"kod": kod, "nama": nama, "jumlah_pengundi": count})
+    
     return duns
 
 # Senarai PDM mengikut DUN
