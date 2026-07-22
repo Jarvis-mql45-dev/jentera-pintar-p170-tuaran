@@ -21,9 +21,10 @@ function groupPdmByDun(pdmList) {
     const order = ["N12 SULAMAN", "N13 PANTAI DALIT", "N14 TAMPARULI", "N15 KIULU"];
     order.forEach(dun => groups[dun] = []);
     pdmList.forEach(pdm => {
-        const dun = getDunForPdm(pdm);
-        if (dun && groups[dun] && !groups[dun].includes(pdm)) {
-            groups[dun].push(pdm);
+        const pdmNama = (typeof pdm === 'string' ? pdm : (pdm.nama || ''));
+        const dun = getDunForPdm(pdmNama);
+        if (dun && groups[dun] && !groups[dun].includes(pdmNama)) {
+            groups[dun].push(pdmNama);
         }
     });
     order.forEach(dun => { if (groups[dun].length === 0) delete groups[dun]; });
@@ -31,16 +32,16 @@ function groupPdmByDun(pdmList) {
 }
 
 function renderGroupedPdmOptions(pdmList, selectedValue, selectedDun) {
+    const pdmNames = pdmList.map(p => typeof p === 'string' ? p : p.nama);
     const { groups, order } = groupPdmByDun(pdmList);
     let html = '';
     order.forEach(dun => {
         const dunKod = dun.split(' ')[0]; // "N12 SULAMAN" -> "N12"
         const dunSel = dunKod === selectedDun ? ' selected' : '';
-        // DUN header — boleh diklik (value = kod DUN)
         html += `<option value="${dunKod}"${dunSel} style="font-weight:bold;background:#f3f4f6;">— ${dun} —</option>`;
-        groups[dun].forEach(pdm => {
-            const sel = pdm === selectedValue ? ' selected' : '';
-            html += `<option value="${pdm}"${sel}>&nbsp;&nbsp;${pdm}</option>`;
+        groups[dun].forEach(pdmNama => {
+            const sel = pdmNama === selectedValue ? ' selected' : '';
+            html += `<option value="${pdmNama}"${sel}>&nbsp;&nbsp;${pdmNama}</option>`;
         });
     });
     return html;

@@ -247,26 +247,31 @@ const PDM_DUN_MAP = {
     "RANGALAU": "N15 KIULU", "SIMPANGAN": "N15 KIULU", "TAGINAMBUR": "N15 KIULU",
     "TIONG SIMPODON": "N15 KIULU", "TOGOP": "N15 KIULU", "TOMIS": "N15 KIULU", "TUDAN": "N15 KIULU"
 };
-function getDunForPdm(pdmName) {
-    const upper = pdmName.toUpperCase().trim();
-    if (PDM_DUN_MAP[upper]) return PDM_DUN_MAP[upper];
-    for (const [key, dun] of Object.entries(PDM_DUN_MAP)) { if (upper.startsWith(key)) return dun; }
+function getDunForPdm(pdmItem) {
+    const nama = (typeof pdmItem === 'string' ? pdmItem : (pdmItem.nama || '')).toUpperCase().trim();
+    if (PDM_DUN_MAP[nama]) return PDM_DUN_MAP[nama];
+    for (const [key, dun] of Object.entries(PDM_DUN_MAP)) { if (nama.startsWith(key)) return dun; }
     return null;
 }
 function groupPdmByDun(pdmList) {
     const groups = {};
     const order = ["N12 SULAMAN", "N13 PANTAI DALIT", "N14 TAMPARULI", "N15 KIULU"];
     order.forEach(dun => groups[dun] = []);
-    pdmList.forEach(pdm => { const dun = getDunForPdm(pdm); if (dun && groups[dun] && !groups[dun].includes(pdm)) groups[dun].push(pdm); });
+    pdmList.forEach(pdm => {
+        const pdmNama = (typeof pdm === 'string' ? pdm : (pdm.nama || ''));
+        const dun = getDunForPdm(pdmNama);
+        if (dun && groups[dun] && !groups[dun].includes(pdmNama)) groups[dun].push(pdmNama);
+    });
     order.forEach(dun => { if (groups[dun].length === 0) delete groups[dun]; });
     return { groups, order: order.filter(dun => groups[dun]) };
 }
 function renderGroupedPdmOptions(pdmList, selectedValue) {
+    const pdmNames = pdmList.map(p => typeof p === 'string' ? p : p.nama);
     const { groups, order } = groupPdmByDun(pdmList);
     let html = '';
     order.forEach(dun => {
         html += `<optgroup label="${dun}">`;
-        groups[dun].forEach(pdm => { const sel = pdm === selectedValue ? ' selected' : ''; html += `<option value="${pdm}"${sel}>${pdm}</option>`; });
+        groups[dun].forEach(pdmNama => { const sel = pdmNama === selectedValue ? ' selected' : ''; html += `<option value="${pdmNama}"${sel}>${pdmNama}</option>`; });
         html += '</optgroup>';
     });
     return html;
