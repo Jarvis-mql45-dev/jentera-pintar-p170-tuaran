@@ -1743,9 +1743,14 @@ async function editPengundi(id) {
         overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
         overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
-        // Pre-fetch lokaliti list
-        const lokalitiList = await getLokalitiList();
-        const lokalitiOptions = lokalitiList.map(l => `<option value="${l}">`).join('');
+        // Pre-fetch lokaliti list with voter counts from kampung table
+        let lokalitiList = [];
+        try {
+            lokalitiList = await api('/api/lokaliti');
+        } catch (e) {
+            lokalitiList = [];
+        }
+        const lokalitiOptions = (lokalitiList || []).map(l => `<option value="${l.nama}">${l.nama} (${l.jumlah_pengundi || 0})</option>`).join('');
 
         // Pre-fetch KK & PP candidates from their respective tables
         const [kkOptions, ppOptions] = await Promise.all([
@@ -2410,7 +2415,7 @@ async function refreshTambahLokaliti(dunKod, dmValue) {
             lokalitiSelect.innerHTML = `
                 <option value="">- Pilih Lokaliti -</option>
                 <option value="TAMBAH_LOKALITI" style="color:#2563eb;font-weight:600;">➕ Tambah Lokaliti Baru</option>
-                ${(res || []).map(l => `<option value="${l}">${l}</option>`).join('')}
+                ${(res || []).map(l => `<option value="${l.nama}">${l.nama} (${l.jumlah_pengundi || 0})</option>`).join('')}
             `;
             // Preserve selection if value still exists
             if (currentVal && Array.from(lokalitiSelect.options).some(o => o.value === currentVal)) {

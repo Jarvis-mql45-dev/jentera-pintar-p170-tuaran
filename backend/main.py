@@ -431,20 +431,31 @@ def delete_lokaliti(lokaliti_nama: str, data: LokalitiCreate = None, user=Depend
 
 @app.get("/api/lokaliti")
 def get_lokaliti_list(dm: Optional[str] = None, user=Depends(get_current_user)):
-    """Pulangkan senarai lokaliti dari table kampung, boleh filter oleh PDM."""
+    """Pulangkan senarai lokaliti dari table kampung + jumlah pengundi, boleh filter oleh PDM."""
     db = get_db()
     cursor = db.cursor()
     if dm and dm.strip():
         dm_val = dm.strip().upper()
         cursor.execute("""
-            SELECT k.nama FROM kampung k
+            SELECT k.nama, COUNT(p.id) AS jumlah_pengundi
+            FROM kampung k
             JOIN pdm p ON p.id = k.pdm_id
+            LEFT JOIN pengundi p2 ON UPPER(p2.lokaliti) = UPPER(k.nama)
+                AND p2.status_fizikal = 'Hidup' AND p2.status_rekod = 'Sah'
             WHERE p.nama = ?
+            GROUP BY k.nama
             ORDER BY k.nama
         """, (dm_val,))
     else:
-        cursor.execute("SELECT nama FROM kampung ORDER BY nama")
-    lokaliti = [row[0] for row in cursor.fetchall()]
+        cursor.execute("""
+            SELECT k.nama, COUNT(p.id) AS jumlah_pengundi
+            FROM kampung k
+            LEFT JOIN pengundi p ON UPPER(p.lokaliti) = UPPER(k.nama)
+                AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
+            GROUP BY k.nama
+            ORDER BY k.nama
+        """)
+    lokaliti = [{"nama": row[0], "jumlah_pengundi": row[1]} for row in cursor.fetchall()]
     db.close()
     return lokaliti
 
