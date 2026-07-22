@@ -2546,7 +2546,7 @@ function tambahDunChanged() {
     const dmSelect = document.getElementById('tambahDm');
     dmSelect.innerHTML = '<option value="">- Pilih PDM -</option>' +
         '<option value="TAMBAH_PDM" style="color:#2563eb;font-weight:600;">➕ Tambah PDM Baru</option>' +
-        pdmList.map(p => `<option value="${p}">${p}</option>`).join('');
+        renderDunPdmDataList(dunKod);
     dmSelect.value = '';
     document.getElementById('btnHapusPdm').classList.add('hidden');
     // Refresh lokaliti based on selected DUN
