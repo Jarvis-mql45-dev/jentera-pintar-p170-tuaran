@@ -385,8 +385,8 @@ def login(req: LoginRequest):
 def get_pdm_list(user=Depends(get_current_user)):
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT DISTINCT dm FROM pengundi WHERE dm IS NOT NULL AND dm != '' AND status_fizikal = 'Hidup' AND status_rekod = 'Sah' ORDER BY dm")
-    pdms = [row[0] for row in cursor.fetchall()]
+    cursor.execute("SELECT dm, COUNT(*) AS jumlah FROM pengundi WHERE dm IS NOT NULL AND dm != '' AND status_fizikal = 'Hidup' AND status_rekod = 'Sah' GROUP BY dm ORDER BY dm")
+    pdms = [{"nama": row[0], "jumlah_pengundi": row[1]} for row in cursor.fetchall()]
     db.close()
     return pdms
 

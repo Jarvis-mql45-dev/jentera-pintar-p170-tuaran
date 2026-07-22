@@ -1987,12 +1987,22 @@ function parseIcToDob(ic) {
 }
 
 function getPdmListForDun(dunKod) {
+    if (!dunKod) {
+        // Return all PDMs across all DUNs
+        const all = [];
+        Object.values(PDM_BY_DUN).forEach(list => all.push(...list));
+        return all.filter((v, i, a) => a.indexOf(v) === i); // unique
+    }
     return PDM_BY_DUN[dunKod] || [];
 }
 
 function renderDunPdmDataList(dunKod) {
-    const pdmList = getPdmListForDun(dunKod);
-    return pdmList.map(p => `<option value="${p}">${p}</option>`).join('');
+    const pdmNames = getPdmListForDun(dunKod);
+    return pdmNames.map(nama => {
+        const found = (state.pdmList || []).find(p => p.nama === nama);
+        const count = found ? found.jumlah_pengundi : 0;
+        return `<option value="${nama}">${nama} (${count.toLocaleString()})</option>`;
+    }).join('');
 }
 
 let cachedLokaliti = null;
@@ -2047,7 +2057,7 @@ async function tambahPengundi() {
         }
 
         // Default DUN = N12 for initial PDM list
-        const defaultDun = 'N12';
+        const defaultDun = '';
         const initialPdmOptions = renderDunPdmDataList(defaultDun);
 
         overlay.innerHTML = `
