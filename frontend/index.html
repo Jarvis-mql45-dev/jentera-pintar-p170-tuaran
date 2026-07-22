@@ -44,8 +44,9 @@
         .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: box-shadow 0.2s; }
         .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
         .btn { padding: 8px 16px; border-radius: 8px; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s; }
-        .btn-primary { background: #2563eb; color: white; }
-        .btn-primary:hover { background: #1d4ed8; }
+        .btn-primary { background: #2563eb; color: white; box-shadow: 0 4px 0 #1d4ed8; transition: all 0.1s ease-in-out; position: relative; }
+        .btn-primary:hover { background: #1d4ed8; box-shadow: 0 4px 0 #1e3a8a; }
+        .btn-primary:active { transform: translateY(3px); box-shadow: 0 1px 0 #1e3a8a; }
         .btn-success { background: #16a34a; color: white; }
         .btn-success:hover { background: #15803d; }
         .btn-danger { background: #dc2626; color: white; }
