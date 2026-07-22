@@ -2014,11 +2014,9 @@ function renderDunPdmDataList(dunKod) {
 let cachedLokaliti = null;
 
 async function getLokalitiList() {
-    if (cachedLokaliti) return cachedLokaliti;
     try {
-        const res = await api('/api/pengundi/filter-options');
-        cachedLokaliti = res.lokaliti || [];
-        return cachedLokaliti;
+        const res = await api('/api/lokaliti');
+        return res || [];
     } catch {
         return [];
     }
@@ -2042,9 +2040,9 @@ async function tambahPengundi() {
     document.body.appendChild(overlay);
 
     try {
-        // Pre-fetch lokaliti list
+        // Pre-fetch lokaliti list with voter counts
         const lokalitiList = await getLokalitiList();
-        const lokalitiOptions = lokalitiList.map(l => `<option value="${l}">`).join('');
+        const lokalitiOptions = (lokalitiList || []).map(l => `<option value="${l.nama}">${l.nama} (${l.jumlah_pengundi || 0})</option>`).join('');
 
         // Pre-fetch KK & PP candidates from their respective tables
         const [kkOptions, ppOptions] = await Promise.all([
