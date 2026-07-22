@@ -1584,6 +1584,14 @@ function toggleFilterItem(type, value) {
 
 function clearFilterType(type) {
     selectedFilters[type] = [];
+    // Re-render dropdown if it's still open (poka-yoke: ensure visual state matches data state)
+    const dd = document.getElementById('filterDropdown');
+    if (dd) {
+        const btn = document.querySelector(`[onclick*="toggleFilterDropdown('${type}')"]`);
+        if (btn) {
+            toggleFilterDropdown(type);
+        }
+    }
 }
 
 function buildFilterParams() {
