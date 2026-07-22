@@ -2777,7 +2777,7 @@ async function renderUserManagement() {
                 </div>
                 <div class="overflow-x-auto">
                     <table>
-                        <thead><tr><th>Nama Pengguna</th><th>Nama Penuh</th><th>Peranan</th><th>Aktif</th><th>Tindakan</th></tr></thead>
+                        <thead><tr><th>Nama Pengguna</th><th>Nama Penuh</th><th>Peranan</th><th>Status</th><th>Tindakan</th></tr></thead>
                         <tbody>${users.map(u => `<tr>
                             <td class="font-medium">${u.username}</td>
                             <td>${u.nama_penuh || '-'}</td>

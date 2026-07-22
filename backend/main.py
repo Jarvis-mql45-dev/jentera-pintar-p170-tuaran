@@ -1711,6 +1711,28 @@ def create_user(request: Request, data: PenggunaCreate, user=Depends(get_current
     return {"message": f"Pengguna '{data.username}' berjaya dicipta"}
 
 
+@app.patch("/api/users/{user_id}")
+def patch_user(request: Request, user_id: int, data: dict = Body(...), user=Depends(get_current_user)):
+    """Kemaskini status pengguna (aktif/nyahaktif)."""
+    check_peranan(user, ["Admin"])
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id, username, nama_penuh FROM users WHERE id = ?", (user_id,))
+    existing = cursor.fetchone()
+    if not existing:
+        db.close()
+        raise HTTPException(status_code=404, detail="Pengguna tidak ditemui")
+    # Only allow updating 'aktif' field
+    if "aktif" in data:
+        cursor.execute("UPDATE users SET aktif = ? WHERE id = ?", (1 if data["aktif"] else 0, user_id))
+        db.commit()
+        status_str = "diaktifkan" if data["aktif"] else "dinyahaktifkan"
+        log_activity(request, user, f"Pengguna {status_str}",
+                     f"User ID {user_id} ({existing['username']}) {status_str}")
+    db.close()
+    return {"message": "Pengguna berjaya dikemaskini"}
+
+
 # ===== SURVEY MODELS =====
 class SurveyCreate(BaseModel):
     title: str
