@@ -847,9 +847,18 @@ def get_pengundi(
         elif isinstance(sokongan, list):
             sokongan_list = [s.strip() for s in sokongan if s.strip()]
     if sokongan_list:
-        placeholders = ', '.join(['?'] * len(sokongan_list))
-        where_parts.append(f"p.status_sokongan IN ({placeholders})")
-        params.extend(sokongan_list)
+        # Handle "Tiada" (NULL/empty) specially — SQL IN doesn't match NULL
+        sokongan_vals = [s for s in sokongan_list if s != "Tiada"]
+        ada_tiada = "Tiada" in sokongan_list
+        sub_parts = []
+        if sokongan_vals:
+            placeholders = ', '.join(['?'] * len(sokongan_vals))
+            sub_parts.append(f"p.status_sokongan IN ({placeholders})")
+            params.extend(sokongan_vals)
+        if ada_tiada:
+            sub_parts.append("(p.status_sokongan IS NULL OR p.status_sokongan = '')")
+        if sub_parts:
+            where_parts.append("(" + " OR ".join(sub_parts) + ")")
 
     if status_rekod:
         where_parts.append("p.status_rekod = ?")
@@ -1006,8 +1015,13 @@ def get_filter_options(
     cursor.execute(f"SELECT DISTINCT p.lokaliti FROM pengundi p WHERE {where_str} AND p.lokaliti IS NOT NULL AND p.lokaliti != '' ORDER BY p.lokaliti", params)
     lokaliti_list = [r[0] for r in cursor.fetchall()]
 
+    # Sokongan filter options: include "Tiada" if there are records with NULL/empty status_sokongan
+    cursor.execute(f"SELECT COUNT(*) FROM pengundi p WHERE {where_str} AND (p.status_sokongan IS NULL OR p.status_sokongan = '')", params)
+    ada_tiada = cursor.fetchone()[0] > 0
     cursor.execute(f"SELECT DISTINCT p.status_sokongan FROM pengundi p WHERE {where_str} AND p.status_sokongan IS NOT NULL AND p.status_sokongan != '' ORDER BY p.status_sokongan", params)
     sokongan_list = [r[0] for r in cursor.fetchall()]
+    if ada_tiada:
+        sokongan_list.append("Tiada")
 
     # Ketua Keluarga & Pegawai Penyelaras — dari table rasmi (tidak perlu filter)
     cursor.execute("SELECT id, nama_penuh FROM ketua_keluarga ORDER BY nama_penuh")
