@@ -1716,7 +1716,7 @@ async function renderPengundi() {
                             <td class="text-xs">${p.tahun_lahir ? (2026 - p.tahun_lahir) : '-'}</td>
                             <td class="text-sm">${p.dm || '-'}</td>
                             <td class="text-sm">${p.lokaliti || '-'}</td>
-                            <td class="text-xs">${p.sokongan ? `<span class="badge ${p.sokongan==='Putih'?'badge-putih':p.sokongan==='Hitam'?'badge-hitam':p.sokongan==='Atas Pagar'?'badge-atas':'badge-tiada'}">${p.sokongan}</span>` : '<span class="badge badge-tiada">Tiada</span>'}</td>
+                            <td class="text-xs">${p.status_sokongan ? `<span class="badge ${p.status_sokongan==='Putih'?'badge-putih':p.status_sokongan==='Hitam'?'badge-hitam':p.status_sokongan==='Atas Pagar'?'badge-atas':'badge-tiada'}">${p.status_sokongan}</span>` : '<span class="badge badge-tiada">Tiada</span>'}</td>
                             <td class="text-xs">${p.ketua_keluarga_nama || '<span class="text-gray-400">-</span>'}</td>
                             <td class="text-xs">${p.pegawai_penyelaras_nama || '<span class="text-gray-400">-</span>'}</td>
                             <td class="text-xs"><button onclick="editPengundi('${p.id}')" class="btn btn-primary text-xs py-1 px-1.5">Edit</button> <button onclick="padamPengundi('${p.id}')" class="btn btn-outline text-xs py-1 px-1.5 border-red-300 text-red-600 hover:bg-red-50">Padam</button></td>
@@ -2672,7 +2672,7 @@ const result = await api(`/api/approval-queue?page=${state.approvalPage}`);
                             <td class="font-medium">${p.nama_penuh || '-'}</td>
                             <td>${p.dm || '-'}</td>
                             <td>${p.lokaliti || '-'}</td>
-                            <td class="text-sm">${p.created_at ? new Date(p.created_at).toLocaleDateString('ms-MY') : '-'}</td>
+                            <td class="text-sm">${p.dicipta_pada ? new Date(p.dicipta_pada).toLocaleDateString('ms-MY') : '-'}</td>
                             <td><div class="flex gap-2"><button onclick="approvePengundi(${p.id})" class="btn btn-success text-xs py-1 px-2">Lulus</button><button onclick="rejectPengundi(${p.id})" class="btn btn-danger text-xs py-1 px-2">Tolak</button></div></td>
                         </tr>`).join('')}</tbody>
                     </table>
