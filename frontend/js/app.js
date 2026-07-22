@@ -2092,6 +2092,7 @@ async function tambahPengundi() {
                         <select id="tambahDm" onchange="tambahPdmChanged()" class="flex-1 px-3 py-2 text-sm border rounded-lg">
                             <option value="">- Pilih PDM -</option>
                             <option value="TAMBAH_PDM" style="color:#2563eb;font-weight:600;">➕ Tambah PDM Baru</option>
+                            ${initialPdmOptions.split('</option>').filter(o => o.trim()).map(o => o + '</option>').join('') || ''}
                         </select>
                         <button id="btnHapusPdm" onclick="hapusPdm()" class="btn btn-outline text-sm px-2 py-1 text-red-600 border-red-300 hover:bg-red-50 hidden" title="Padam PDM">🗑️</button>
                     </div>
@@ -2441,10 +2442,12 @@ function tambahDunChanged() {
     }
     
     const pdmList = getPdmListForDun(dunKod);
-    const dmInput = document.getElementById('tambahDm');
-    const datalist = document.getElementById('pdmList');
-    datalist.innerHTML = pdmList.map(p => `<option value="${p}">`).join('');
-    dmInput.value = '';
+    const dmSelect = document.getElementById('tambahDm');
+    dmSelect.innerHTML = '<option value="">- Pilih PDM -</option>' +
+        '<option value="TAMBAH_PDM" style="color:#2563eb;font-weight:600;">➕ Tambah PDM Baru</option>' +
+        pdmList.map(p => `<option value="${p}">${p}</option>`).join('');
+    dmSelect.value = '';
+    document.getElementById('btnHapusPdm').classList.add('hidden');
     // Refresh lokaliti based on selected DUN
     refreshTambahLokaliti(dunKod, '');
 }
