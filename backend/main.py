@@ -485,13 +485,23 @@ def login(req: LoginRequest):
 
 # ===== ENDPOINT PENGUNDI =====
 
-# Senarai PDM untuk dropdown
+# Senarai PDM untuk dropdown — single source of truth dari master table pdm
 @app.get("/api/pdm")
 def get_pdm_list(user=Depends(get_current_user)):
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT dm, COUNT(*) AS jumlah FROM pengundi WHERE dm IS NOT NULL AND dm != '' AND status_fizikal = 'Hidup' AND status_rekod = 'Sah' GROUP BY dm ORDER BY dm")
-    pdms = [{"nama": row[0], "jumlah_pengundi": row[1]} for row in cursor.fetchall()]
+    cursor.execute("""
+        SELECT p.nama, p.dun_id, d.kod AS dun_kod,
+               COUNT(pg.id) AS jumlah_pengundi
+        FROM pdm p
+        JOIN dun d ON d.id = p.dun_id
+        LEFT JOIN pengundi pg ON UPPER(pg.dm) = UPPER(p.nama)
+            AND pg.status_fizikal = 'Hidup'
+            AND pg.status_rekod = 'Sah'
+        GROUP BY p.nama, p.dun_id, d.kod
+        ORDER BY p.nama
+    """)
+    pdms = [{"nama": row[0], "dun_id": row[1], "dun_kod": row[2], "jumlah_pengundi": row[3]} for row in cursor.fetchall()]
     db.close()
     return pdms
 
@@ -531,13 +541,23 @@ def get_dun_list(user=Depends(get_current_user)):
     db.close()
     return duns
 
-# Senarai PDM mengikut DUN
+# Senarai PDM mengikut DUN — single source of truth dari master table pdm
 @app.get("/api/pdm/dun/{dun_kod}")
 def get_pdm_by_dun(dun_kod: str, user=Depends(get_current_user)):
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT DISTINCT dm FROM pengundi WHERE dm IS NOT NULL AND dm != '' AND status_fizikal = 'Hidup' AND status_rekod = 'Sah' AND dun_id = (SELECT id FROM dun WHERE kod = ?) ORDER BY dm", (dun_kod,))
-    pdms = [row[0] for row in cursor.fetchall()]
+    cursor.execute("""
+        SELECT p.nama, COUNT(pg.id) AS jumlah_pengundi
+        FROM pdm p
+        JOIN dun d ON d.id = p.dun_id
+        LEFT JOIN pengundi pg ON UPPER(pg.dm) = UPPER(p.nama)
+            AND pg.status_fizikal = 'Hidup'
+            AND pg.status_rekod = 'Sah'
+        WHERE d.kod = ?
+        GROUP BY p.nama
+        ORDER BY p.nama
+    """, (dun_kod,))
+    pdms = [{"nama": row[0], "jumlah_pengundi": row[1]} for row in cursor.fetchall()]
     db.close()
     return pdms
 

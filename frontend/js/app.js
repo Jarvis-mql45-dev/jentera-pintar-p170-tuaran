@@ -1823,12 +1823,25 @@ async function editPengundi(id) {
                         </div>
                         <p class="text-xs text-gray-400 mt-0.5">Masukkan kod dan nama DUN baru, cth: N16 - BANGGI. Klik "Tambah DUN" untuk create.</p>
                     </div>
-                    <!-- PDM: searchable + add new -->
+                    <!-- PDM: dropdown + add new (same pattern as DUN) -->
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">PDM <span class="text-red-500">*</span></label>
-                        <input type="text" id="editDm" list="editPdmList" value="${(p.dm || '').replace(/"/g, '"')}" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Taip atau pilih PDM">
-                        <datalist id="editPdmList">${pdmOptions}</datalist>
-                        <p class="text-xs text-gray-400 mt-0.5">Taip untuk cari, atau masukkan PDM baru jika tiada dalam senarai</p>
+                        <div class="flex gap-2">
+                            <select id="editDm" onchange="editPdmChanged()" class="flex-1 px-3 py-2 text-sm border rounded-lg">
+                                <option value="">- Pilih PDM -</option>
+                                <option value="TAMBAH_PDM" style="color:#2563eb;font-weight:600;">➕ Tambah PDM Baru</option>
+                            </select>
+                            <button id="editBtnHapusPdm" onclick="editHapusPdm()" class="btn btn-outline text-sm px-2 py-1 text-red-600 border-red-300 hover:bg-red-50 hidden" title="Padam PDM">🗑️</button>
+                        </div>
+                        <!-- Input untuk PDM baru (tersembunyi) -->
+                        <div id="editPdmBaruContainer" style="display:none;" class="mt-2">
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Nama PDM Baru <span class="text-red-500">*</span></label>
+                            <div class="flex gap-2">
+                                <input type="text" id="editPdmBaru" class="flex-1 px-3 py-2 text-sm border rounded-lg" placeholder="Contoh: BARU-BARU">
+                                <button onclick="editTambahPdmBaruSekarang()" class="btn btn-primary whitespace-nowrap text-sm px-3">➕ Tambah PDM</button>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-0.5">Masukkan nama PDM baru. Klik "Tambah PDM" untuk create.</p>
+                        </div>
                     </div>
                     <!-- Lokaliti: searchable + add new -->
                     <div>
