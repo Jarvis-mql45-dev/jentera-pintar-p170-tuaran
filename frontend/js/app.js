@@ -1674,6 +1674,7 @@ async function renderPengundi() {
         filterOptions = filterRes;
         state.pengundiData = result;
         const pengundi = result.data || [];
+        const column_counts = result.column_counts || {};
         const total = result.total || 0;
         const perPage = result.per_page || 50;
         const totalPages = Math.ceil(total / perPage) || 1;
@@ -1709,15 +1710,15 @@ async function renderPengundi() {
                     <div class="text-xs text-gray-400 mb-1 italic">Gulir ke kanan → untuk lihat kolum K. Keluarga & Peg. Penyelaras</div>
                     <table style="min-width:1100px; table-layout:fixed;">
                         <thead><tr>
-                            <th style="width:120px" onclick="sortPengundi('no_kp')">No KP (${pengundi.filter(p=>p.no_kp).length.toLocaleString()})</th>
-                            <th style="width:160px" onclick="sortPengundi('nama_penuh')">Nama Penuh (${pengundi.filter(p=>p.nama_penuh).length.toLocaleString()})</th>
-                            <th style="width:60px" onclick="sortPengundi('jantina')">Jantina (${pengundi.filter(p=>p.jantina).length.toLocaleString()})</th>
-                            <th style="width:60px" onclick="sortPengundi('umur')">Umur (${pengundi.filter(p=>p.tahun_lahir).length.toLocaleString()})</th>
-                            <th style="width:120px" onclick="sortPengundi('dm')">DM / PDM (${pengundi.filter(p=>p.dm).length.toLocaleString()})</th>
-                            <th style="width:140px" onclick="sortPengundi('lokaliti')">Lokaliti (${pengundi.filter(p=>p.lokaliti).length.toLocaleString()})</th>
-                            <th style="width:100px" onclick="sortPengundi('sokongan')">Sokongan (${pengundi.filter(p=>p.status_sokongan).length.toLocaleString()})</th>
-                            <th style="width:140px" onclick="sortPengundi('ketua_keluarga')">K. Keluarga (${pengundi.filter(p=>p.ketua_keluarga_nama).length.toLocaleString()})</th>
-                            <th style="width:140px" onclick="sortPengundi('pegawai_penyelaras')">Peg. Penyelaras (${pengundi.filter(p=>p.pegawai_penyelaras_nama).length.toLocaleString()})</th>
+                            <th style="width:120px" onclick="sortPengundi('no_kp')">No KP (${(column_counts.no_kp || 0).toLocaleString()})</th>
+                            <th style="width:160px" onclick="sortPengundi('nama_penuh')">Nama Penuh (${(column_counts.nama_penuh || 0).toLocaleString()})</th>
+                            <th style="width:60px" onclick="sortPengundi('jantina')">Jantina (${(column_counts.jantina || 0).toLocaleString()})</th>
+                            <th style="width:60px" onclick="sortPengundi('umur')">Umur (${(column_counts.tahun_lahir || 0).toLocaleString()})</th>
+                            <th style="width:120px" onclick="sortPengundi('dm')">DM / PDM (${(column_counts.dm || 0).toLocaleString()})</th>
+                            <th style="width:140px" onclick="sortPengundi('lokaliti')">Lokaliti (${(column_counts.lokaliti || 0).toLocaleString()})</th>
+                            <th style="width:100px" onclick="sortPengundi('sokongan')">Sokongan (${(column_counts.status_sokongan || 0).toLocaleString()})</th>
+                            <th style="width:140px" onclick="sortPengundi('ketua_keluarga')">K. Keluarga (${(column_counts.ketua_keluarga_nama || 0).toLocaleString()})</th>
+                            <th style="width:140px" onclick="sortPengundi('pegawai_penyelaras')">Peg. Penyelaras (${(column_counts.pegawai_penyelaras_nama || 0).toLocaleString()})</th>
                             <th style="width:100px">Tindakan</th>
                         </tr></thead>
                         <tbody>${pengundi.map(p => `<tr>

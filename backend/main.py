@@ -904,6 +904,36 @@ def get_pengundi(
     """, params + [per_page, offset])
 
     pengundi = [dict(row) for row in cursor.fetchall()]
+    
+    # Count non-null values per column for the filtered dataset (poka-yoke: single source of truth)
+    cursor.execute(f"""
+        SELECT 
+            COUNT(p.no_kp) AS cnt_no_kp,
+            COUNT(p.nama_penuh) AS cnt_nama_penuh,
+            COUNT(p.jantina) AS cnt_jantina,
+            COUNT(p.tahun_lahir) AS cnt_tahun_lahir,
+            COUNT(p.dm) AS cnt_dm,
+            COUNT(p.lokaliti) AS cnt_lokaliti,
+            COUNT(p.status_sokongan) AS cnt_sokongan,
+            COUNT(kk.nama_penuh) AS cnt_ketua_keluarga,
+            COUNT(pp.nama_penuh) AS cnt_pegawai_penyelaras
+        FROM pengundi p
+        LEFT JOIN ketua_keluarga kk ON p.ketua_keluarga_id = kk.id
+        LEFT JOIN pegawai_penyelaras pp ON p.pegawai_penyelaras_id = pp.id
+        {where}
+    """, params)
+    counts = cursor.fetchone()
+    column_counts = {
+        "no_kp": counts[0] if counts else 0,
+        "nama_penuh": counts[1] if counts else 0,
+        "jantina": counts[2] if counts else 0,
+        "tahun_lahir": counts[3] if counts else 0,
+        "dm": counts[4] if counts else 0,
+        "lokaliti": counts[5] if counts else 0,
+        "status_sokongan": counts[6] if counts else 0,
+        "ketua_keluarga_nama": counts[7] if counts else 0,
+        "pegawai_penyelaras_nama": counts[8] if counts else 0
+    }
     db.close()
 
     # Log aktiviti
@@ -917,6 +947,7 @@ def get_pengundi(
 
     return {
         "data": pengundi,
+        "column_counts": column_counts,
         "total": total,
         "page": page,
         "per_page": per_page,
