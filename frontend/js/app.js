@@ -2085,12 +2085,25 @@ async function tambahPengundi() {
                     </div>
                     <p class="text-xs text-gray-400 mt-0.5">Masukkan kod dan nama DUN baru, cth: N16 - BANGGI. Klik "Tambah DUN" untuk create.</p>
                 </div>
-                <!-- PDM: searchable + add new -->
+                <!-- PDM: dropdown + add new -->
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">PDM <span class="text-red-500">*</span></label>
-                    <input type="text" id="tambahDm" list="pdmList" onchange="tambahDmChanged()" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Taip atau pilih PDM">
-                    <datalist id="pdmList">${initialPdmOptions}</datalist>
-                    <p class="text-xs text-gray-400 mt-0.5">Taip untuk cari, atau masukkan PDM baru jika tiada dalam senarai</p>
+                    <div class="flex gap-2">
+                        <select id="tambahDm" onchange="tambahPdmChanged()" class="flex-1 px-3 py-2 text-sm border rounded-lg">
+                            <option value="">- Pilih PDM -</option>
+                            <option value="TAMBAH_PDM" style="color:#2563eb;font-weight:600;">➕ Tambah PDM Baru</option>
+                        </select>
+                        <button id="btnHapusPdm" onclick="hapusPdm()" class="btn btn-outline text-sm px-2 py-1 text-red-600 border-red-300 hover:bg-red-50 hidden" title="Padam PDM">🗑️</button>
+                    </div>
+                    <!-- Input untuk PDM baru (tersembunyi) -->
+                    <div id="tambahPdmBaruContainer" style="display:none;" class="mt-2">
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Nama PDM Baru <span class="text-red-500">*</span></label>
+                        <div class="flex gap-2">
+                            <input type="text" id="tambahPdmBaru" class="flex-1 px-3 py-2 text-sm border rounded-lg" placeholder="Contoh: BARU-BARU">
+                            <button onclick="tambahPdmBaruSekarang()" class="btn btn-primary whitespace-nowrap text-sm px-3">➕ Tambah PDM</button>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-0.5">Masukkan nama PDM baru. Klik "Tambah PDM" untuk create.</p>
+                    </div>
                 </div>
                 <!-- Lokaliti: searchable + add new -->
                 <div>
@@ -2234,10 +2247,65 @@ function cariKetuaKeluarga(input) {
     }, 300);
 }
 
-function tambahDmChanged() {
+function tambahPdmChanged() {
+    const pdmVal = document.getElementById('tambahDm').value;
+    const pdmBaruContainer = document.getElementById('tambahPdmBaruContainer');
+    const btnHapus = document.getElementById('btnHapusPdm');
+    
+    if (pdmVal === 'TAMBAH_PDM' || pdmVal === '') {
+        if (pdmBaruContainer) pdmBaruContainer.style.display = pdmVal === 'TAMBAH_PDM' ? 'block' : 'none';
+        if (btnHapus) btnHapus.classList.add('hidden');
+        return;
+    }
+    
+    if (pdmBaruContainer) pdmBaruContainer.style.display = 'none';
+    document.getElementById('tambahPdmBaru').value = '';
+    if (btnHapus) btnHapus.classList.remove('hidden');
+    
     const dunKod = document.getElementById('tambahDun').value;
-    const dmValue = document.getElementById('tambahDm').value.trim();
-    refreshTambahLokaliti(dunKod, dmValue);
+    refreshTambahLokaliti(dunKod, pdmVal);
+}
+
+function tambahPdmBaruSekarang() {
+    const pdmInput = document.getElementById('tambahPdmBaru');
+    const pdmVal = pdmInput.value.trim();
+    const dunKod = document.getElementById('tambahDun').value;
+    if (!pdmVal) {
+        showToast('Sila masukkan nama PDM baru', 'error');
+        return;
+    }
+    api('/api/pdm', {
+        method: 'POST',
+        body: JSON.stringify({ nama: pdmVal, dun_kod: dunKod })
+    }).then(result => {
+        showToast(`PDM ${pdmVal} berjaya ditambah!`, 'success');
+        pdmInput.value = '';
+        document.getElementById('tambahPdmBaruContainer').style.display = 'none';
+        const pdmSelect = document.getElementById('tambahDm');
+        pdmSelect.innerHTML += `<option value="${pdmVal}">${pdmVal}</option>`;
+        pdmSelect.value = pdmVal;
+        tambahPdmChanged();
+        refreshTambahLokaliti(dunKod, pdmVal);
+    }).catch(err => {
+        showToast('Gagal cipta PDM baru: ' + err.message, 'error');
+    });
+}
+
+function hapusPdm() {
+    const pdmVal = document.getElementById('tambahDm').value;
+    if (!pdmVal || pdmVal === 'TAMBAH_PDM') return;
+    if (!confirm(`Anda pasti mahu memadamkan PDM ${pdmVal}? Tindakan ini tidak boleh dikembalikan.`)) return;
+    api(`/api/pdm/${encodeURIComponent(pdmVal)}`, { method: 'DELETE' }).then(result => {
+        showToast(`PDM ${pdmVal} berjaya dipadamkan!`, 'success');
+        const pdmSelect = document.getElementById('tambahDm');
+        Array.from(pdmSelect.options).forEach((opt, i) => {
+            if (opt.value === pdmVal) pdmSelect.remove(i);
+        });
+        pdmSelect.value = '';
+        document.getElementById('btnHapusPdm').classList.add('hidden');
+    }).catch(err => {
+        showToast(err.message, 'error');
+    });
 }
 
 async function refreshTambahLokaliti(dunKod, dmValue) {

@@ -332,6 +332,37 @@ def create_pdm(request: Request, data: PdmCreate, user=Depends(get_current_user)
     db.close()
     return {"success": True, "id": new_id, "nama": nama}
 
+@app.delete("/api/pdm/{pdm_nama}")
+def delete_pdm(pdm_nama: str, data: PdmCreate = None, user=Depends(get_current_user)):
+    check_peranan(user, ["Admin"])
+    db = get_db()
+    cursor = db.cursor()
+    
+    nama = pdm_nama.strip().upper()
+    
+    # Check if PDM exists
+    cursor.execute("SELECT id FROM pdm WHERE nama = ?", (nama,))
+    pdm = cursor.fetchone()
+    if not pdm:
+        db.close()
+        raise HTTPException(status_code=404, detail=f"PDM {nama} tidak ditemui")
+    
+    pdm_id = pdm[0]
+    
+    # Check if any pengundi linked to this PDM (via dm field)
+    cursor.execute("SELECT COUNT(*) FROM pengundi WHERE UPPER(dm) = ? AND status_fizikal = 'Hidup' AND status_rekod = 'Sah'", (nama,))
+    pengundi_count = cursor.fetchone()[0]
+    if pengundi_count > 0:
+        db.close()
+        raise HTTPException(status_code=400, detail=f"PDM {nama} masih mempunyai {pengundi_count} pengundi. Tidak boleh dipadam.")
+    
+    # Delete the PDM
+    cursor.execute("DELETE FROM pdm WHERE id = ?", (pdm_id,))
+    db.commit()
+    db.close()
+    
+    return {"success": True, "message": f"PDM {nama} berjaya dipadamkan"}
+
 # ===== FUNGSI CHECK PERANAN =====
 def check_peranan(user: dict, peranan_dibenarkan: list):
     if user["peranan"] not in peranan_dibenarkan:
