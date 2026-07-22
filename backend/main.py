@@ -233,6 +233,10 @@ class PdmCreate(BaseModel):
     nama: str
     dun_kod: str
 
+class LokalitiCreate(BaseModel):
+    nama: str
+    dm: str  # Nama PDM untuk dikaitkan
+
 @app.post("/api/dun")
 def create_dun(request: Request, data: DunCreate, user=Depends(get_current_user)):
     check_peranan(user, ["Admin", "Petugas Padang"])
@@ -362,6 +366,87 @@ def delete_pdm(pdm_nama: str, data: PdmCreate = None, user=Depends(get_current_u
     db.close()
     
     return {"success": True, "message": f"PDM {nama} berjaya dipadamkan"}
+
+# ===== ENDPOINT LOKALITI =====
+@app.post("/api/lokaliti")
+def create_lokaliti(request: Request, data: LokalitiCreate, user=Depends(get_current_user)):
+    check_peranan(user, ["Admin", "Petugas Padang"])
+    db = get_db()
+    cursor = db.cursor()
+    nama = data.nama.strip().upper()
+    dm = data.dm.strip().upper()
+    # Check if Lokaliti already exists in same PDM (via kampung table)
+    cursor.execute("""
+        SELECT k.id FROM kampung k 
+        JOIN pdm p ON p.id = k.pdm_id 
+        WHERE k.nama = ? AND p.nama = ?
+    """, (nama, dm))
+    existing = cursor.fetchone()
+    if existing:
+        db.close()
+        return {"success": True, "id": existing[0], "nama": nama, "existing": True}
+    # Get pdm_id
+    cursor.execute("SELECT id FROM pdm WHERE nama = ?", (dm,))
+    pdm = cursor.fetchone()
+    if not pdm:
+        db.close()
+        raise HTTPException(status_code=400, detail=f"PDM {dm} tidak ditemui")
+    pdm_id = pdm[0]
+    cursor.execute("INSERT INTO kampung (pdm_id, nama) VALUES (?, ?)", (pdm_id, nama))
+    db.commit()
+    new_id = cursor.lastrowid
+    db.close()
+    return {"success": True, "id": new_id, "nama": nama}
+
+@app.delete("/api/lokaliti/{lokaliti_nama}")
+def delete_lokaliti(lokaliti_nama: str, data: LokalitiCreate = None, user=Depends(get_current_user)):
+    check_peranan(user, ["Admin"])
+    db = get_db()
+    cursor = db.cursor()
+    
+    nama = lokaliti_nama.strip().upper()
+    
+    # Check if Lokaliti exists in kampung table
+    cursor.execute("SELECT id FROM kampung WHERE nama = ?", (nama,))
+    kampung = cursor.fetchone()
+    if not kampung:
+        db.close()
+        raise HTTPException(status_code=404, detail=f"Lokaliti {nama} tidak ditemui")
+    
+    kampung_id = kampung[0]
+    
+    # Check if any pengundi linked to this Lokaliti
+    cursor.execute("SELECT COUNT(*) FROM pengundi WHERE UPPER(lokaliti) = ? AND status_fizikal = 'Hidup' AND status_rekod = 'Sah'", (nama,))
+    pengundi_count = cursor.fetchone()[0]
+    if pengundi_count > 0:
+        db.close()
+        raise HTTPException(status_code=400, detail=f"Lokaliti {nama} masih mempunyai {pengundi_count} pengundi. Tidak boleh dipadam.")
+    
+    # Delete the Lokaliti
+    cursor.execute("DELETE FROM kampung WHERE id = ?", (kampung_id,))
+    db.commit()
+    db.close()
+    
+    return {"success": True, "message": f"Lokaliti {nama} berjaya dipadamkan"}
+
+@app.get("/api/lokaliti")
+def get_lokaliti_list(dm: Optional[str] = None, user=Depends(get_current_user)):
+    """Pulangkan senarai lokaliti dari table kampung, boleh filter oleh PDM."""
+    db = get_db()
+    cursor = db.cursor()
+    if dm and dm.strip():
+        dm_val = dm.strip().upper()
+        cursor.execute("""
+            SELECT k.nama FROM kampung k
+            JOIN pdm p ON p.id = k.pdm_id
+            WHERE p.nama = ?
+            ORDER BY k.nama
+        """, (dm_val,))
+    else:
+        cursor.execute("SELECT nama FROM kampung ORDER BY nama")
+    lokaliti = [row[0] for row in cursor.fetchall()]
+    db.close()
+    return lokaliti
 
 # ===== FUNGSI CHECK PERANAN =====
 def check_peranan(user: dict, peranan_dibenarkan: list):

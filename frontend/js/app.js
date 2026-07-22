@@ -2117,12 +2117,26 @@ async function tambahPengundi() {
                         <p class="text-xs text-gray-400 mt-0.5">Masukkan nama PDM baru. Klik "Tambah PDM" untuk create.</p>
                     </div>
                 </div>
-                <!-- Lokaliti: searchable + add new -->
+                <!-- Lokaliti: dropdown + add new (pattern sama dengan PDM) -->
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">Lokaliti <span class="text-red-500">*</span></label>
-                    <input type="text" id="tambahLokaliti" list="lokalitiList" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Taip atau pilih lokaliti">
-                    <datalist id="lokalitiList">${lokalitiOptions}</datalist>
-                    <p class="text-xs text-gray-400 mt-0.5">Taip untuk cari, atau masukkan lokaliti baru jika tiada dalam senarai</p>
+                    <div class="flex gap-2">
+                        <select id="tambahLokaliti" onchange="tambahLokalitiChanged()" class="flex-1 px-3 py-2 text-sm border rounded-lg">
+                            <option value="">- Pilih Lokaliti -</option>
+                            <option value="TAMBAH_LOKALITI" style="color:#2563eb;font-weight:600;">➕ Tambah Lokaliti Baru</option>
+                            ${lokalitiOptions}
+                        </select>
+                        <button id="btnHapusLokaliti" onclick="hapusLokaliti()" class="btn btn-outline text-sm px-2 py-1 text-red-600 border-red-300 hover:bg-red-50 hidden" title="Padam Lokaliti">🗑️</button>
+                    </div>
+                    <!-- Input untuk Lokaliti baru (tersembunyi) -->
+                    <div id="tambahLokalitiBaruContainer" style="display:none;" class="mt-2">
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Nama Lokaliti Baru <span class="text-red-500">*</span></label>
+                        <div class="flex gap-2">
+                            <input type="text" id="tambahLokalitiBaru" class="flex-1 px-3 py-2 text-sm border rounded-lg" placeholder="Contoh: KAMPUNG BARU">
+                            <button onclick="tambahLokalitiBaruSekarang()" class="btn btn-primary whitespace-nowrap text-sm px-3">➕ Tambah Lokaliti</button>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-0.5">Masukkan nama Lokaliti baru. Klik "Tambah Lokaliti" untuk create.</p>
+                    </div>
                 </div>
                 <!-- Pegawai Penyelaras -->
                 <div>
@@ -2320,18 +2334,89 @@ function hapusPdm() {
     });
 }
 
+function tambahLokalitiChanged() {
+    const lokalitiVal = document.getElementById('tambahLokaliti').value;
+    const lokalitiBaruContainer = document.getElementById('tambahLokalitiBaruContainer');
+    const btnHapus = document.getElementById('btnHapusLokaliti');
+    const dmVal = document.getElementById('tambahDm').value;
+    
+    if (lokalitiVal === 'TAMBAH_LOKALITI' || lokalitiVal === '') {
+        if (lokalitiBaruContainer) lokalitiBaruContainer.style.display = lokalitiVal === 'TAMBAH_LOKALITI' ? 'block' : 'none';
+        if (btnHapus) btnHapus.classList.add('hidden');
+        return;
+    }
+    
+    if (lokalitiBaruContainer) lokalitiBaruContainer.style.display = 'none';
+    document.getElementById('tambahLokalitiBaru').value = '';
+    if (btnHapus) btnHapus.classList.remove('hidden');
+}
+
+function tambahLokalitiBaruSekarang() {
+    const lokalitiInput = document.getElementById('tambahLokalitiBaru');
+    const lokalitiVal = lokalitiInput.value.trim();
+    const dm = document.getElementById('tambahDm').value;
+    if (!lokalitiVal) {
+        showToast('Sila masukkan nama Lokaliti baru', 'error');
+        return;
+    }
+    if (!dm) {
+        showToast('Sila pilih PDM dahulu sebelum tambah Lokaliti', 'error');
+        return;
+    }
+    api('/api/lokaliti', {
+        method: 'POST',
+        body: JSON.stringify({ nama: lokalitiVal, dm: dm })
+    }).then(result => {
+        showToast(`Lokaliti ${lokalitiVal} berjaya ditambah!`, 'success');
+        lokalitiInput.value = '';
+        document.getElementById('tambahLokalitiBaruContainer').style.display = 'none';
+        const lokalitiSelect = document.getElementById('tambahLokaliti');
+        // Add new option and select it
+        lokalitiSelect.innerHTML += `<option value="${lokalitiVal.toUpperCase()}">${lokalitiVal.toUpperCase()}</option>`;
+        lokalitiSelect.value = lokalitiVal.toUpperCase();
+        tambahLokalitiChanged();
+    }).catch(err => {
+        showToast('Gagal cipta Lokaliti baru: ' + err.message, 'error');
+    });
+}
+
+function hapusLokaliti() {
+    const lokalitiVal = document.getElementById('tambahLokaliti').value;
+    if (!lokalitiVal || lokalitiVal === 'TAMBAH_LOKALITI') return;
+    if (!confirm(`Anda pasti mahu memadamkan Lokaliti ${lokalitiVal}? Tindakan ini tidak boleh dikembalikan.`)) return;
+    api(`/api/lokaliti/${encodeURIComponent(lokalitiVal)}`, { method: 'DELETE' }).then(result => {
+        showToast(`Lokaliti ${lokalitiVal} berjaya dipadamkan!`, 'success');
+        const lokalitiSelect = document.getElementById('tambahLokaliti');
+        Array.from(lokalitiSelect.options).forEach((opt, i) => {
+            if (opt.value === lokalitiVal) lokalitiSelect.remove(i);
+        });
+        lokalitiSelect.value = '';
+        document.getElementById('btnHapusLokaliti').classList.add('hidden');
+    }).catch(err => {
+        showToast(err.message, 'error');
+    });
+}
+
 async function refreshTambahLokaliti(dunKod, dmValue) {
     // Build params to filter lokaliti by selected DUN and/or PDM
     let params = '';
-    if (dunKod) params += `dun=${encodeURIComponent(dunKod)}`;
-    if (dmValue) params += (params ? '&' : '') + `dm[]=${encodeURIComponent(dmValue)}`;
-    const url = params ? `/api/pengundi/filter-options?${params}` : '/api/pengundi/filter-options';
+    if (dmValue) params += `dm=${encodeURIComponent(dmValue)}`;
+    const url = params ? `/api/lokaliti?${params}` : '/api/lokaliti';
     try {
         const res = await api(url);
-        const dl = document.getElementById('lokalitiList');
-        const lokalitiInput = document.getElementById('tambahLokaliti');
-        if (dl) dl.innerHTML = (res.lokaliti || []).map(l => `<option value="${l}">`).join('');
-        if (lokalitiInput) lokalitiInput.value = '';
+        const lokalitiSelect = document.getElementById('tambahLokaliti');
+        if (lokalitiSelect) {
+            const currentVal = lokalitiSelect.value;
+            lokalitiSelect.innerHTML = `
+                <option value="">- Pilih Lokaliti -</option>
+                <option value="TAMBAH_LOKALITI" style="color:#2563eb;font-weight:600;">➕ Tambah Lokaliti Baru</option>
+                ${(res || []).map(l => `<option value="${l}">${l}</option>`).join('')}
+            `;
+            // Preserve selection if value still exists
+            if (currentVal && Array.from(lokalitiSelect.options).some(o => o.value === currentVal)) {
+                lokalitiSelect.value = currentVal;
+            }
+        }
     } catch (e) {
         // Silent fail — keep existing lokaliti list
     }
