@@ -145,10 +145,6 @@ function renderLoginPage() {
                     <div><label class="block text-sm font-medium text-gray-700 mb-1">Kata Laluan</label><input type="password" id="loginPassword" placeholder="Masukkan kata laluan" value="admin123"></div>
                     <button onclick="handleLogin(document.getElementById('loginUsername').value, document.getElementById('loginPassword').value)" class="btn btn-primary w-full py-3 text-lg">Log Masuk</button>
                 </div>
-                <div class="mt-4 p-3 bg-blue-50 rounded-lg text-xs text-blue-700">
-                    <p class="font-medium mb-1">📝 Akaun Demo:</p>
-                    <p><b>admin</b> / admin123 (Admin) · <b>petugas</b> / petugas123 (Petugas Padang) · <b>pemerhati</b> / pemerhati123 (Pemerhati)</p>
-                </div>
                 <div class="mt-6 text-center">
                     <p class="text-xs text-slate-500 leading-relaxed">
                         © 2026 P170 Tuaran. Hak Cipta Terpelihara.<br>
