@@ -56,12 +56,31 @@ async function api(path, options = {}) {
     if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
     try {
         const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+        // POKA-YOKE: Auto-redirect login on 401 Unauthorized
+        if (res.status === 401) {
+            state.token = null;
+            state.user = null;
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            showToast('Sesi tamat. Sila log masuk semula.', 'error');
+            renderLoginPage();
+            return null;
+        }
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Ralat berlaku');
         return data;
     } catch (err) {
         if (err.message.includes('Failed to fetch')) {
             showToast('Gagal menyambung ke pelayan. Pastikan backend sedang berjalan.', 'error');
+        }
+        // POKA-YOKE: Jangan biarkan 401 token errors crash the UI
+        if (err.message.includes('Token') || err.message.includes('token') || err.message.includes('tamat tempoh')) {
+            state.token = null;
+            state.user = null;
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            renderLoginPage();
+            return null;
         }
         throw err;
     }
