@@ -551,6 +551,72 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_audit_logs_dicipta ON audit_logs(dicipta_pada)
         """)
 
+        # 10b. CREATE TABLE ketua_keluarga jika belum wujud (POKA-YOKE: diperlukan oleh ALTER TABLE di bawah)
+        try:
+            if USE_POSTGRES:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS ketua_keluarga (
+                        id SERIAL PRIMARY KEY,
+                        nama_penuh TEXT NOT NULL,
+                        no_kp VARCHAR(20),
+                        no_telefon VARCHAR(20),
+                        dm TEXT,
+                        dun_id INTEGER REFERENCES dun(id),
+                        is_active INTEGER DEFAULT 1,
+                        dicipta_pada TEXT,
+                        dikemaskini_pada TEXT
+                    )
+                """)
+            else:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS ketua_keluarga (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        nama_penuh TEXT NOT NULL,
+                        no_kp TEXT,
+                        no_telefon TEXT,
+                        dm TEXT,
+                        dun_id INTEGER REFERENCES dun(id),
+                        is_active INTEGER DEFAULT 1,
+                        dicipta_pada TEXT,
+                        dikemaskini_pada TEXT
+                    )
+                """)
+        except Exception as e:
+            print(f"⚠️ Cipta table ketua_keluarga gagal: {e}")
+
+        # 10c. CREATE TABLE pegawai_penyelaras jika belum wujud (POKA-YOKE: diperlukan oleh ALTER TABLE di bawah)
+        try:
+            if USE_POSTGRES:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS pegawai_penyelaras (
+                        id SERIAL PRIMARY KEY,
+                        nama_penuh TEXT NOT NULL,
+                        no_kp VARCHAR(20),
+                        no_telefon VARCHAR(20),
+                        dm TEXT,
+                        dun_id INTEGER REFERENCES dun(id),
+                        aktif INTEGER DEFAULT 1,
+                        dicipta_pada TEXT,
+                        dikemaskini_pada TEXT
+                    )
+                """)
+            else:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS pegawai_penyelaras (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        nama_penuh TEXT NOT NULL,
+                        no_kp TEXT,
+                        no_telefon TEXT,
+                        dm TEXT,
+                        dun_id INTEGER REFERENCES dun(id),
+                        aktif INTEGER DEFAULT 1,
+                        dicipta_pada TEXT,
+                        dikemaskini_pada TEXT
+                    )
+                """)
+        except Exception as e:
+            print(f"⚠️ Cipta table pegawai_penyelaras gagal: {e}")
+
         # 13. Migrasi: Tambah kolum ketua_keluarga_id & pegawai_penyelaras_id jika belum wujud
         try:
             # SQLite: ALTER TABLE akan gagal jika kolum sudah wujud — kita balut dalam try
