@@ -2014,6 +2014,329 @@ def dashboard_test(user=Depends(get_current_user)):
         return {"success": False, "error": str(e), "error_type": type(e).__name__}
 
 
+# ============================================================
+# PENGURUSAN PEGAWAI PENYELARAS (Admin only)
+# ============================================================
+
+class PegawaiPenyelarasCreate(BaseModel):
+    nama_penuh: str
+    no_kp: str
+    no_telefon: str
+    dm: Optional[str] = None  # Optional PDM/DUN reference tag
+
+class PegawaiPenyelarasUpdate(BaseModel):
+    nama_penuh: Optional[str] = None
+    no_kp: Optional[str] = None
+    no_telefon: Optional[str] = None
+    dm: Optional[str] = None
+
+# Senarai Pegawai Penyelaras (Admin only)
+@app.get("/api/pegawai-penyelaras/list")
+def get_pegawai_penyelaras_list(
+    request: Request,
+    search: Optional[str] = None,
+    page: int = 1,
+    per_page: int = 50,
+    user=Depends(get_current_user)
+):
+    check_peranan(user, ["Admin"])
+    db = get_db()
+    cursor = db.cursor()
+
+    where_parts = ["pp.aktif = 1"]
+    params = []
+
+    if search:
+        where_parts.append("(UPPER(pp.nama_penuh) LIKE UPPER(?) OR UPPER(pp.no_kp) LIKE UPPER(?))")
+        params.extend([f"%{search}%", f"%{search}%"])
+
+    where = "WHERE " + " AND ".join(where_parts)
+
+    # Count total
+    cursor.execute(f"SELECT COUNT(*) FROM pegawai_penyelaras pp {where}", params)
+    total = cursor.fetchone()[0]
+
+    offset = (page - 1) * per_page
+    cursor.execute(f"""
+        SELECT pp.id, pp.nama_penuh, pp.no_kp, pp.no_telefon, pp.dm, pp.dicipta_pada,
+               COALESCE((SELECT COUNT(*) FROM pengundi p 
+                         WHERE p.pegawai_penyelaras_id = pp.id 
+                         AND p.status_fizikal = 'Hidup' 
+                         AND p.status_rekod = 'Sah'), 0) AS jumlah_pengundi,
+               d.kod AS dun_kod,
+               d.nama AS dun_nama
+        FROM pegawai_penyelaras pp
+        LEFT JOIN dun d ON d.id = pp.dun_id
+        {where}
+        ORDER BY pp.nama_penuh
+        LIMIT ? OFFSET ?
+    """, params + [per_page, offset])
+
+    pegawai = [dict(row) for row in cursor.fetchall()]
+    db.close()
+
+    log_activity(request, user, "Lihat Senarai Pegawai Penyelaras",
+                 f"Senarai Pegawai Penyelaras ({total} rekod)")
+
+    return {
+        "data": pegawai,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": max(1, (total + per_page - 1) // per_page)
+    }
+
+
+# KPI Stats untuk Pengurusan Pegawai Penyelaras
+@app.get("/api/pegawai-penyelaras/stats")
+def get_pegawai_penyelaras_stats(user=Depends(get_current_user)):
+    check_peranan(user, ["Admin"])
+    db = get_db()
+    cursor = db.cursor()
+
+    # Total Pegawai Penyelaras aktif
+    cursor.execute("SELECT COUNT(*) FROM pegawai_penyelaras WHERE aktif = 1")
+    total_pegawai = cursor.fetchone()[0]
+
+    # DUN coverage - jumlah DUN yang mempunyai sekurang-kurangnya 1 pegawai
+    cursor.execute("""
+        SELECT COUNT(DISTINCT d.kod) 
+        FROM pegawai_penyelaras pp
+        JOIN dun d ON d.id = pp.dun_id
+        WHERE pp.aktif = 1 AND pp.dun_id IS NOT NULL
+    """)
+    dun_covered = cursor.fetchone()[0]
+
+    # Total DUN
+    cursor.execute("SELECT COUNT(*) FROM dun")
+    total_dun = cursor.fetchone()[0]
+
+    # PDM coverage - jumlah PDM dengan pegawai
+    cursor.execute("""
+        SELECT COUNT(DISTINCT pp.dm) 
+        FROM pegawai_penyelaras pp
+        WHERE pp.aktif = 1 AND pp.dm IS NOT NULL AND pp.dm != ''
+    """)
+    pdm_covered = cursor.fetchone()[0]
+
+    # Total PDM
+    cursor.execute("SELECT COUNT(*) FROM pdm")
+    total_pdm = cursor.fetchone()[0]
+
+    # Total pengundi yang terikat dengan mana-mana pegawai
+    cursor.execute("""
+        SELECT COUNT(DISTINCT p.id) 
+        FROM pengundi p
+        JOIN pegawai_penyelaras pp ON pp.id = p.pegawai_penyelaras_id
+        WHERE pp.aktif = 1 AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
+    """)
+    pengundi_terikat = cursor.fetchone()[0]
+
+    db.close()
+
+    return {
+        "total_pegawai": total_pegawai,
+        "dun_coverage": f"{dun_covered}/{total_dun}",
+        "dun_covered": dun_covered,
+        "total_dun": total_dun,
+        "pdm_coverage": f"{pdm_covered}/{total_pdm}",
+        "pdm_covered": pdm_covered,
+        "total_pdm": total_pdm,
+        "pengundi_terikat": pengundi_terikat
+    }
+
+
+# Dapatkan Pegawai Penyelaras by ID
+@app.get("/api/pegawai-penyelaras/{pegawai_id}")
+def get_pegawai_penyelaras_by_id(pegawai_id: int, user=Depends(get_current_user)):
+    check_peranan(user, ["Admin"])
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("""
+        SELECT pp.*, d.kod AS dun_kod, d.nama AS dun_nama,
+               COALESCE((SELECT COUNT(*) FROM pengundi p 
+                         WHERE p.pegawai_penyelaras_id = pp.id 
+                         AND p.status_fizikal = 'Hidup' 
+                         AND p.status_rekod = 'Sah'), 0) AS jumlah_pengundi
+        FROM pegawai_penyelaras pp
+        LEFT JOIN dun d ON d.id = pp.dun_id
+        WHERE pp.id = ? AND pp.aktif = 1
+    """, (pegawai_id,))
+    pegawai = cursor.fetchone()
+    db.close()
+    if not pegawai:
+        raise HTTPException(status_code=404, detail="Pegawai Penyelaras tidak ditemui")
+    return dict(pegawai)
+
+
+# Daftar Pegawai Penyelaras baru
+@app.post("/api/pegawai-penyelaras")
+def create_pegawai_penyelaras(
+    request: Request, 
+    data: PegawaiPenyelarasCreate, 
+    user=Depends(get_current_user)
+):
+    check_peranan(user, ["Admin"])
+    
+    # Validate required fields
+    if not data.nama_penuh or not data.nama_penuh.strip():
+        raise HTTPException(status_code=400, detail="Nama Penuh wajib diisi")
+    if not data.no_kp or not data.no_kp.strip():
+        raise HTTPException(status_code=400, detail="No Kad Pengenalan wajib diisi")
+    if not data.no_telefon or not data.no_telefon.strip():
+        raise HTTPException(status_code=400, detail="No Telefon wajib diisi")
+
+    db = get_db()
+    cursor = db.cursor()
+
+    # Check if no_kp already exists
+    cursor.execute("SELECT id FROM pegawai_penyelaras WHERE no_kp = ? AND aktif = 1", (data.no_kp.strip(),))
+    if cursor.fetchone():
+        db.close()
+        raise HTTPException(status_code=400, detail=f"No KP {data.no_kp} sudah didaftarkan untuk pegawai lain")
+
+    # Resolve DUN from dm if provided
+    dun_id = None
+    dm_value = data.dm.strip().upper() if data.dm and data.dm.strip() else None
+    if dm_value:
+        # Try to match DUN via PDM name first
+        cursor.execute("""
+            SELECT d.id FROM dun d
+            JOIN pdm p ON p.dun_id = d.id
+            WHERE UPPER(p.nama) = ?
+            LIMIT 1
+        """, (dm_value,))
+        dun_row = cursor.fetchone()
+        if dun_row:
+            dun_id = dun_row[0]
+        else:
+            # Try to match as DUN code directly
+            cursor.execute("SELECT id FROM dun WHERE kod = ?", (dm_value,))
+            dun_row = cursor.fetchone()
+            if dun_row:
+                dun_id = dun_row[0]
+
+    now = datetime.now().isoformat()
+    cursor.execute("""
+        INSERT INTO pegawai_penyelaras (nama_penuh, no_kp, no_telefon, dm, dun_id, aktif, dicipta_pada, dikemaskini_pada)
+        VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+    """, (data.nama_penuh.strip().upper(), data.no_kp.strip(), data.no_telefon.strip(),
+          dm_value, dun_id, now, now))
+    db.commit()
+    new_id = cursor.lastrowid
+    db.close()
+
+    log_activity(request, user, "Tambah Pegawai Penyelaras",
+                 f"Tambah pegawai baru: {data.nama_penuh} (KP: {data.no_kp}, Telefon: {data.no_telefon})")
+
+    return {"message": "Pegawai Penyelaras berjaya didaftarkan", "id": new_id}
+
+
+# Kemaskini Pegawai Penyelaras
+@app.put("/api/pegawai-penyelaras/{pegawai_id}")
+def update_pegawai_penyelaras(
+    request: Request, 
+    pegawai_id: int, 
+    data: PegawaiPenyelarasUpdate, 
+    user=Depends(get_current_user)
+):
+    check_peranan(user, ["Admin"])
+
+    db = get_db()
+    cursor = db.cursor()
+
+    # Get existing
+    cursor.execute("SELECT * FROM pegawai_penyelaras WHERE id = ?", (pegawai_id,))
+    existing = cursor.fetchone()
+    if not existing:
+        db.close()
+        raise HTTPException(status_code=404, detail="Pegawai Penyelaras tidak ditemui")
+
+    # Build update fields
+    update_fields = {}
+    raw_data = data.model_dump(exclude_unset=True)
+    for field, value in raw_data.items():
+        if value is not None:
+            if field == "no_kp":
+                # Check uniqueness if changed
+                cursor.execute("SELECT id FROM pegawai_penyelaras WHERE no_kp = ? AND id != ? AND aktif = 1",
+                              (value.strip(), pegawai_id))
+                if cursor.fetchone():
+                    db.close()
+                    raise HTTPException(status_code=400, detail=f"No KP {value} sudah digunakan oleh pegawai lain")
+                update_fields[field] = value.strip()
+            elif field == "nama_penuh":
+                update_fields[field] = value.strip().upper()
+            elif field == "no_telefon":
+                update_fields[field] = value.strip()
+            elif field == "dm":
+                dm_val = value.strip().upper()
+                update_fields[field] = dm_val
+                # Try to resolve DUN
+                cursor.execute("""
+                    SELECT d.id FROM dun d
+                    JOIN pdm p ON p.dun_id = d.id
+                    WHERE UPPER(p.nama) = ?
+                    LIMIT 1
+                """, (dm_val,))
+                dun_row = cursor.fetchone()
+                if dun_row:
+                    update_fields["dun_id"] = dun_row[0]
+                else:
+                    cursor.execute("SELECT id FROM dun WHERE kod = ?", (dm_val,))
+                    dun_row = cursor.fetchone()
+                    if dun_row:
+                        update_fields["dun_id"] = dun_row[0]
+
+    if not update_fields:
+        db.close()
+        return {"message": "Tiada perubahan dibuat"}
+
+    update_fields["dikemaskini_pada"] = datetime.now().isoformat()
+
+    set_clause = ", ".join([f"{k} = ?" for k in update_fields.keys()])
+    values = list(update_fields.values()) + [pegawai_id]
+
+    cursor.execute(f"UPDATE pegawai_penyelaras SET {set_clause} WHERE id = ?", values)
+    db.commit()
+    db.close()
+
+    log_activity(request, user, "Edit Pegawai Penyelaras",
+                 f"Edit pegawai ID {pegawai_id}: {existing['nama_penuh']} - field diubah: {', '.join(update_fields.keys())}")
+
+    return {"message": "Pegawai Penyelaras berjaya dikemaskini", "fields_updated": list(update_fields.keys())}
+
+
+# Padam Pegawai Penyelaras (soft delete - set aktif=0)
+@app.delete("/api/pegawai-penyelaras/{pegawai_id}")
+def delete_pegawai_penyelaras(request: Request, pegawai_id: int, user=Depends(get_current_user)):
+    check_peranan(user, ["Admin"])
+
+    db = get_db()
+    cursor = db.cursor()
+
+    cursor.execute("SELECT id, nama_penuh, no_kp FROM pegawai_penyelaras WHERE id = ? AND aktif = 1", (pegawai_id,))
+    pegawai = cursor.fetchone()
+    if not pegawai:
+        db.close()
+        raise HTTPException(status_code=404, detail="Pegawai Penyelaras tidak ditemui atau sudah tidak aktif")
+
+    # Soft delete: set aktif = 0
+    now = datetime.now().isoformat()
+    cursor.execute("UPDATE pegawai_penyelaras SET aktif = 0, dikemaskini_pada = ? WHERE id = ?", (now, pegawai_id))
+    
+    # Unlink all pengundi that reference this pegawai (set to NULL)
+    cursor.execute("UPDATE pengundi SET pegawai_penyelaras_id = NULL WHERE pegawai_penyelaras_id = ?", (pegawai_id,))
+    
+    db.commit()
+    db.close()
+
+    log_activity(request, user, "Padam Pegawai Penyelaras",
+                 f"Padam pegawai ID {pegawai_id}: {pegawai['nama_penuh']} (KP: {pegawai['no_kp']}) - {cursor.rowcount} pengundi dinyahpaut")
+
+    return {"message": f"Pegawai '{pegawai['nama_penuh']}' berjaya dipadamkan"}
+
+
 # ===== PPU (PETUNJUK PRESTASI UTAMA) ENDPOINT =====
 @app.get("/api/p_pegawai-penyelaras")
 @app.get("/api/ppu/pegawai-penyelaras")

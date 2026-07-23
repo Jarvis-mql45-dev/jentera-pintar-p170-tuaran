@@ -582,6 +582,43 @@ def init_db():
         except Exception as e:
             print(f"⚠️ Migrasi kolum ketua_keluarga/pegawai_penyelaras gagal (mungkin sudah wujud): {e}")
 
+        # 14. Migrasi: Tambah kolum ke table pegawai_penyelaras untuk modul Pengurusan Pegawai Penyelaras
+        try:
+            if USE_POSTGRES:
+                cursor.execute("""
+                    ALTER TABLE pegawai_penyelaras
+                    ADD COLUMN IF NOT EXISTS no_kp VARCHAR(20)
+                """)
+                cursor.execute("""
+                    ALTER TABLE pegawai_penyelaras
+                    ADD COLUMN IF NOT EXISTS no_telefon VARCHAR(20)
+                """)
+                cursor.execute("""
+                    ALTER TABLE pegawai_penyelaras
+                    ADD COLUMN IF NOT EXISTS dun_id INTEGER REFERENCES dun(id)
+                """)
+                cursor.execute("""
+                    ALTER TABLE pegawai_penyelaras
+                    ADD COLUMN IF NOT EXISTS aktif INTEGER DEFAULT 1
+                """)
+                cursor.execute("""
+                    ALTER TABLE pegawai_penyelaras
+                    ADD COLUMN IF NOT EXISTS dicipta_pada TEXT
+                """)
+                cursor.execute("""
+                    ALTER TABLE pegawai_penyelaras
+                    ADD COLUMN IF NOT EXISTS dikemaskini_pada TEXT
+                """)
+            else:
+                # SQLite — guna try/except kerana tiada IF NOT EXISTS untuk ADD COLUMN
+                for col in ["no_kp", "no_telefon", "dun_id", "aktif", "dicipta_pada", "dikemaskini_pada"]:
+                    try:
+                        cursor.execute(f"ALTER TABLE pegawai_penyelaras ADD COLUMN {col} TEXT")
+                    except Exception:
+                        pass  # Kolum mungkin sudah wujud
+        except Exception as e:
+            print(f"⚠️ Migrasi kolum pegawai_penyelaras gagal (mungkin sudah wujud): {e}")
+
         db.commit()
         db.close()
     except Exception as e:

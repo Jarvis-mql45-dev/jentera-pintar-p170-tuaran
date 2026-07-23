@@ -193,6 +193,9 @@ function renderSidebar() {
             <button onclick="navigate('import')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='import'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg> Import Data
             </button>
+            <button onclick="navigate('pegawai-penyelaras')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='pegawai-penyelaras'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg> Pegawai Penyelaras
+            </button>
             <button onclick="navigate('kpi')" class="sidebar-item w-full flex items-start gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='kpi'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
                 <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg> <span style="text-align:left;display:block;line-height:1.4;">Petunjuk Prestasi Utama (PPU)</span>
             </button>
@@ -250,6 +253,7 @@ function navigate(page) {
         page==='users'?'Pengurusan Pengguna':page==='import'?'Import Data Excel':
         page==='survey'?'Senarai Soal Selidik':page==='survey-create'?'Cipta Soal Selidik':
         page==='survey-view'?'Borang Soal Selidik':
+        page==='pegawai-penyelaras'?'Pengurusan Pegawai Penyelaras':
         page==='kpi'?'':'Papan Pemuka';
     document.getElementById('sidebar').classList.remove('open');
     if (window.innerWidth < 768) {
@@ -275,6 +279,7 @@ function navigate(page) {
     else if (page==='survey-create') renderCreateSurvey();
     else if (page==='survey-view') renderSurveyView();
     else if (page==='kpi') renderKpi();
+    else if (page==='pegawai-penyelaras') renderPegawaiPenyelaras();
     else renderComingSoon(page);
 }
 
@@ -3222,6 +3227,250 @@ async function submitImport() {
     btn.disabled = false; btn.innerHTML = '📤 Import Data'; clearFile();
 }
 
+// ========= PEGAWAI PENYELARAS MANAGEMENT (Admin only) =========
+let pegawaiPenyelarasState = { page: 1, search: '' };
+
+async function renderPegawaiPenyelaras() {
+    const content = document.getElementById('contentArea');
+    content.innerHTML = '<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan data pegawai penyelaras...</span></div>';
+    try {
+        const [stats, result] = await Promise.all([
+            api('/api/pegawai-penyelaras/stats'),
+            api(`/api/pegawai-penyelaras/list?page=${pegawaiPenyelarasState.page}&search=${encodeURIComponent(pegawaiPenyelarasState.search)}`)
+        ]);
+        const pegawai = result.data || [];
+        const total = result.total || 0;
+        const totalPages = result.total_pages || 1;
+
+        content.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="card bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-500">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center text-white text-xl font-bold">${stats.total_pegawai || 0}</div>
+                        <div><p class="text-xs text-gray-500 uppercase font-semibold">Jumlah Pegawai</p><p class="text-lg font-bold text-gray-800">${stats.total_pegawai || 0}</p></div>
+                    </div>
+                </div>
+                <div class="card bg-gradient-to-br from-green-50 to-green-100 border-l-4 border-green-500">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center text-white text-xl font-bold">${stats.dun_coverage || '0/0'}</div>
+                        <div><p class="text-xs text-gray-500 uppercase font-semibold">Liputan DUN</p><p class="text-lg font-bold text-gray-800">${stats.dun_coverage || '0/0'}</p></div>
+                    </div>
+                </div>
+                <div class="card bg-gradient-to-br from-amber-50 to-amber-100 border-l-4 border-amber-500">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center text-white text-xl font-bold">${stats.pdm_coverage || '0/0'}</div>
+                        <div><p class="text-xs text-gray-500 uppercase font-semibold">Liputan PDM</p><p class="text-lg font-bold text-gray-800">${stats.pdm_coverage || '0/0'}</p></div>
+                    </div>
+                </div>
+                <div class="card bg-gradient-to-br from-purple-50 to-purple-100 border-l-4 border-purple-500">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center text-white text-xl font-bold">${(stats.pengundi_terikat || 0).toLocaleString()}</div>
+                        <div><p class="text-xs text-gray-500 uppercase font-semibold">Pengundi Terikat</p><p class="text-lg font-bold text-gray-800">${(stats.pengundi_terikat || 0).toLocaleString()}</p></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                    <h3 class="font-semibold text-gray-800">Senarai Pegawai Penyelaras</h3>
+                    <div class="flex items-center gap-2">
+                        <button onclick="showTambahPegawaiPenyelaras()" class="btn btn-primary text-sm">+ Tambah Pegawai Baru</button>
+                        <span class="text-sm text-gray-500">${total.toLocaleString()} pegawai</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 mb-4">
+                    <div class="relative flex-1 min-w-[200px]">
+                        <input type="text" id="pegawaiSearch" placeholder="Cari nama atau No KP..." value="${pegawaiPenyelarasState.search}" onkeyup="if(event.key==='Enter'){pegawaiPenyelarasState.search=this.value;pegawaiPenyelarasState.page=1;renderPegawaiPenyelaras();}" class="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-lg">
+                        <svg class="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </div>
+                    <button onclick="pegawaiPenyelarasState.search=document.getElementById('pegawaiSearch').value;pegawaiPenyelarasState.page=1;renderPegawaiPenyelaras();" class="btn btn-primary text-sm py-2 px-3">Cari</button>
+                    <button onclick="document.getElementById('pegawaiSearch').value='';pegawaiPenyelarasState.search='';pegawaiPenyelarasState.page=1;renderPegawaiPenyelaras();" class="btn btn-outline text-sm py-2 px-3">Reset</button>
+                </div>
+                ${pegawai.length === 0 ? '<div class="text-center py-10 text-gray-400">Tiada pegawai penyelaras dijumpai.</div>' : `
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr>
+                                <th>Nama Penuh</th>
+                                <th>No. KP</th>
+                                <th>No. Telefon</th>
+                                <th>DUN / PDM</th>
+                                <th>Pengundi Terikat</th>
+                                <th>Tindakan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${pegawai.map(p => `
+                            <tr>
+                                <td class="font-medium">${p.nama_penuh || '-'}</td>
+                                <td class="text-xs font-mono">${p.no_kp || '-'}</td>
+                                <td>
+                                    ${p.no_telefon ? `<a href="https://wa.me/${p.no_telefon.replace(/[^0-9]/g, '')}" target="_blank" class="text-green-600 hover:text-green-800 flex items-center gap-1">
+                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                        ${p.no_telefon}
+                                    </a>` : '<span class="text-gray-400">-</span>'}
+                                </td>
+                                <td class="text-sm">${p.dun_kod ? p.dun_kod + ' ' + (p.dun_nama || '') : (p.dm || '-')}</td>
+                                <td><span class="badge badge-sah">${p.jumlah_pengundi || 0}</span></td>
+                                <td>
+                                    <div class="flex gap-1">
+                                        <button onclick="editPegawaiPenyelaras(${p.id})" class="btn btn-primary text-xs py-1 px-2">Edit</button>
+                                        <button onclick="padamPegawaiPenyelaras(${p.id})" class="btn btn-outline text-xs py-1 px-2 border-red-300 text-red-600 hover:bg-red-50">Padam</button>
+                                    </div>
+                                </td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="flex items-center justify-between mt-4">
+                    <div class="pagination">
+                        ${Array.from({length: Math.min(totalPages, 10)}, (_, i) => i + 1).map(p => `
+                            <button onclick="pegawaiPenyelarasState.page=${p};renderPegawaiPenyelaras()" class="${pegawaiPenyelarasState.page === p ? 'active' : ''}">${p}</button>
+                        `).join('')}
+                        ${totalPages > 10 ? `<span class="text-sm text-gray-400">... ${totalPages}</span>` : ''}
+                    </div>
+                    <span class="text-sm text-gray-500">Halaman ${pegawaiPenyelarasState.page}/${totalPages}</span>
+                </div>`}
+            </div>
+
+            <!-- Modal Daftar/Edit Pegawai Penyelaras -->
+            <div id="modalPegawaiPenyelaras" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden" onclick="if(event.target===this)this.classList.add('hidden')">
+                <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4">
+                    <div class="flex items-center justify-between p-4 border-b">
+                        <h3 id="modalPegawaiTitle" class="text-lg font-semibold text-gray-800">Daftar Pegawai Penyelaras Baru</h3>
+                        <button onclick="document.getElementById('modalPegawaiPenyelaras').classList.add('hidden')" class="text-gray-400 hover:text-red-500 text-2xl leading-none">&times;</button>
+                    </div>
+                    <div class="p-4 space-y-3">
+                        <input type="hidden" id="pegawaiEditId" value="">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Nama Penuh <span class="text-red-500">*</span></label>
+                            <input type="text" id="pegawaiNama" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Nama penuh pegawai">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">No. Kad Pengenalan <span class="text-red-500">*</span></label>
+                            <input type="text" id="pegawaiNoKp" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="000101-01-0001">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">No. Telefon <span class="text-red-500">*</span></label>
+                            <input type="text" id="pegawaiNoTelefon" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="012-3456789">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">DUN / PDM (Rujukan Optional)</label>
+                            <div class="flex gap-2">
+                                <select id="pegawaiDun" onchange="pegawaiDunChanged()" class="flex-1 px-3 py-2 text-sm border rounded-lg">
+                                    <option value="">- Pilih DUN (Optional) -</option>
+                                </select>
+                                <input type="text" id="pegawaiDm" class="flex-1 px-3 py-2 text-sm border rounded-lg" placeholder="Atau taip PDM">
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1">Pilih DUN atau taip nama PDM. Ini hanya tag rujukan - tidak mengunci kawasan.</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 p-4 border-t">
+                        <button onclick="document.getElementById('modalPegawaiPenyelaras').classList.add('hidden')" class="btn btn-outline flex-1">Batal</button>
+                        <button onclick="simpanPegawaiPenyelaras()" class="btn btn-primary flex-1">Simpan</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Load DUN list into select
+        try {
+            const dunList = await api('/api/dun');
+            const dunSelect = document.getElementById('pegawaiDun');
+            if (dunSelect) {
+                dunList.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d.kod;
+                    opt.textContent = `${d.nama} (${d.jumlah_pengundi || 0})`;
+                    dunSelect.appendChild(opt);
+                });
+            }
+        } catch (e) {}
+    } catch (err) {
+        content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`;
+    }
+}
+
+function pegawaiDunChanged() {
+    const dunKod = document.getElementById('pegawaiDun').value;
+    const dmInput = document.getElementById('pegawaiDm');
+    if (dunKod && dmInput) {
+        // If DUN selected, optionally set a hint in dm field
+        dmInput.placeholder = `Atau taip PDM untuk ${dunKod}`;
+    } else if (dmInput) {
+        dmInput.placeholder = 'Atau taip PDM';
+    }
+}
+
+function showTambahPegawaiPenyelaras() {
+    document.getElementById('modalPegawaiTitle').textContent = 'Daftar Pegawai Penyelaras Baru';
+    document.getElementById('pegawaiEditId').value = '';
+    document.getElementById('pegawaiNama').value = '';
+    document.getElementById('pegawaiNoKp').value = '';
+    document.getElementById('pegawaiNoTelefon').value = '';
+    document.getElementById('pegawaiDun').value = '';
+    document.getElementById('pegawaiDm').value = '';
+    document.getElementById('modalPegawaiPenyelaras').classList.remove('hidden');
+}
+
+async function editPegawaiPenyelaras(id) {
+    try {
+        const pegawai = await api(`/api/pegawai-penyelaras/${id}`);
+        document.getElementById('modalPegawaiTitle').textContent = 'Edit Pegawai Penyelaras';
+        document.getElementById('pegawaiEditId').value = id;
+        document.getElementById('pegawaiNama').value = pegawai.nama_penuh || '';
+        document.getElementById('pegawaiNoKp').value = pegawai.no_kp || '';
+        document.getElementById('pegawaiNoTelefon').value = pegawai.no_telefon || '';
+        document.getElementById('pegawaiDun').value = pegawai.dun_kod || '';
+        document.getElementById('pegawaiDm').value = pegawai.dm || '';
+        document.getElementById('modalPegawaiPenyelaras').classList.remove('hidden');
+    } catch (err) {
+        showToast('Gagal memuat data pegawai: ' + err.message, 'error');
+    }
+}
+
+async function simpanPegawaiPenyelaras() {
+    const editId = document.getElementById('pegawaiEditId').value;
+    const nama_penuh = document.getElementById('pegawaiNama').value.trim();
+    const no_kp = document.getElementById('pegawaiNoKp').value.trim();
+    const no_telefon = document.getElementById('pegawaiNoTelefon').value.trim();
+    const dun = document.getElementById('pegawaiDun').value;
+    const dm = document.getElementById('pegawaiDm').value.trim();
+
+    if (!nama_penuh) { showToast('Nama Penuh wajib diisi', 'error'); return; }
+    if (!no_kp) { showToast('No Kad Pengenalan wajib diisi', 'error'); return; }
+    if (!no_telefon) { showToast('No Telefon wajib diisi', 'error'); return; }
+
+    const data = { nama_penuh, no_kp, no_telefon };
+    if (dm) data.dm = dm;
+    else if (dun) data.dm = dun;
+
+    try {
+        if (editId) {
+            await api(`/api/pegawai-penyelaras/${editId}`, { method: 'PUT', body: JSON.stringify(data) });
+            showToast('Pegawai Penyelaras berjaya dikemaskini', 'success');
+        } else {
+            await api('/api/pegawai-penyelaras', { method: 'POST', body: JSON.stringify(data) });
+            showToast('Pegawai Penyelaras berjaya didaftarkan', 'success');
+        }
+        document.getElementById('modalPegawaiPenyelaras').classList.add('hidden');
+        renderPegawaiPenyelaras();
+    } catch (err) {
+        showToast('Ralat: ' + err.message, 'error');
+    }
+}
+
+async function padamPegawaiPenyelaras(id) {
+    if (!confirm('Anda pasti mahu memadamkan Pegawai Penyelaras ini? Tindakan ini tidak boleh dikembalikan.')) return;
+    try {
+        await api(`/api/pegawai-penyelaras/${id}`, { method: 'DELETE' });
+        showToast('Pegawai Penyelaras berjaya dipadamkan', 'success');
+        renderPegawaiPenyelaras();
+    } catch (err) {
+        showToast('Ralat: ' + err.message, 'error');
+    }
+}
+
 // ========= COMING SOON PAGE =========
 function renderComingSoon(page) {
     const titles = {
@@ -3455,6 +3704,7 @@ document.addEventListener('click', (e) => {
         else if (page==='survey-create') renderCreateSurvey();
         else if (page==='survey-view') renderSurveyView();
         else if (page==='kpi') renderKpi();
+        else if (page==='pegawai-penyelaras') renderPegawaiPenyelaras();
         else renderComingSoon(page);
     };
     // Re-render current page with the real navigate function
