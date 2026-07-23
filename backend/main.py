@@ -589,7 +589,22 @@ def get_dashboard_pdm(dun_kod: str, user=Depends(get_current_user)):
                 SUM(CASE WHEN p.tahun_lahir IS NOT NULL AND (?) - p.tahun_lahir BETWEEN 18 AND 30 THEN 1 ELSE 0 END) AS usia_18_30,
                 SUM(CASE WHEN p.tahun_lahir IS NOT NULL AND (?) - p.tahun_lahir BETWEEN 31 AND 59 THEN 1 ELSE 0 END) AS usia_31_59,
                 SUM(CASE WHEN p.tahun_lahir IS NOT NULL AND (?) - p.tahun_lahir >= 60 THEN 1 ELSE 0 END) AS usia_60plus,
-                COUNT(DISTINCT p.ketua_keluarga_id) AS jumlah_ketua_keluarga
+                -- FIX: Allocate each KK to its PRIMARY PDM (where they have most members)
+                -- Prevents double-counting when a KK has members in multiple PDMs within same DUN
+                (SELECT COUNT(*) FROM (
+                    SELECT sub.kk_id FROM (
+                        SELECT p2.ketua_keluarga_id AS kk_id,
+                               p2.dm,
+                               ROW_NUMBER() OVER (PARTITION BY p2.ketua_keluarga_id ORDER BY COUNT(*) DESC) AS rn
+                        FROM pengundi p2
+                        WHERE p2.ketua_keluarga_id IS NOT NULL
+                          AND p2.status_fizikal = 'Hidup'
+                          AND p2.status_rekod = 'Sah'
+                          AND p2.dun_id = (SELECT id FROM dun WHERE kod = ?)
+                        GROUP BY p2.ketua_keluarga_id, p2.dm
+                    ) sub
+                    WHERE sub.rn = 1 AND sub.dm = p.dm
+                ) sq) AS jumlah_ketua_keluarga
             FROM pengundi p
             WHERE p.dun_id = (SELECT id FROM dun WHERE kod = ?)
               AND p.status_fizikal = 'Hidup'
@@ -597,7 +612,7 @@ def get_dashboard_pdm(dun_kod: str, user=Depends(get_current_user)):
               AND p.dm IS NOT NULL AND p.dm != ''
             GROUP BY p.dm
             ORDER BY p.dm
-        """, (THN_SEMASA, THN_SEMASA, THN_SEMASA, dun_kod))
+        """, (THN_SEMASA, THN_SEMASA, THN_SEMASA, dun_kod, dun_kod))
 
         data = []
         for row in cursor.fetchall():
