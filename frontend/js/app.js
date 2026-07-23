@@ -1785,20 +1785,15 @@ async function editPengundi(id) {
             dunList = [];
         }
 
-        // Fetch PDM list — jika ada DUN, guna specific; jika tiada, semua PDM (poka-yoke: single source of truth from backend)
+        // Fetch PDM list — guna state.pdmList sebagai single source of truth (poka-yoke: synchronous)
         const dunKod = p.dun || '';
-        let pdmList = [];
-        try {
-            if (dunKod) {
-                pdmList = await api(`/api/pdm/dun/${dunKod}`);
-            } else {
-                pdmList = await api('/api/pdm');
-            }
-        } catch (e) {
-            pdmList = [];
+        if (!state.pdmList || !state.pdmList.length) {
+            try { state.pdmList = await api('/api/pdm'); } catch (e) { state.pdmList = []; }
         }
-        const pdmOptions = pdmList
-            .map(pdm => `<option value="${pdm.nama}">${pdm.nama} (${pdm.jumlah_pengundi || 0})</option>`)
+        const pdmOptions = renderDunPdmDataList(dunKod)
+            .split('</option>')
+            .filter(o => o.trim())
+            .map(o => o + '</option>')
             .join('');
 
         overlay.innerHTML = `
@@ -2049,36 +2044,20 @@ function editDunChanged() {
     // Hide 🗑️ button for PDM when DUN changes (selection resets)
     if (btnHapusPdm) btnHapusPdm.classList.add('hidden');
     
-    // Refresh PDM dropdown using API (poka-yoke: single source of truth from backend)
-    if (dunKod && dmInput) {
-        // Specific DUN chosen — fetch PDMs for that DUN only
-        api(`/api/pdm/dun/${dunKod}`).then(pdms => {
-            if (dmInput) {
-                dmInput.innerHTML = '<option value="">- Pilih PDM -</option>' +
-                    '<option value="TAMBAH_PDM" style="color:#2563eb;font-weight:600;">➕ Tambah PDM Baru</option>' +
-                    (pdms || []).map(p => `<option value="${p.nama}">${p.nama} (${p.jumlah_pengundi || 0})</option>`).join('');
-                dmInput.value = '';
-            }
-            // Refresh lokaliti based on DUN (PDM kosong — show all lokaliti for this DUN)
-            refreshEditLokaliti(dunKod, '');
-        }).catch(() => {
-            if (dmInput) dmInput.value = '';
-        });
-    } else if (dmInput) {
-        // No DUN selected (kosong) — fetch ALL PDMs across all DUNs
-        api('/api/pdm').then(allPdms => {
-            if (dmInput) {
-                dmInput.innerHTML = '<option value="">- Pilih PDM -</option>' +
-                    '<option value="TAMBAH_PDM" style="color:#2563eb;font-weight:600;">➕ Tambah PDM Baru</option>' +
-                    (allPdms || []).map(p => `<option value="${p.nama}">${p.nama} (${p.jumlah_pengundi || 0})</option>`).join('');
-                dmInput.value = '';
-            }
-            // Refresh lokaliti based on empty DUN — show all lokaliti
-            refreshEditLokaliti('', '');
-        }).catch(() => {
-            if (dmInput) dmInput.value = '';
-        });
+    // Refresh PDM dropdown synchronous guna state.pdmList (poka-yoke: single source of truth)
+    if (dmInput) {
+        const pdmOptions = renderDunPdmDataList(dunKod || '')
+            .split('</option>')
+            .filter(o => o.trim())
+            .map(o => o + '</option>')
+            .join('');
+        dmInput.innerHTML = '<option value="">- Pilih PDM -</option>' +
+            '<option value="TAMBAH_PDM" style="color:#2563eb;font-weight:600;">➕ Tambah PDM Baru</option>' +
+            pdmOptions;
+        dmInput.value = '';
     }
+    // Refresh lokaliti based on selected DUN
+    refreshEditLokaliti(dunKod, '');
 }
 
 // Edit modal PDM changed handler — updates lokaliti dynamically based on PDM selection
