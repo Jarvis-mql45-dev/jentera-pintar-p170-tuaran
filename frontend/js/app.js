@@ -1785,11 +1785,15 @@ async function editPengundi(id) {
             dunList = [];
         }
 
-        // Fetch PDM list specifically for this DUN (poka-yoke: single source of truth from backend)
-        const dunKod = p.dun || 'N12';
+        // Fetch PDM list — jika ada DUN, guna specific; jika tiada, semua PDM (poka-yoke: single source of truth from backend)
+        const dunKod = p.dun || '';
         let pdmList = [];
         try {
-            pdmList = await api(`/api/pdm/dun/${dunKod}`);
+            if (dunKod) {
+                pdmList = await api(`/api/pdm/dun/${dunKod}`);
+            } else {
+                pdmList = await api('/api/pdm');
+            }
         } catch (e) {
             pdmList = [];
         }
@@ -2047,6 +2051,7 @@ function editDunChanged() {
     
     // Refresh PDM dropdown using API (poka-yoke: single source of truth from backend)
     if (dunKod && dmInput) {
+        // Specific DUN chosen — fetch PDMs for that DUN only
         api(`/api/pdm/dun/${dunKod}`).then(pdms => {
             if (dmInput) {
                 dmInput.innerHTML = '<option value="">- Pilih PDM -</option>' +
@@ -2060,7 +2065,19 @@ function editDunChanged() {
             if (dmInput) dmInput.value = '';
         });
     } else if (dmInput) {
-        dmInput.value = '';
+        // No DUN selected (kosong) — fetch ALL PDMs across all DUNs
+        api('/api/pdm').then(allPdms => {
+            if (dmInput) {
+                dmInput.innerHTML = '<option value="">- Pilih PDM -</option>' +
+                    '<option value="TAMBAH_PDM" style="color:#2563eb;font-weight:600;">➕ Tambah PDM Baru</option>' +
+                    (allPdms || []).map(p => `<option value="${p.nama}">${p.nama} (${p.jumlah_pengundi || 0})</option>`).join('');
+                dmInput.value = '';
+            }
+            // Refresh lokaliti based on empty DUN — show all lokaliti
+            refreshEditLokaliti('', '');
+        }).catch(() => {
+            if (dmInput) dmInput.value = '';
+        });
     }
 }
 
