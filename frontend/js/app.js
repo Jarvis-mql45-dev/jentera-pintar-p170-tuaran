@@ -1774,8 +1774,20 @@ async function editPengundi(id) {
             fetchKkOptions(''),
             fetchPpOptions('')
         ]);
-        const kkOptHtml = kkOptions.map(k => `<option value="${k.id} - ${k.nama_penuh}">`).join('');
-        const ppOptHtml = ppOptions.map(p2 => `<option value="${p2.id} - ${p2.nama_penuh}">`).join('');
+        // Build PP dropdown options with pre-selection (poka-yoke: full <select> not <input list>)
+        const ppSelectedVal = p.pegawai_penyelaras_id ? `${p.pegawai_penyelaras_id} - ${(p.pegawai_penyelaras_nama || '')}` : '';
+        const ppOptHtml = ppOptions.map(p2 => {
+            const val = `${p2.id} - ${p2.nama_penuh}`;
+            const sel = val === ppSelectedVal ? ' selected' : '';
+            return `<option value="${val}"${sel}>${p2.nama_penuh}</option>`;
+        }).join('');
+        // Build KK dropdown options with pre-selection (poka-yoke: full <select> not <input list>)
+        const kkSelectedVal = p.ketua_keluarga_id ? `${p.ketua_keluarga_id} - ${(p.ketua_keluarga_nama || '')}` : '';
+        const kkOptHtml = kkOptions.map(k => {
+            const val = `${k.id} - ${k.nama_penuh}`;
+            const sel = val === kkSelectedVal ? ' selected' : '';
+            return `<option value="${val}"${sel}>${k.nama_penuh}</option>`;
+        }).join('');
 
         // Pre-fetch DUN list with voter counts from API (same as tambahPengundi)
         let dunList = [];
@@ -1876,14 +1888,18 @@ async function editPengundi(id) {
                     <!-- Pegawai Penyelaras -->
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">Pegawai Penyelaras</label>
-                        <input type="text" id="editPegawai" list="editPegawaiList" oninput="cariEditPegawaiPenyelaras(this)" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Taip nama pegawai penyelaras" value="${p.pegawai_penyelaras_id ? p.pegawai_penyelaras_id + ' - ' + (p.pegawai_penyelaras_nama || '') : ''}">
-                        <datalist id="editPegawaiList">${ppOptHtml}</datalist>
+                        <select id="editPegawai" class="w-full px-3 py-2 text-sm border rounded-lg">
+                            <option value="">- Tiada / Kosong -</option>
+                            ${ppOptHtml}
+                        </select>
                     </div>
                     <!-- Ketua Keluarga -->
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">Ketua Keluarga</label>
-                        <input type="text" id="editKetuaKeluarga" list="editKkList" oninput="cariEditKetuaKeluarga(this)" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Taip nama ketua keluarga" value="${p.ketua_keluarga_id ? p.ketua_keluarga_id + ' - ' + (p.ketua_keluarga_nama || '') : ''}">
-                        <datalist id="editKkList">${kkOptHtml}</datalist>
+                        <select id="editKetuaKeluarga" class="w-full px-3 py-2 text-sm border rounded-lg">
+                            <option value="">- Tiada / Kosong -</option>
+                            ${kkOptHtml}
+                        </select>
                     </div>
                     <!-- Nama Penuh -->
                     <div>
