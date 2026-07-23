@@ -1790,7 +1790,7 @@ async function editPengundi(id) {
         if (!state.pdmList || !state.pdmList.length) {
             try { state.pdmList = await api('/api/pdm'); } catch (e) { state.pdmList = []; }
         }
-        const pdmOptions = renderDunPdmDataList(dunKod)
+        const pdmOptions = renderDunPdmDataList(dunKod, p.dm || '')
             .split('</option>')
             .filter(o => o.trim())
             .map(o => o + '</option>')
@@ -1817,7 +1817,7 @@ async function editPengundi(id) {
                             <select id="editDun" onchange="editDunChanged()" class="flex-1 px-3 py-2 text-sm border rounded-lg">
                                 <option value="">- Pilih DUN -</option>
                                 <option value="TAMBAH_DUN" style="color:#2563eb;font-weight:600;">➕ Tambah DUN Baru</option>
-                                ${dunList.map(d => `<option value="${d.kod}">${d.nama} (${d.jumlah_pengundi || 0})</option>`).join('')}
+                                ${dunList.map(d => `<option value="${d.kod}" ${d.kod === p.dun ? 'selected' : ''}>${d.nama} (${d.jumlah_pengundi || 0})</option>`).join('')}
                             </select>
                             <button id="editBtnHapusDun" onclick="editHapusDun()" class="btn btn-outline text-sm px-2 py-1 text-red-600 border-red-300 hover:bg-red-50 hidden" title="Padam DUN">🗑️</button>
                         </div>
@@ -2288,12 +2288,13 @@ function getPdmListForDun(dunKod) {
     return PDM_BY_DUN[dunKod] || [];
 }
 
-function renderDunPdmDataList(dunKod) {
+function renderDunPdmDataList(dunKod, selectedDm) {
     const pdmNames = getPdmListForDun(dunKod);
     return pdmNames.map(nama => {
         const found = (state.pdmList || []).find(p => p.nama === nama);
         const count = found ? found.jumlah_pengundi : 0;
-        return `<option value="${nama}">${nama} (${count.toLocaleString()})</option>`;
+        const sel = nama === selectedDm ? ' selected' : '';
+        return `<option value="${nama}"${sel}>${nama} (${count.toLocaleString()})</option>`;
     }).join('');
 }
 
