@@ -2453,8 +2453,13 @@ async function tambahPengundi() {
                 <!-- Pegawai Penyelaras -->
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">Pegawai Penyelaras</label>
-                    <input type="text" id="tambahPegawai" list="tambahPegawaiList" oninput="cariPegawaiPenyelaras(this)" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Taip nama pegawai penyelaras">
-                    <datalist id="tambahPegawaiList">${ppOptHtml}</datalist>
+                    <select id="tambahPegawai" class="w-full px-3 py-2 text-sm border rounded-lg">
+                        <option value="">- Tiada / Kosong -</option>
+                        ${ppOptions.map(p => {
+                            const val = `${p.id} - ${p.nama_penuh}`;
+                            return `<option value="${val}">${p.nama_penuh}</option>`;
+                        }).join('')}
+                    </select>
                 </div>
                 <!-- Ketua Keluarga -->
                 <div>
