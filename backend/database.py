@@ -582,6 +582,21 @@ def init_db():
         except Exception as e:
             print(f"⚠️ Migrasi kolum ketua_keluarga/pegawai_penyelaras gagal (mungkin sudah wujud): {e}")
 
+        # 13b. Migrasi: Tambah kolum is_active pada ketua_keluarga (untuk soft-delete)
+        try:
+            if USE_POSTGRES:
+                cursor.execute("""
+                    ALTER TABLE ketua_keluarga
+                    ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1
+                """)
+            else:
+                try:
+                    cursor.execute("ALTER TABLE ketua_keluarga ADD COLUMN is_active INTEGER DEFAULT 1")
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"⚠️ Migrasi kolum is_active ketua_keluarga gagal: {e}")
+
         # 14. Migrasi: Tambah kolum ke table pegawai_penyelaras untuk modul Pengurusan Pegawai Penyelaras
         try:
             if USE_POSTGRES:

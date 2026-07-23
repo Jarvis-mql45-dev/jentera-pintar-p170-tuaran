@@ -1029,8 +1029,8 @@ def get_filter_options(
     if ada_tiada:
         sokongan_list.append("Tiada")
 
-    # Ketua Keluarga & Pegawai Penyelaras — dari table rasmi (tidak perlu filter)
-    cursor.execute("SELECT id, nama_penuh FROM ketua_keluarga ORDER BY nama_penuh")
+    # Ketua Keluarga & Pegawai Penyelaras — dari table rasmi (filter active only)
+    cursor.execute("SELECT id, nama_penuh FROM ketua_keluarga WHERE is_active = 1 ORDER BY nama_penuh")
     ketua_keluarga_list = [{"id": r[0], "nama": r[1]} for r in cursor.fetchall()]
 
     cursor.execute("SELECT id, nama_penuh FROM pegawai_penyelaras WHERE aktif = 1 ORDER BY nama_penuh")
@@ -1102,6 +1102,7 @@ def search_ketua_keluarga_dropdown(
         SELECT id, id AS no_kp, nama_penuh, '' AS dm, '' AS lokaliti
         FROM ketua_keluarga
         WHERE UPPER(nama_penuh) LIKE UPPER(?)
+          AND is_active = 1
         ORDER BY nama_penuh ASC
         LIMIT ? OFFSET ?
     """, params + [per_page, offset])
@@ -1111,6 +1112,7 @@ def search_ketua_keluarga_dropdown(
     cursor.execute("""
         SELECT COUNT(*) FROM ketua_keluarga
         WHERE UPPER(nama_penuh) LIKE UPPER(?)
+          AND is_active = 1
     """, params)
     total = cursor.fetchone()[0]
     
