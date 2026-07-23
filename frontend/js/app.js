@@ -1759,14 +1759,11 @@ async function editPengundi(id) {
         overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
         overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
-        // Pre-fetch lokaliti list — jika ada DUN, filter ikut DUN+PDM; jika tiada, semua lokaliti (poka-yoke)
+        // POKA-YOKE: Pre-fetch FULL unfiltered lokaliti list (tanpa DUN/PDM params)
+        // Pastikan dropdown menunjukkan SEMUA lokaliti, bukan terhad kepada satu DUN/PDM
         let lokalitiList = [];
         try {
-            let lokalitiParams = '';
-            if (p.dun) lokalitiParams += `dun=${encodeURIComponent(p.dun)}`;
-            if (p.dm) lokalitiParams += (lokalitiParams ? '&' : '') + `dm=${encodeURIComponent(p.dm)}`;
-            const url = lokalitiParams ? `/api/lokaliti?${lokalitiParams}` : '/api/lokaliti';
-            lokalitiList = await api(url);
+            lokalitiList = await api('/api/lokaliti');
         } catch (e) {
             lokalitiList = [];
         }
@@ -1956,6 +1953,19 @@ async function editPengundi(id) {
             </div>
         `;
         document.body.appendChild(overlay);
+        
+        // POKA-YOKE: Auto-select voter's current lokaliti from the full unfiltered list
+        const editLokalitiSelect = document.getElementById('editLokaliti');
+        if (editLokalitiSelect && p.lokaliti) {
+            // Check if the value exists in the full options list
+            const matchingOption = Array.from(editLokalitiSelect.options).find(o => o.value === p.lokaliti);
+            if (matchingOption) {
+                editLokalitiSelect.value = p.lokaliti;
+                // Show 🗑️ button for lokaliti since a valid selection exists
+                const btnHapus = document.getElementById('editBtnHapusLokaliti');
+                if (btnHapus) btnHapus.classList.remove('hidden');
+            }
+        }
         
         // Show/hide 🗑️ button for DUN (poka-yoke: core DUNs N12-N15 cannot be deleted)
         const editDunSelect = document.getElementById('editDun');
