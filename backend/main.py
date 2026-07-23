@@ -431,37 +431,31 @@ def delete_lokaliti(lokaliti_nama: str, data: LokalitiCreate = None, user=Depend
 
 @app.get("/api/lokaliti")
 def get_lokaliti_list(dun: Optional[str] = None, dm: Optional[str] = None, user=Depends(get_current_user)):
-    """Pulangkan senarai lokaliti dari table kampung + jumlah pengundi.
+    """Pulangkan senarai lokaliti dari table pengundi secara langsung (single source of truth).
        Boleh filter oleh DUN (dun) dan/atau PDM (dm)."""
     db = get_db()
     cursor = db.cursor()
-    where_clauses = []
+    where_clauses = ["p.lokaliti IS NOT NULL AND p.lokaliti != ''", "p.status_fizikal = 'Hidup'", "p.status_rekod = 'Sah'"]
     params = []
-    
-    if dm and dm.strip():
-        dm_val = dm.strip().upper()
-        where_clauses.append("p.nama = ?")
-        params.append(dm_val)
     
     if dun and dun.strip():
         dun_val = dun.strip().upper()
-        where_clauses.append("d.kod = ?")
+        where_clauses.append("p.dun_id = (SELECT id FROM dun WHERE kod = ?)")
         params.append(dun_val)
     
-    where_sql = ""
-    if where_clauses:
-        where_sql = "WHERE " + " AND ".join(where_clauses)
+    if dm and dm.strip():
+        dm_val = dm.strip().upper()
+        where_clauses.append("UPPER(p.dm) = ?")
+        params.append(dm_val)
+    
+    where_sql = "WHERE " + " AND ".join(where_clauses)
     
     cursor.execute(f"""
-        SELECT k.nama, COUNT(p2.id) AS jumlah_pengundi
-        FROM kampung k
-        JOIN pdm p ON p.id = k.pdm_id
-        JOIN dun d ON d.id = p.dun_id
-        LEFT JOIN pengundi p2 ON UPPER(p2.lokaliti) = UPPER(k.nama)
-            AND p2.status_fizikal = 'Hidup' AND p2.status_rekod = 'Sah'
+        SELECT p.lokaliti AS nama, COUNT(p.id) AS jumlah_pengundi
+        FROM pengundi p
         {where_sql}
-        GROUP BY k.nama
-        ORDER BY k.nama
+        GROUP BY p.lokaliti
+        ORDER BY p.lokaliti
     """, params)
     
     lokaliti = [{"nama": row[0], "jumlah_pengundi": row[1]} for row in cursor.fetchall()]
