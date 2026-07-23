@@ -2416,7 +2416,7 @@ def get_ketua_keluarga_list(
                    d.kod AS dun_kod,
                    d.nama AS dun_nama
             FROM ketua_keluarga kk
-            LEFT JOIN dun d ON d.id = kk.dun_id
+LEFT JOIN dun d ON POSITION(UPPER(kk.dun) IN UPPER(d.nama)) > 0
             {where}
             ORDER BY kk.nama_penuh
             LIMIT ? OFFSET ?
@@ -2468,8 +2468,8 @@ def get_ketua_keluarga_stats(user=Depends(get_current_user)):
         cursor.execute("""
             SELECT COUNT(DISTINCT d.kod) 
             FROM ketua_keluarga kk
-            JOIN dun d ON d.id = kk.dun_id
-            WHERE kk.is_active = 1 AND kk.dun_id IS NOT NULL
+            JOIN dun d ON POSITION(UPPER(kk.dun) IN UPPER(d.nama)) > 0
+            WHERE kk.is_active = 1 AND kk.dun IS NOT NULL AND kk.dun != ''
         """)
         dun_covered = cursor.fetchone()[0]
 
@@ -2524,7 +2524,7 @@ def get_ketua_keluarga_by_id(ketua_id: int, user=Depends(get_current_user)):
                          AND p.status_fizikal = 'Hidup' 
                          AND p.status_rekod = 'Sah'), 0) AS jumlah_pengundi
         FROM ketua_keluarga kk
-        LEFT JOIN dun d ON d.id = kk.dun_id
+        LEFT JOIN dun d ON UPPER(d.nama) LIKE '%' || UPPER(kk.dun) || '%'
         WHERE kk.id = ? AND kk.is_active = 1
     """, (ketua_id,))
     ketua = cursor.fetchone()
