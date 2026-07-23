@@ -2342,6 +2342,333 @@ def delete_pegawai_penyelaras(request: Request, pegawai_id: int, user=Depends(ge
     return {"message": f"Pegawai '{pegawai['nama_penuh']}' berjaya dipadamkan"}
 
 
+
+# ============================================================
+# PENGURUSAN KETUA KELUARGA (Admin only)
+# ============================================================
+
+class KetuaKeluargaCreate(BaseModel):
+    nama_penuh: str
+    no_kp: str
+    no_telefon: str
+    dm: Optional[str] = None  # Optional PDM/DUN reference tag
+
+class KetuaKeluargaUpdate(BaseModel):
+    nama_penuh: Optional[str] = None
+    no_kp: Optional[str] = None
+    no_telefon: Optional[str] = None
+    dm: Optional[str] = None
+
+# Senarai Ketua Keluarga (Admin only)
+@app.get("/api/ketua-keluarga/list")
+def get_ketua_keluarga_list(
+    request: Request,
+    search: Optional[str] = None,
+    page: int = 1,
+    per_page: int = 50,
+    user=Depends(get_current_user)
+):
+    check_peranan(user, ["Admin"])
+    db = get_db()
+    cursor = db.cursor()
+
+    where_parts = ["kk.is_active = 1"]
+    params = []
+
+    if search:
+        where_parts.append("(UPPER(kk.nama_penuh) LIKE UPPER(?) OR UPPER(kk.no_kp) LIKE UPPER(?))")
+        params.extend([f"%{search}%", f"%{search}%"])
+
+    where = "WHERE " + " AND ".join(where_parts)
+
+    # Count total
+    cursor.execute(f"SELECT COUNT(*) FROM ketua_keluarga kk {where}", params)
+    total = cursor.fetchone()[0]
+
+    offset = (page - 1) * per_page
+    cursor.execute(f"""
+        SELECT kk.id, kk.nama_penuh,
+               COALESCE(kk.no_kp, '') AS no_kp,
+               COALESCE(kk.no_telefon, '') AS no_telefon,
+               kk.dm, kk.dicipta_pada,
+               COALESCE((SELECT COUNT(*) FROM pengundi p 
+                         WHERE p.ketua_keluarga_id = kk.id 
+                         AND p.status_fizikal = 'Hidup' 
+                         AND p.status_rekod = 'Sah'), 0) AS jumlah_pengundi,
+               d.kod AS dun_kod,
+               d.nama AS dun_nama
+        FROM ketua_keluarga kk
+        LEFT JOIN dun d ON d.id = kk.dun_id
+        {where}
+        ORDER BY kk.nama_penuh
+        LIMIT ? OFFSET ?
+    """, params + [per_page, offset])
+
+    ketua = [dict(row) for row in cursor.fetchall()]
+    db.close()
+
+    log_activity(request, user, "Lihat Senarai Ketua Keluarga",
+                 f"Senarai Ketua Keluarga ({total} rekod)")
+
+    return {
+        "data": ketua,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": max(1, (total + per_page - 1) // per_page)
+    }
+
+
+# KPI Stats untuk Pengurusan Ketua Keluarga
+@app.get("/api/ketua-keluarga/stats")
+def get_ketua_keluarga_stats(user=Depends(get_current_user)):
+    check_peranan(user, ["Admin"])
+    db = get_db()
+    cursor = db.cursor()
+
+    # Total Ketua Keluarga aktif
+    cursor.execute("SELECT COUNT(*) FROM ketua_keluarga WHERE is_active = 1")
+    total_ketua = cursor.fetchone()[0]
+
+    # Total Ahli Keluarga (pengundi yang terikat dengan mana-mana KK)
+    cursor.execute("""
+        SELECT COUNT(DISTINCT p.id) 
+        FROM pengundi p
+        JOIN ketua_keluarga kk ON kk.id = p.ketua_keluarga_id
+        WHERE kk.is_active = 1 AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
+    """)
+    ahli_terikat = cursor.fetchone()[0]
+
+    # DUN coverage - jumlah DUN yang mempunyai sekurang-kurangnya 1 KK
+    cursor.execute("""
+        SELECT COUNT(DISTINCT d.kod) 
+        FROM ketua_keluarga kk
+        JOIN dun d ON d.id = kk.dun_id
+        WHERE kk.is_active = 1 AND kk.dun_id IS NOT NULL
+    """)
+    dun_covered = cursor.fetchone()[0]
+
+    # Total DUN
+    cursor.execute("SELECT COUNT(*) FROM dun")
+    total_dun = cursor.fetchone()[0]
+
+    # PDM coverage - jumlah PDM dengan KK
+    cursor.execute("""
+        SELECT COUNT(DISTINCT kk.dm) 
+        FROM ketua_keluarga kk
+        WHERE kk.is_active = 1 AND kk.dm IS NOT NULL AND kk.dm != ''
+    """)
+    pdm_covered = cursor.fetchone()[0]
+
+    # Total PDM
+    cursor.execute("SELECT COUNT(*) FROM pdm")
+    total_pdm = cursor.fetchone()[0]
+
+    db.close()
+
+    return {
+        "total_ketua": total_ketua,
+        "ahli_terikat": ahli_terikat,
+        "dun_coverage": f"{dun_covered}/{total_dun}",
+        "dun_covered": dun_covered,
+        "total_dun": total_dun,
+        "pdm_coverage": f"{pdm_covered}/{total_pdm}",
+        "pdm_covered": pdm_covered,
+        "total_pdm": total_pdm
+    }
+
+
+# Dapatkan Ketua Keluarga by ID
+@app.get("/api/ketua-keluarga/{ketua_id}")
+def get_ketua_keluarga_by_id(ketua_id: int, user=Depends(get_current_user)):
+    check_peranan(user, ["Admin"])
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("""
+        SELECT kk.*, d.kod AS dun_kod, d.nama AS dun_nama,
+               COALESCE((SELECT COUNT(*) FROM pengundi p 
+                         WHERE p.ketua_keluarga_id = kk.id 
+                         AND p.status_fizikal = 'Hidup' 
+                         AND p.status_rekod = 'Sah'), 0) AS jumlah_pengundi
+        FROM ketua_keluarga kk
+        LEFT JOIN dun d ON d.id = kk.dun_id
+        WHERE kk.id = ? AND kk.is_active = 1
+    """, (ketua_id,))
+    ketua = cursor.fetchone()
+    db.close()
+    if not ketua:
+        raise HTTPException(status_code=404, detail="Ketua Keluarga tidak ditemui")
+    return dict(ketua)
+
+
+# Daftar Ketua Keluarga baru
+@app.post("/api/ketua-keluarga")
+def create_ketua_keluarga(
+    request: Request, 
+    data: KetuaKeluargaCreate, 
+    user=Depends(get_current_user)
+):
+    check_peranan(user, ["Admin"])
+    
+    # Validate required fields
+    if not data.nama_penuh or not data.nama_penuh.strip():
+        raise HTTPException(status_code=400, detail="Nama Penuh wajib diisi")
+    if not data.no_kp or not data.no_kp.strip():
+        raise HTTPException(status_code=400, detail="No Kad Pengenalan wajib diisi")
+    if not data.no_telefon or not data.no_telefon.strip():
+        raise HTTPException(status_code=400, detail="No Telefon wajib diisi")
+
+    db = get_db()
+    cursor = db.cursor()
+
+    # Check if no_kp already exists
+    cursor.execute("SELECT id FROM ketua_keluarga WHERE no_kp = ? AND is_active = 1", (data.no_kp.strip(),))
+    if cursor.fetchone():
+        db.close()
+        raise HTTPException(status_code=400, detail=f"No KP {data.no_kp} sudah didaftarkan untuk Ketua Keluarga lain")
+
+    # Resolve DUN from dm if provided
+    dun_id = None
+    dm_value = data.dm.strip().upper() if data.dm and data.dm.strip() else None
+    if dm_value:
+        # Try to match DUN via PDM name first
+        cursor.execute("""
+            SELECT d.id FROM dun d
+            JOIN pdm p ON p.dun_id = d.id
+            WHERE UPPER(p.nama) = ?
+            LIMIT 1
+        """, (dm_value,))
+        dun_row = cursor.fetchone()
+        if dun_row:
+            dun_id = dun_row[0]
+        else:
+            # Try to match as DUN code directly
+            cursor.execute("SELECT id FROM dun WHERE kod = ?", (dm_value,))
+            dun_row = cursor.fetchone()
+            if dun_row:
+                dun_id = dun_row[0]
+
+    now = datetime.now().isoformat()
+    cursor.execute("""
+        INSERT INTO ketua_keluarga (nama_penuh, no_kp, no_telefon, dm, dun_id, is_active, dicipta_pada, dikemaskini_pada)
+        VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+    """, (data.nama_penuh.strip().upper(), data.no_kp.strip(), data.no_telefon.strip(),
+          dm_value, dun_id, now, now))
+    db.commit()
+    new_id = cursor.lastrowid
+    db.close()
+
+    log_activity(request, user, "Tambah Ketua Keluarga",
+                 f"Tambah KK baru: {data.nama_penuh} (KP: {data.no_kp}, Telefon: {data.no_telefon})")
+
+    return {"message": "Ketua Keluarga berjaya didaftarkan", "id": new_id}
+
+
+# Kemaskini Ketua Keluarga
+@app.put("/api/ketua-keluarga/{ketua_id}")
+def update_ketua_keluarga(
+    request: Request, 
+    ketua_id: int, 
+    data: KetuaKeluargaUpdate, 
+    user=Depends(get_current_user)
+):
+    check_peranan(user, ["Admin"])
+
+    db = get_db()
+    cursor = db.cursor()
+
+    # Get existing
+    cursor.execute("SELECT * FROM ketua_keluarga WHERE id = ?", (ketua_id,))
+    existing = cursor.fetchone()
+    if not existing:
+        db.close()
+        raise HTTPException(status_code=404, detail="Ketua Keluarga tidak ditemui")
+
+    # Build update fields
+    update_fields = {}
+    raw_data = data.model_dump(exclude_unset=True)
+    for field, value in raw_data.items():
+        if value is not None:
+            if field == "no_kp":
+                # Check uniqueness if changed
+                cursor.execute("SELECT id FROM ketua_keluarga WHERE no_kp = ? AND id != ? AND is_active = 1",
+                              (value.strip(), ketua_id))
+                if cursor.fetchone():
+                    db.close()
+                    raise HTTPException(status_code=400, detail=f"No KP {value} sudah digunakan oleh Ketua Keluarga lain")
+                update_fields[field] = value.strip()
+            elif field == "nama_penuh":
+                update_fields[field] = value.strip().upper()
+            elif field == "no_telefon":
+                update_fields[field] = value.strip()
+            elif field == "dm":
+                dm_val = value.strip().upper()
+                update_fields[field] = dm_val
+                # Try to resolve DUN
+                cursor.execute("""
+                    SELECT d.id FROM dun d
+                    JOIN pdm p ON p.dun_id = d.id
+                    WHERE UPPER(p.nama) = ?
+                    LIMIT 1
+                """, (dm_val,))
+                dun_row = cursor.fetchone()
+                if dun_row:
+                    update_fields["dun_id"] = dun_row[0]
+                else:
+                    cursor.execute("SELECT id FROM dun WHERE kod = ?", (dm_val,))
+                    dun_row = cursor.fetchone()
+                    if dun_row:
+                        update_fields["dun_id"] = dun_row[0]
+
+    if not update_fields:
+        db.close()
+        return {"message": "Tiada perubahan dibuat"}
+
+    update_fields["dikemaskini_pada"] = datetime.now().isoformat()
+
+    set_clause = ", ".join([f"{k} = ?" for k in update_fields.keys()])
+    values = list(update_fields.values()) + [ketua_id]
+
+    cursor.execute(f"UPDATE ketua_keluarga SET {set_clause} WHERE id = ?", values)
+    db.commit()
+    db.close()
+
+    log_activity(request, user, "Edit Ketua Keluarga",
+                 f"Edit KK ID {ketua_id}: {existing['nama_penuh']} - field diubah: {', '.join(update_fields.keys())}")
+
+    return {"message": "Ketua Keluarga berjaya dikemaskini", "fields_updated": list(update_fields.keys())}
+
+
+# Padam Ketua Keluarga (soft delete - set is_active=0)
+@app.delete("/api/ketua-keluarga/{ketua_id}")
+def delete_ketua_keluarga(request: Request, ketua_id: int, user=Depends(get_current_user)):
+    check_peranan(user, ["Admin"])
+
+    db = get_db()
+    cursor = db.cursor()
+
+    cursor.execute("SELECT id, nama_penuh, no_kp FROM ketua_keluarga WHERE id = ? AND is_active = 1", (ketua_id,))
+    ketua = cursor.fetchone()
+    if not ketua:
+        db.close()
+        raise HTTPException(status_code=404, detail="Ketua Keluarga tidak ditemui atau sudah tidak aktif")
+
+    # Soft delete: set is_active = 0
+    now = datetime.now().isoformat()
+    cursor.execute("UPDATE ketua_keluarga SET is_active = 0, dikemaskini_pada = ? WHERE id = ?", (now, ketua_id))
+    
+    # Unlink all pengundi that reference this KK (set to NULL)
+    cursor.execute("UPDATE pengundi SET ketua_keluarga_id = NULL WHERE ketua_keluarga_id = ?", (ketua_id,))
+    
+    db.commit()
+    db.close()
+
+    log_activity(request, user, "Padam Ketua Keluarga",
+                 f"Padam KK ID {ketua_id}: {ketua['nama_penuh']} (KP: {ketua['no_kp']}) - pengundi dinyahpaut")
+
+    return {"message": f"Ketua Keluarga '{ketua['nama_penuh']}' berjaya dipadamkan"}
+
+
 # ===== PPU (PETUNJUK PRESTASI UTAMA) ENDPOINT =====
 @app.get("/api/p_pegawai-penyelaras")
 @app.get("/api/ppu/pegawai-penyelaras")
