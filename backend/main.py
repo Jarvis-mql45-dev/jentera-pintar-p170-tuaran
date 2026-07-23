@@ -1033,7 +1033,7 @@ def get_filter_options(
     cursor.execute("SELECT id, nama_penuh FROM ketua_keluarga ORDER BY nama_penuh")
     ketua_keluarga_list = [{"id": r[0], "nama": r[1]} for r in cursor.fetchall()]
 
-    cursor.execute("SELECT id, nama_penuh FROM pegawai_penyelaras ORDER BY nama_penuh")
+    cursor.execute("SELECT id, nama_penuh FROM pegawai_penyelaras WHERE aktif = 1 ORDER BY nama_penuh")
     pegawai_penyelaras_list = [{"id": r[0], "nama": r[1]} for r in cursor.fetchall()]
 
     db.close()
@@ -1136,7 +1136,7 @@ def search_pegawai_penyelaras_dropdown(
     cursor.execute("""
         SELECT id, id AS no_kp, nama_penuh, '' AS dm, '' AS lokaliti
         FROM pegawai_penyelaras
-        WHERE UPPER(nama_penuh) LIKE UPPER(?)
+        WHERE aktif = 1 AND UPPER(nama_penuh) LIKE UPPER(?)
         ORDER BY nama_penuh ASC
         LIMIT ? OFFSET ?
     """, params + [per_page, offset])
@@ -1145,7 +1145,7 @@ def search_pegawai_penyelaras_dropdown(
     
     cursor.execute("""
         SELECT COUNT(*) FROM pegawai_penyelaras
-        WHERE UPPER(nama_penuh) LIKE UPPER(?)
+        WHERE aktif = 1 AND UPPER(nama_penuh) LIKE UPPER(?)
     """, params)
     total = cursor.fetchone()[0]
     
@@ -2396,6 +2396,7 @@ def get_ppu_pegawai_penyelaras(user=Depends(get_current_user)):
                              AND p2.status_fizikal = 'Hidup'
                              AND p2.status_rekod = 'Sah'), 0) AS jumlah_pengundi
             FROM pegawai_penyelaras pp
+            WHERE pp.aktif = 1
             ORDER BY pp.nama_penuh
         """)
 
