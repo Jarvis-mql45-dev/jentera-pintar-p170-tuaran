@@ -1759,10 +1759,11 @@ async function editPengundi(id) {
         overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
         overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
-        // Pre-fetch lokaliti list with voter counts from kampung table
+        // Pre-fetch lokaliti list filtered by this pengundi's DUN and PDM (if any)
         let lokalitiList = [];
         try {
-            lokalitiList = await api('/api/lokaliti');
+            const lokalitiParams = `dun=${encodeURIComponent(p.dun || 'N12')}${p.dm ? `&dm=${encodeURIComponent(p.dm)}` : ''}`;
+            lokalitiList = await api(`/api/lokaliti?${lokalitiParams}`);
         } catch (e) {
             lokalitiList = [];
         }
@@ -1793,7 +1794,7 @@ async function editPengundi(id) {
             pdmList = [];
         }
         const pdmOptions = pdmList
-            .map(pdm => `<option value="${pdm.nama}" ${p.dm === pdm.nama ? 'selected' : ''}>${pdm.nama} (${pdm.jumlah_pengundi || 0})</option>`)
+            .map(pdm => `<option value="${pdm.nama}">${pdm.nama} (${pdm.jumlah_pengundi || 0})</option>`)
             .join('');
 
         overlay.innerHTML = `
@@ -1817,7 +1818,7 @@ async function editPengundi(id) {
                             <select id="editDun" onchange="editDunChanged()" class="flex-1 px-3 py-2 text-sm border rounded-lg">
                                 <option value="">- Pilih DUN -</option>
                                 <option value="TAMBAH_DUN" style="color:#2563eb;font-weight:600;">➕ Tambah DUN Baru</option>
-                                ${dunList.map(d => `<option value="${d.kod}" ${p.dun === d.kod ? 'selected' : ''}>${d.nama} (${d.jumlah_pengundi || 0})</option>`).join('')}
+                                ${dunList.map(d => `<option value="${d.kod}">${d.nama} (${d.jumlah_pengundi || 0})</option>`).join('')}
                             </select>
                             <button id="editBtnHapusDun" onclick="editHapusDun()" class="btn btn-outline text-sm px-2 py-1 text-red-600 border-red-300 hover:bg-red-50 hidden" title="Padam DUN">🗑️</button>
                         </div>
@@ -1852,12 +1853,26 @@ async function editPengundi(id) {
                             <p class="text-xs text-gray-400 mt-0.5">Masukkan nama PDM baru. Klik "Tambah PDM" untuk create.</p>
                         </div>
                     </div>
-                    <!-- Lokaliti: searchable + add new -->
+                    <!-- Lokaliti: dropdown + add new (same pattern as Tambah Pengundi) -->
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">Lokaliti <span class="text-red-500">*</span></label>
-                        <input type="text" id="editLokaliti" list="editLokalitiList" value="${(p.lokaliti || '').replace(/"/g, '"')}" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Taip atau pilih lokaliti">
-                        <datalist id="editLokalitiList">${lokalitiOptions}</datalist>
-                        <p class="text-xs text-gray-400 mt-0.5">Taip untuk cari, atau masukkan lokaliti baru jika tiada dalam senarai</p>
+                        <div class="flex gap-2">
+                            <select id="editLokaliti" onchange="editLokalitiChanged()" class="flex-1 px-3 py-2 text-sm border rounded-lg">
+                                <option value="">- Pilih Lokaliti -</option>
+                                <option value="TAMBAH_LOKALITI" style="color:#2563eb;font-weight:600;">➕ Tambah Lokaliti Baru</option>
+                                ${lokalitiOptions}
+                            </select>
+                            <button id="editBtnHapusLokaliti" onclick="editHapusLokaliti()" class="btn btn-outline text-sm px-2 py-1 text-red-600 border-red-300 hover:bg-red-50 hidden" title="Padam Lokaliti">🗑️</button>
+                        </div>
+                        <!-- Input untuk Lokaliti baru (tersembunyi) -->
+                        <div id="editLokalitiBaruContainer" style="display:none;" class="mt-2">
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Nama Lokaliti Baru <span class="text-red-500">*</span></label>
+                            <div class="flex gap-2">
+                                <input type="text" id="editLokalitiBaru" class="flex-1 px-3 py-2 text-sm border rounded-lg" placeholder="Contoh: KAMPUNG BARU">
+                                <button onclick="editTambahLokalitiBaruSekarang()" class="btn btn-primary whitespace-nowrap text-sm px-3">➕ Tambah Lokaliti</button>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-0.5">Masukkan nama Lokaliti baru. Klik "Tambah Lokaliti" untuk create.</p>
+                        </div>
                     </div>
                     <!-- Pegawai Penyelaras -->
                     <div>
@@ -2004,6 +2019,7 @@ function editDunChanged() {
     const dunKod = document.getElementById('editDun').value;
     const dmInput = document.getElementById('editDm');
     const dunBaruContainer = document.getElementById('editDunBaruContainer');
+    const btnHapusPdm = document.getElementById('editBtnHapusPdm');
     
     // Handle Tambah DUN Baru option
     if (dunKod === 'TAMBAH_DUN') {
@@ -2012,6 +2028,22 @@ function editDunChanged() {
     } else {
         if (dunBaruContainer) dunBaruContainer.style.display = 'none';
     }
+    
+    // Show/hide 🗑️ button for DUN (poka-yoke: core DUNs N12-N15 cannot be deleted)
+    const editBtnHapus = document.getElementById('editBtnHapusDun');
+    const coreDuns = ['N12', 'N13', 'N14', 'N15'];
+    if (editBtnHapus) {
+        if (coreDuns.includes(dunKod)) {
+            editBtnHapus.classList.add('hidden');
+        } else if (dunKod && dunKod !== 'TAMBAH_DUN') {
+            editBtnHapus.classList.remove('hidden');
+        } else {
+            editBtnHapus.classList.add('hidden');
+        }
+    }
+    
+    // Hide 🗑️ button for PDM when DUN changes (selection resets)
+    if (btnHapusPdm) btnHapusPdm.classList.add('hidden');
     
     // Refresh PDM dropdown using API (poka-yoke: single source of truth from backend)
     if (dunKod && dmInput) {
@@ -2022,12 +2054,97 @@ function editDunChanged() {
                     (pdms || []).map(p => `<option value="${p.nama}">${p.nama} (${p.jumlah_pengundi || 0})</option>`).join('');
                 dmInput.value = '';
             }
+            // Refresh lokaliti based on DUN (PDM kosong — show all lokaliti for this DUN)
+            refreshEditLokaliti(dunKod, '');
         }).catch(() => {
             if (dmInput) dmInput.value = '';
         });
     } else if (dmInput) {
         dmInput.value = '';
     }
+}
+
+// Edit modal PDM changed handler — updates lokaliti dynamically based on PDM selection
+function editPdmChanged() {
+    const pdmVal = document.getElementById('editDm').value;
+    const pdmBaruContainer = document.getElementById('editPdmBaruContainer');
+    const btnHapus = document.getElementById('editBtnHapusPdm');
+    const dunKod = document.getElementById('editDun').value;
+    
+    if (pdmVal === 'TAMBAH_PDM' || pdmVal === '') {
+        if (pdmBaruContainer) pdmBaruContainer.style.display = pdmVal === 'TAMBAH_PDM' ? 'block' : 'none';
+        if (btnHapus) btnHapus.classList.add('hidden');
+        return;
+    }
+    
+    if (pdmBaruContainer) pdmBaruContainer.style.display = 'none';
+    document.getElementById('editPdmBaru').value = '';
+    if (btnHapus) btnHapus.classList.remove('hidden');
+    
+    // Refresh lokaliti dropdown based on selected DUN + PDM
+    refreshEditLokaliti(dunKod, pdmVal);
+}
+
+// Edit modal lokaliti handlers (same pattern as Tambah Pengundi)
+function editLokalitiChanged() {
+    const lokalitiVal = document.getElementById('editLokaliti').value;
+    const lokalitiBaruContainer = document.getElementById('editLokalitiBaruContainer');
+    const btnHapus = document.getElementById('editBtnHapusLokaliti');
+    
+    if (lokalitiVal === 'TAMBAH_LOKALITI' || lokalitiVal === '') {
+        if (lokalitiBaruContainer) lokalitiBaruContainer.style.display = lokalitiVal === 'TAMBAH_LOKALITI' ? 'block' : 'none';
+        if (btnHapus) btnHapus.classList.add('hidden');
+        return;
+    }
+    
+    if (lokalitiBaruContainer) lokalitiBaruContainer.style.display = 'none';
+    document.getElementById('editLokalitiBaru').value = '';
+    if (btnHapus) btnHapus.classList.remove('hidden');
+}
+
+function editTambahLokalitiBaruSekarang() {
+    const lokalitiInput = document.getElementById('editLokalitiBaru');
+    const lokalitiVal = lokalitiInput.value.trim();
+    const dm = document.getElementById('editDm').value;
+    if (!lokalitiVal) {
+        showToast('Sila masukkan nama Lokaliti baru', 'error');
+        return;
+    }
+    if (!dm) {
+        showToast('Sila pilih PDM dahulu sebelum tambah Lokaliti', 'error');
+        return;
+    }
+    api('/api/lokaliti', {
+        method: 'POST',
+        body: JSON.stringify({ nama: lokalitiVal, dm: dm })
+    }).then(result => {
+        showToast(`Lokaliti ${lokalitiVal} berjaya ditambah!`, 'success');
+        lokalitiInput.value = '';
+        document.getElementById('editLokalitiBaruContainer').style.display = 'none';
+        const lokalitiSelect = document.getElementById('editLokaliti');
+        lokalitiSelect.innerHTML += `<option value="${lokalitiVal.toUpperCase()}">${lokalitiVal.toUpperCase()}</option>`;
+        lokalitiSelect.value = lokalitiVal.toUpperCase();
+        editLokalitiChanged();
+    }).catch(err => {
+        showToast('Gagal cipta Lokaliti baru: ' + err.message, 'error');
+    });
+}
+
+function editHapusLokaliti() {
+    const lokalitiVal = document.getElementById('editLokaliti').value;
+    if (!lokalitiVal || lokalitiVal === 'TAMBAH_LOKALITI') return;
+    if (!confirm(`Anda pasti mahu memadamkan Lokaliti ${lokalitiVal}? Tindakan ini tidak boleh dikembalikan.`)) return;
+    api(`/api/lokaliti/${encodeURIComponent(lokalitiVal)}`, { method: 'DELETE' }).then(result => {
+        showToast(`Lokaliti ${lokalitiVal} berjaya dipadamkan!`, 'success');
+        const lokalitiSelect = document.getElementById('editLokaliti');
+        Array.from(lokalitiSelect.options).forEach((opt, i) => {
+            if (opt.value === lokalitiVal) lokalitiSelect.remove(i);
+        });
+        lokalitiSelect.value = '';
+        document.getElementById('editBtnHapusLokaliti').classList.add('hidden');
+    }).catch(err => {
+        showToast(err.message, 'error');
+    });
 }
 
 function editTambahDunBaruSekarang() {
@@ -2173,9 +2290,10 @@ function renderDunPdmDataList(dunKod) {
 
 let cachedLokaliti = null;
 
-async function getLokalitiList() {
+async function getLokalitiList(dunKod) {
     try {
-        const res = await api('/api/lokaliti');
+        const url = dunKod ? `/api/lokaliti?dun=${encodeURIComponent(dunKod)}` : '/api/lokaliti';
+        const res = await api(url);
         return res || [];
     } catch {
         return [];
@@ -2569,6 +2687,32 @@ async function refreshTambahLokaliti(dunKod, dmValue) {
     try {
         const res = await api(url);
         const lokalitiSelect = document.getElementById('tambahLokaliti');
+        if (lokalitiSelect) {
+            const currentVal = lokalitiSelect.value;
+            lokalitiSelect.innerHTML = `
+                <option value="">- Pilih Lokaliti -</option>
+                <option value="TAMBAH_LOKALITI" style="color:#2563eb;font-weight:600;">➕ Tambah Lokaliti Baru</option>
+                ${(res || []).map(l => `<option value="${l.nama}">${l.nama} (${l.jumlah_pengundi || 0})</option>`).join('')}
+            `;
+            // Preserve selection if value still exists
+            if (currentVal && Array.from(lokalitiSelect.options).some(o => o.value === currentVal)) {
+                lokalitiSelect.value = currentVal;
+            }
+        }
+    } catch (e) {
+        // Silent fail — keep existing lokaliti list
+    }
+}
+
+async function refreshEditLokaliti(dunKod, dmValue) {
+    // Build params to filter lokaliti by selected DUN and/or PDM
+    let params = '';
+    if (dunKod) params += `dun=${encodeURIComponent(dunKod)}`;
+    if (dmValue) params += (params ? '&' : '') + `dm=${encodeURIComponent(dmValue)}`;
+    const url = params ? `/api/lokaliti?${params}` : '/api/lokaliti';
+    try {
+        const res = await api(url);
+        const lokalitiSelect = document.getElementById('editLokaliti');
         if (lokalitiSelect) {
             const currentVal = lokalitiSelect.value;
             lokalitiSelect.innerHTML = `
