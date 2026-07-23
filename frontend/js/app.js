@@ -3269,7 +3269,7 @@ async function renderPegawaiPenyelaras() {
                 </div>
                 <div class="card bg-gradient-to-br from-purple-50 to-purple-100 border-l-4 border-purple-500">
                     <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center text-white text-xl font-bold">${(stats.pengundi_terikat || 0).toLocaleString()}</div>
+                        <div class="flex-shrink-0 w-14 h-14 bg-purple-500 rounded-xl flex items-center justify-center text-white text-sm md:text-base font-bold px-2">${(stats.pengundi_terikat || 0).toLocaleString()}</div>
                         <div><p class="text-xs text-gray-500 uppercase font-semibold">Pengundi Terikat</p><p class="text-lg font-bold text-gray-800">${(stats.pengundi_terikat || 0).toLocaleString()}</p></div>
                     </div>
                 </div>
@@ -3315,7 +3315,7 @@ async function renderPegawaiPenyelaras() {
                                         ${p.no_telefon}
                                     </a>` : '<span class="text-gray-400">-</span>'}
                                 </td>
-                                <td class="text-sm">${p.dun_kod ? p.dun_kod + ' ' + (p.dun_nama || '') : (p.dm || '-')}</td>
+                                <td class="text-sm">${(p.dun_kod ? p.dun_kod + ' ' + (p.dun_nama || '') : '') + (p.dun_kod && p.dm ? ' > ' : '') + (p.dm || '-')}</td>
                                 <td><span class="badge badge-sah">${p.jumlah_pengundi || 0}</span></td>
                                 <td>
                                     <div class="flex gap-1">
@@ -3691,7 +3691,10 @@ document.addEventListener('click', (e) => {
             page==='approval'?'Kelulusan Data':page==='audit'?'Log Aktiviti':
             page==='users'?'Pengurusan Pengguna':page==='import'?'Import Data Excel':
             page==='survey'?'Senarai Soal Selidik':page==='survey-create'?'Cipta Soal Selidik':
-            page==='survey-view'?'Borang Soal Selidik':'Papan Pemuka';
+            page==='survey-view'?'Borang Soal Selidik':
+            page==='pegawai-penyelaras'?'Pengurusan Pegawai Penyelaras':
+            page==='kpi'?'Petunjuk Prestasi Utama (PPU)':
+            'Papan Pemuka';
         document.getElementById('sidebar').classList.remove('open');
         if (window.innerWidth < 768) {
             document.getElementById('sidebar').classList.add('closed');

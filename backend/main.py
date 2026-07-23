@@ -2058,7 +2058,10 @@ def get_pegawai_penyelaras_list(
 
     offset = (page - 1) * per_page
     cursor.execute(f"""
-        SELECT pp.id, pp.nama_penuh, pp.no_kp, pp.no_telefon, pp.dm, pp.dicipta_pada,
+        SELECT pp.id, pp.nama_penuh,
+               COALESCE(pp.no_kp, (SELECT p_sub.no_kp FROM pengundi p_sub WHERE p_sub.pegawai_penyelaras_id = pp.id AND p_sub.no_kp IS NOT NULL LIMIT 1)) AS no_kp,
+               COALESCE(pp.no_telefon, (SELECT p_sub2.no_telefon FROM pengundi p_sub2 WHERE p_sub2.pegawai_penyelaras_id = pp.id AND p_sub2.no_telefon IS NOT NULL LIMIT 1)) AS no_telefon,
+               pp.dm, pp.dicipta_pada,
                COALESCE((SELECT COUNT(*) FROM pengundi p 
                          WHERE p.pegawai_penyelaras_id = pp.id 
                          AND p.status_fizikal = 'Hidup' 
