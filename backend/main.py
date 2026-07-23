@@ -1126,30 +1126,26 @@ def search_pegawai_penyelaras_dropdown(
     per_page: int = 200,
     user=Depends(get_current_user)
 ):
-    """Cari pengundi yang menjadi Pegawai Penyelaras untuk dropdown pilihan."""
+    """Cari Pegawai Penyelaras dari master table rasmi untuk dropdown pilihan."""
     db = get_db()
     cursor = db.cursor()
     
-    params = [f"%{q}%", f"%{q}%"]
+    params = [f"%{q}%"]
     offset = (page - 1) * per_page
     
     cursor.execute("""
-        SELECT DISTINCT p.id, p.no_kp, p.nama_penuh, p.dm, p.lokaliti
-        FROM pengundi p
-        WHERE p.id IN (SELECT DISTINCT pegawai_penyelaras_id FROM pengundi WHERE pegawai_penyelaras_id IS NOT NULL)
-          AND (UPPER(p.nama_penuh) LIKE UPPER(?) OR UPPER(p.no_kp) LIKE UPPER(?))
-          AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
-        ORDER BY p.nama_penuh ASC
+        SELECT id, id AS no_kp, nama_penuh, '' AS dm, '' AS lokaliti
+        FROM pegawai_penyelaras
+        WHERE UPPER(nama_penuh) LIKE UPPER(?)
+        ORDER BY nama_penuh ASC
         LIMIT ? OFFSET ?
     """, params + [per_page, offset])
     
     results = [dict(row) for row in cursor.fetchall()]
     
     cursor.execute("""
-        SELECT COUNT(*) FROM pengundi p
-        WHERE p.id IN (SELECT DISTINCT pegawai_penyelaras_id FROM pengundi WHERE pegawai_penyelaras_id IS NOT NULL)
-          AND (UPPER(p.nama_penuh) LIKE UPPER(?) OR UPPER(p.no_kp) LIKE UPPER(?))
-          AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
+        SELECT COUNT(*) FROM pegawai_penyelaras
+        WHERE UPPER(nama_penuh) LIKE UPPER(?)
     """, params)
     total = cursor.fetchone()[0]
     
