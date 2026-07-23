@@ -1759,11 +1759,14 @@ async function editPengundi(id) {
         overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
         overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
-        // Pre-fetch lokaliti list filtered by this pengundi's DUN and PDM (if any)
+        // Pre-fetch lokaliti list — jika ada DUN, filter ikut DUN+PDM; jika tiada, semua lokaliti (poka-yoke)
         let lokalitiList = [];
         try {
-            const lokalitiParams = `dun=${encodeURIComponent(p.dun || 'N12')}${p.dm ? `&dm=${encodeURIComponent(p.dm)}` : ''}`;
-            lokalitiList = await api(`/api/lokaliti?${lokalitiParams}`);
+            let lokalitiParams = '';
+            if (p.dun) lokalitiParams += `dun=${encodeURIComponent(p.dun)}`;
+            if (p.dm) lokalitiParams += (lokalitiParams ? '&' : '') + `dm=${encodeURIComponent(p.dm)}`;
+            const url = lokalitiParams ? `/api/lokaliti?${lokalitiParams}` : '/api/lokaliti';
+            lokalitiList = await api(url);
         } catch (e) {
             lokalitiList = [];
         }
