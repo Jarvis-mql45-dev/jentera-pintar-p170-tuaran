@@ -189,6 +189,87 @@ def get_db():
 
 
 # =============================================================================
+# FUNGSI ensure_table_exists() – Cipta jadual jika belum wujud (POKA-YOKE)
+# Dipanggil oleh endpoint sebelum query untuk memastikan table wujud.
+# =============================================================================
+def ensure_table_exists(table_name: str):
+    """Cipta jadual ketua_keluarga/pegawai_penyelaras jika belum wujud.
+       Dipanggil sebelum query utama di endpoint masing-masing.
+       Gagal senyap jika table sudah wujud."""
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        if table_name == "ketua_keluarga":
+            if USE_POSTGRES:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS ketua_keluarga (
+                        id SERIAL PRIMARY KEY,
+                        nama_penuh TEXT NOT NULL,
+                        no_kp VARCHAR(20),
+                        no_telefon VARCHAR(20),
+                        dm TEXT,
+                        dun_id INTEGER REFERENCES dun(id),
+                        is_active INTEGER DEFAULT 1,
+                        dicipta_pada TEXT,
+                        dikemaskini_pada TEXT
+                    )
+                """)
+                cursor.execute("""
+                    ALTER TABLE ketua_keluarga
+                    ADD COLUMN IF NOT EXISTS dikemaskini_pada TEXT
+                """)
+            else:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS ketua_keluarga (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        nama_penuh TEXT NOT NULL,
+                        no_kp TEXT,
+                        no_telefon TEXT,
+                        dm TEXT,
+                        dun_id INTEGER REFERENCES dun(id),
+                        is_active INTEGER DEFAULT 1,
+                        dicipta_pada TEXT,
+                        dikemaskini_pada TEXT
+                    )
+                """)
+        elif table_name == "pegawai_penyelaras":
+            if USE_POSTGRES:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS pegawai_penyelaras (
+                        id SERIAL PRIMARY KEY,
+                        nama_penuh TEXT NOT NULL,
+                        no_kp VARCHAR(20),
+                        no_telefon VARCHAR(20),
+                        dm TEXT,
+                        dun_id INTEGER REFERENCES dun(id),
+                        aktif INTEGER DEFAULT 1,
+                        dicipta_pada TEXT,
+                        dikemaskini_pada TEXT
+                    )
+                """)
+            else:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS pegawai_penyelaras (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        nama_penuh TEXT NOT NULL,
+                        no_kp TEXT,
+                        no_telefon TEXT,
+                        dm TEXT,
+                        dun_id INTEGER REFERENCES dun(id),
+                        aktif INTEGER DEFAULT 1,
+                        dicipta_pada TEXT,
+                        dikemaskini_pada TEXT
+                    )
+                """)
+        db.commit()
+        db.close()
+        return True
+    except Exception as e:
+        print(f"⚠️ ensure_table_exists({table_name}) gagal: {type(e).__name__}: {e}")
+        return False
+
+
+# =============================================================================
 # FUNGSI init_db() – Bina jadual
 # =============================================================================
 def init_db():

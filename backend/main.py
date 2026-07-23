@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-from backend.database import get_db, init_db
+from backend.database import get_db, init_db, ensure_table_exists
 from backend.auth import get_current_user
 from backend.secure_auth import (
     hash_kata_laluan, sahkan_kata_laluan, create_access_token,
@@ -2369,113 +2369,131 @@ def get_ketua_keluarga_list(
     user=Depends(get_current_user)
 ):
     check_peranan(user, ["Admin"])
-    db = get_db()
-    cursor = db.cursor()
+    # 🛡️ POKA-YOKE: Ensure table exists before querying (Vercel serverless cold start fix)
+    ensure_table_exists("ketua_keluarga")
+    try:
+        db = get_db()
+        cursor = db.cursor()
 
-    where_parts = ["kk.is_active = 1"]
-    params = []
+        where_parts = ["kk.is_active = 1"]
+        params = []
 
-    if search:
-        where_parts.append("(UPPER(kk.nama_penuh) LIKE UPPER(?) OR UPPER(kk.no_kp) LIKE UPPER(?))")
-        params.extend([f"%{search}%", f"%{search}%"])
+        if search:
+            where_parts.append("(UPPER(kk.nama_penuh) LIKE UPPER(?) OR UPPER(kk.no_kp) LIKE UPPER(?))")
+            params.extend([f"%{search}%", f"%{search}%"])
 
-    where = "WHERE " + " AND ".join(where_parts)
+        where = "WHERE " + " AND ".join(where_parts)
 
-    # Count total
-    cursor.execute(f"SELECT COUNT(*) FROM ketua_keluarga kk {where}", params)
-    total = cursor.fetchone()[0]
+        # Count total
+        cursor.execute(f"SELECT COUNT(*) FROM ketua_keluarga kk {where}", params)
+        total = cursor.fetchone()[0]
 
-    offset = (page - 1) * per_page
-    cursor.execute(f"""
-        SELECT kk.id, kk.nama_penuh,
-               COALESCE(kk.no_kp, '') AS no_kp,
-               COALESCE(kk.no_telefon, '') AS no_telefon,
-               kk.dm, kk.dicipta_pada,
-               COALESCE((SELECT COUNT(*) FROM pengundi p 
-                         WHERE p.ketua_keluarga_id = kk.id 
-                         AND p.status_fizikal = 'Hidup' 
-                         AND p.status_rekod = 'Sah'), 0) AS jumlah_pengundi,
-               d.kod AS dun_kod,
-               d.nama AS dun_nama
-        FROM ketua_keluarga kk
-        LEFT JOIN dun d ON d.id = kk.dun_id
-        {where}
-        ORDER BY kk.nama_penuh
-        LIMIT ? OFFSET ?
-    """, params + [per_page, offset])
+        offset = (page - 1) * per_page
+        cursor.execute(f"""
+            SELECT kk.id, kk.nama_penuh,
+                   COALESCE(kk.no_kp, '') AS no_kp,
+                   COALESCE(kk.no_telefon, '') AS no_telefon,
+                   kk.dm, kk.dicipta_pada,
+                   COALESCE((SELECT COUNT(*) FROM pengundi p 
+                             WHERE p.ketua_keluarga_id = kk.id 
+                             AND p.status_fizikal = 'Hidup' 
+                             AND p.status_rekod = 'Sah'), 0) AS jumlah_pengundi,
+                   d.kod AS dun_kod,
+                   d.nama AS dun_nama
+            FROM ketua_keluarga kk
+            LEFT JOIN dun d ON d.id = kk.dun_id
+            {where}
+            ORDER BY kk.nama_penuh
+            LIMIT ? OFFSET ?
+        """, params + [per_page, offset])
 
-    ketua = [dict(row) for row in cursor.fetchall()]
-    db.close()
+        ketua = [dict(row) for row in cursor.fetchall()]
+        db.close()
 
-    log_activity(request, user, "Lihat Senarai Ketua Keluarga",
-                 f"Senarai Ketua Keluarga ({total} rekod)")
+        log_activity(request, user, "Lihat Senarai Ketua Keluarga",
+                     f"Senarai Ketua Keluarga ({total} rekod)")
 
-    return {
-        "data": ketua,
-        "total": total,
-        "page": page,
-        "per_page": per_page,
-        "total_pages": max(1, (total + per_page - 1) // per_page)
-    }
+        return {
+            "data": ketua,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": max(1, (total + per_page - 1) // per_page)
+        }
+    except Exception as e:
+        print(f"⚠️ /api/ketua-keluarga/list error: {type(e).__name__}: {str(e)}")
+        # Fallback: return empty list instead of 500
+        return {"data": [], "total": 0, "page": page, "per_page": per_page, "total_pages": 0}
 
 
 # KPI Stats untuk Pengurusan Ketua Keluarga
 @app.get("/api/ketua-keluarga/stats")
 def get_ketua_keluarga_stats(user=Depends(get_current_user)):
     check_peranan(user, ["Admin"])
-    db = get_db()
-    cursor = db.cursor()
+    # 🛡️ POKA-YOKE: Ensure table exists before querying
+    ensure_table_exists("ketua_keluarga")
+    try:
+        db = get_db()
+        cursor = db.cursor()
 
-    # Total Ketua Keluarga aktif
-    cursor.execute("SELECT COUNT(*) FROM ketua_keluarga WHERE is_active = 1")
-    total_ketua = cursor.fetchone()[0]
+        # Total Ketua Keluarga aktif
+        cursor.execute("SELECT COUNT(*) FROM ketua_keluarga WHERE is_active = 1")
+        total_ketua = cursor.fetchone()[0]
 
-    # Total Ahli Keluarga (pengundi yang terikat dengan mana-mana KK)
-    cursor.execute("""
-        SELECT COUNT(DISTINCT p.id) 
-        FROM pengundi p
-        JOIN ketua_keluarga kk ON kk.id = p.ketua_keluarga_id
-        WHERE kk.is_active = 1 AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
-    """)
-    ahli_terikat = cursor.fetchone()[0]
+        # Total Ahli Keluarga (pengundi yang terikat dengan mana-mana KK)
+        cursor.execute("""
+            SELECT COUNT(DISTINCT p.id) 
+            FROM pengundi p
+            JOIN ketua_keluarga kk ON kk.id = p.ketua_keluarga_id
+            WHERE kk.is_active = 1 AND p.status_fizikal = 'Hidup' AND p.status_rekod = 'Sah'
+        """)
+        ahli_terikat = cursor.fetchone()[0]
 
-    # DUN coverage - jumlah DUN yang mempunyai sekurang-kurangnya 1 KK
-    cursor.execute("""
-        SELECT COUNT(DISTINCT d.kod) 
-        FROM ketua_keluarga kk
-        JOIN dun d ON d.id = kk.dun_id
-        WHERE kk.is_active = 1 AND kk.dun_id IS NOT NULL
-    """)
-    dun_covered = cursor.fetchone()[0]
+        # DUN coverage - jumlah DUN yang mempunyai sekurang-kurangnya 1 KK
+        cursor.execute("""
+            SELECT COUNT(DISTINCT d.kod) 
+            FROM ketua_keluarga kk
+            JOIN dun d ON d.id = kk.dun_id
+            WHERE kk.is_active = 1 AND kk.dun_id IS NOT NULL
+        """)
+        dun_covered = cursor.fetchone()[0]
 
-    # Total DUN
-    cursor.execute("SELECT COUNT(*) FROM dun")
-    total_dun = cursor.fetchone()[0]
+        # Total DUN
+        cursor.execute("SELECT COUNT(*) FROM dun")
+        total_dun = cursor.fetchone()[0]
 
-    # PDM coverage - jumlah PDM dengan KK
-    cursor.execute("""
-        SELECT COUNT(DISTINCT kk.dm) 
-        FROM ketua_keluarga kk
-        WHERE kk.is_active = 1 AND kk.dm IS NOT NULL AND kk.dm != ''
-    """)
-    pdm_covered = cursor.fetchone()[0]
+        # PDM coverage - jumlah PDM dengan KK
+        cursor.execute("""
+            SELECT COUNT(DISTINCT kk.dm) 
+            FROM ketua_keluarga kk
+            WHERE kk.is_active = 1 AND kk.dm IS NOT NULL AND kk.dm != ''
+        """)
+        pdm_covered = cursor.fetchone()[0]
 
-    # Total PDM
-    cursor.execute("SELECT COUNT(*) FROM pdm")
-    total_pdm = cursor.fetchone()[0]
+        # Total PDM
+        cursor.execute("SELECT COUNT(*) FROM pdm")
+        total_pdm = cursor.fetchone()[0]
 
-    db.close()
+        db.close()
 
-    return {
-        "total_ketua": total_ketua,
-        "ahli_terikat": ahli_terikat,
-        "dun_coverage": f"{dun_covered}/{total_dun}",
-        "dun_covered": dun_covered,
-        "total_dun": total_dun,
-        "pdm_coverage": f"{pdm_covered}/{total_pdm}",
-        "pdm_covered": pdm_covered,
-        "total_pdm": total_pdm
-    }
+        return {
+            "total_ketua": total_ketua,
+            "ahli_terikat": ahli_terikat,
+            "dun_coverage": f"{dun_covered}/{total_dun}",
+            "dun_covered": dun_covered,
+            "total_dun": total_dun,
+            "pdm_coverage": f"{pdm_covered}/{total_pdm}",
+            "pdm_covered": pdm_covered,
+            "total_pdm": total_pdm
+        }
+    except Exception as e:
+        print(f"⚠️ /api/ketua-keluarga/stats error: {type(e).__name__}: {str(e)}")
+        # Fallback: return zeroed stats instead of 500
+        return {
+            "total_ketua": 0, "ahli_terikat": 0,
+            "dun_coverage": "0/0", "dun_covered": 0, "total_dun": 0,
+            "pdm_coverage": "0/0", "pdm_covered": 0, "total_pdm": 0
+        }
 
 
 # Dapatkan Ketua Keluarga by ID
