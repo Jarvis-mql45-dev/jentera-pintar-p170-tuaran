@@ -432,31 +432,44 @@ def delete_lokaliti(lokaliti_nama: str, data: LokalitiCreate = None, user=Depend
 @app.get("/api/lokaliti")
 def get_lokaliti_list(dun: Optional[str] = None, dm: Optional[str] = None, user=Depends(get_current_user)):
     """Pulangkan senarai lokaliti dari table pengundi secara langsung (single source of truth).
-       Boleh filter oleh DUN (dun) dan/atau PDM (dm)."""
+       Boleh filter oleh DUN (dun) dan/atau PDM (dm).
+       POKA-YOKE: Jika tiada filter DUN/PDM, pulangkan SEMUA lokaliti tanpa status filter."""
     db = get_db()
     cursor = db.cursor()
-    where_clauses = ["p.lokaliti IS NOT NULL AND p.lokaliti != ''", "p.status_fizikal = 'Hidup'", "p.status_rekod = 'Sah'"]
-    params = []
     
-    if dun and dun.strip():
-        dun_val = dun.strip().upper()
-        where_clauses.append("p.dun_id = (SELECT id FROM dun WHERE kod = ?)")
-        params.append(dun_val)
-    
-    if dm and dm.strip():
-        dm_val = dm.strip().upper()
-        where_clauses.append("UPPER(p.dm) = ?")
-        params.append(dm_val)
-    
-    where_sql = "WHERE " + " AND ".join(where_clauses)
-    
-    cursor.execute(f"""
-        SELECT p.lokaliti AS nama, COUNT(p.id) AS jumlah_pengundi
-        FROM pengundi p
-        {where_sql}
-        GROUP BY p.lokaliti
-        ORDER BY p.lokaliti
-    """, params)
+    if dun and dun.strip() or dm and dm.strip():
+        # Filtered mode: apply DUN/PDM + status constraints (Hidup & Sah)
+        where_clauses = ["p.lokaliti IS NOT NULL AND p.lokaliti != ''", "p.status_fizikal = 'Hidup'", "p.status_rekod = 'Sah'"]
+        params = []
+        
+        if dun and dun.strip():
+            dun_val = dun.strip().upper()
+            where_clauses.append("p.dun_id = (SELECT id FROM dun WHERE kod = ?)")
+            params.append(dun_val)
+        
+        if dm and dm.strip():
+            dm_val = dm.strip().upper()
+            where_clauses.append("UPPER(p.dm) = ?")
+            params.append(dm_val)
+        
+        where_sql = "WHERE " + " AND ".join(where_clauses)
+        
+        cursor.execute(f"""
+            SELECT p.lokaliti AS nama, COUNT(p.id) AS jumlah_pengundi
+            FROM pengundi p
+            {where_sql}
+            GROUP BY p.lokaliti
+            ORDER BY p.lokaliti
+        """, params)
+    else:
+        # Unfiltered mode (Poka-Yoke): ALL localities - no status filter
+        cursor.execute("""
+            SELECT p.lokaliti AS nama, COUNT(p.id) AS jumlah_pengundi
+            FROM pengundi p
+            WHERE p.lokaliti IS NOT NULL AND p.lokaliti != ''
+            GROUP BY p.lokaliti
+            ORDER BY p.lokaliti
+        """)
     
     lokaliti = [{"nama": row[0], "jumlah_pengundi": row[1]} for row in cursor.fetchall()]
     db.close()
