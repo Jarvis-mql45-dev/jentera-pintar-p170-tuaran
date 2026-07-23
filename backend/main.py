@@ -2583,10 +2583,10 @@ def create_ketua_keluarga(
 
     now = datetime.now().isoformat()
     cursor.execute("""
-        INSERT INTO ketua_keluarga (nama_penuh, no_kp, no_telefon, dm, dun_id, is_active, dicipta_pada, dikemaskini_pada)
+        INSERT INTO ketua_keluarga (nama_penuh, no_kp, no_telefon, dm, dun, is_active, dicipta_pada, dikemaskini_pada)
         VALUES (?, ?, ?, ?, ?, 1, ?, ?)
     """, (data.nama_penuh.strip().upper(), data.no_kp.strip(), data.no_telefon.strip(),
-          dm_value, dun_id, now, now))
+          dm_value, dm_value, now, now))
     db.commit()
     new_id = cursor.lastrowid
     db.close()
