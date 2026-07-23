@@ -56,25 +56,39 @@ async function api(path, options = {}) {
     if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
     try {
         const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-        // POKA-YOKE: Auto-redirect login on 401 Unauthorized
-        if (res.status === 401) {
-            state.token = null;
-            state.user = null;
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            showToast('Sesi tamat. Sila log masuk semula.', 'error');
-            renderLoginPage();
-            return null;
-        }
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Ralat berlaku');
+        // POKA-YOKE: Auto-redirect login on 401, 403 or any auth error
+        if (!res.ok) {
+            const errMsg = data.detail || 'Ralat berlaku';
+            // Check for auth failures: 401, 403, or message contains auth keywords
+            if (res.status === 401 || res.status === 403 || 
+                errMsg.includes('Not authenticated') || 
+                errMsg.includes('Token') || 
+                errMsg.includes('token') || 
+                errMsg.includes('tamat tempoh') ||
+                errMsg.includes('Kebenaran') ||
+                errMsg.includes('kebenaran')) {
+                state.token = null;
+                state.user = null;
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                renderLoginPage();
+                return null; // NEVER throw - graceful redirect
+            }
+            throw new Error(errMsg);
+        }
         return data;
     } catch (err) {
         if (err.message.includes('Failed to fetch')) {
             showToast('Gagal menyambung ke pelayan. Pastikan backend sedang berjalan.', 'error');
         }
-        // POKA-YOKE: Jangan biarkan 401 token errors crash the UI
-        if (err.message.includes('Token') || err.message.includes('token') || err.message.includes('tamat tempoh')) {
+        // Double-check in catch for any auth-related error text
+        if (err.message.includes('Not authenticated') || 
+            err.message.includes('Token') || 
+            err.message.includes('token') || 
+            err.message.includes('tamat tempoh') ||
+            err.message.includes('Kebenaran') ||
+            err.message.includes('kebenaran')) {
             state.token = null;
             state.user = null;
             localStorage.removeItem('token');
