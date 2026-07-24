@@ -2318,8 +2318,8 @@ async function padamPengundi(id) {
         // Gunakan confirm() yang sudah sedia — tiada blok INP kerana ia dalam setTimeout
         if (!confirm('Anda pasti mahu memadamkan rekod pengundi ini? Tindakan ini tidak boleh dikembalikan.')) return;
         // Gunakan API terus tanpa await (biarkan background)
-        api(`/api/pengundi/${id}`, { method: 'DELETE' }).then(() => {
-            showToast('Pengundi berjaya dipadamkan', 'success');
+        api(`/api/pengundi/${id}`, { method: 'DELETE' }).then(result => {
+            showToast(result.message || 'Pengundi berjaya dipadamkan', 'success');
             // Offload render ke next animation frame
             requestAnimationFrame(() => {
                 renderPengundi();
@@ -3017,12 +3017,12 @@ async function simpanPengundiBaru() {
     Object.keys(data).forEach(k => { if (data[k] === '') data[k] = null; });
 
     try {
-        await api('/api/pengundi', {
+        const result = await api('/api/pengundi', {
             method: 'POST',
             body: JSON.stringify(data)
         });
         document.getElementById('tambahModalOverlay')?.remove();
-        showToast('Pengundi baru berjaya didaftarkan', 'success');
+        showToast(result.message || 'Pengundi baru berjaya didaftarkan', 'success');
         renderPengundi();
     } catch (err) {
         showToast('Ralat: ' + err.message, 'error');
