@@ -870,7 +870,7 @@ def get_pengundi(
     db = get_db()
     cursor = db.cursor()
 
-    where_parts = []
+    where_parts = ["p.status_rekod = 'Sah'"]
     params = []
 
     if search:
@@ -1422,16 +1422,64 @@ def get_pengundi_by_id(request: Request, pengundi_id: int, user=Depends(get_curr
     return dict(p)
 
 
-# Tambah pengundi baru (Petugas Padang - status_rekod = Menunggu_Kelulusan)
+# Tambah pengundi baru (Petugas Padang → approval_queue; Admin → terus Sah)
 @app.post("/api/pengundi")
 def create_pengundi(request: Request, data: PengundiCreate, user=Depends(get_current_user)):
     check_peranan(user, ["Admin", "Petugas Padang"])
 
-    status_rekod = "Menunggu_Kelulusan" if user["peranan"] == "Petugas Padang" else "Sah"
-
     db = get_db()
     cursor = db.cursor()
 
+    # If Petugas Padang → queue the request, do NOT insert into pengundi
+    if user["peranan"] == "Petugas Padang":
+        # Build the payload that would have been inserted
+        normalized_sokongan = _normalize_status_sokongan(data.status_sokongan)
+        dun_id = None
+        if data.dun:
+            cursor.execute("SELECT id FROM dun WHERE kod = ?", (data.dun.strip().upper(),))
+            dun_row = cursor.fetchone()
+            if dun_row:
+                dun_id = dun_row[0]
+
+        payload = {
+            "no_kp": data.no_kp,
+            "nama_penuh": data.nama_penuh,
+            "jantina": data.jantina,
+            "tahun_lahir": data.tahun_lahir,
+            "dm": data.dm,
+            "lokaliti": data.lokaliti,
+            "no_telefon": data.no_telefon,
+            "status_sokongan": normalized_sokongan,
+            "status_fizikal": data.status_fizikal or "Hidup",
+            "adalah_pemilik_apps": 0,
+            "status_rekod": "Sah",
+            "sumber_pdm": f"Didaftar oleh {user['username']}",
+            "dicipta_pada": datetime.now().isoformat(),
+            "ketua_keluarga_id": data.ketua_keluarga_id,
+            "pegawai_penyelaras_id": data.pegawai_penyelaras_id,
+            "dun_id": dun_id
+        }
+        # Handle new pegawai_penyelaras / ketua_keluarga names
+        if data.pegawai_penyelaras_nama_baru and not data.pegawai_penyelaras_id:
+            cursor.execute("INSERT INTO pegawai_penyelaras (nama_penuh) VALUES (?)", (data.pegawai_penyelaras_nama_baru.strip(),))
+            db.commit()
+            payload["pegawai_penyelaras_id"] = cursor.lastrowid
+        if data.ketua_keluarga_nama_baru and not data.ketua_keluarga_id:
+            cursor.execute("INSERT INTO ketua_keluarga (nama_penuh) VALUES (?)", (data.ketua_keluarga_nama_baru.strip(),))
+            db.commit()
+            payload["ketua_keluarga_id"] = cursor.lastrowid
+
+        queue_id = _submit_to_approval_queue(db, cursor, "CREATE", "pengundi",
+                                             None, payload, user["username"])
+        db.close()
+
+        log_activity(request, user, "Tambah Pengundi (Queued)",
+                     f"Permohonan tambah pengundi: {data.nama_penuh} (KP: {data.no_kp}, Queue ID: {queue_id})",
+                     no_kp_terlibat=data.no_kp)
+
+        return {"message": "Data berjaya dihantar untuk kelulusan Admin.", "queue_id": queue_id, "status": "PENDING"}
+
+    # Admin — INSERT terus dengan status_rekod = 'Sah'
     # If new pegawai_penyelaras name provided (not an existing ID), insert first
     pegawai_id = data.pegawai_penyelaras_id
     if data.pegawai_penyelaras_nama_baru and not pegawai_id:
@@ -1446,10 +1494,7 @@ def create_pengundi(request: Request, data: PengundiCreate, user=Depends(get_cur
         db.commit()
         ketua_id = cursor.lastrowid
 
-    # 🛡️ POKA-YOKE: Normalize status_sokongan — null-kan jika tidak sah
     normalized_sokongan = _normalize_status_sokongan(data.status_sokongan)
-
-    # Resolve dun_kod -> dun_id (frontend sends DUN code like "N12")
     dun_id = None
     if data.dun:
         cursor.execute("SELECT id FROM dun WHERE kod = ?", (data.dun.strip().upper(),))
@@ -1467,22 +1512,21 @@ def create_pengundi(request: Request, data: PengundiCreate, user=Depends(get_cur
         data.no_kp, data.nama_penuh, data.jantina, data.tahun_lahir,
         data.dm, data.lokaliti, data.no_telefon,
         normalized_sokongan, data.status_fizikal, 0,
-        status_rekod, f"Didaftar oleh {user['username']}", datetime.now().isoformat(),
+        "Sah", f"Didaftar oleh {user['username']}", datetime.now().isoformat(),
         ketua_id, pegawai_id, dun_id
     ))
     db.commit()
     new_id = cursor.lastrowid
     db.close()
 
-    # Log aktiviti
-    log_activity(request, user, "Tambah Pengundi", 
-                 f"Tambah pengundi baru: {data.nama_penuh} (KP: {data.no_kp}, PDM: {data.dm}, DUN: {data.dun}, status: {status_rekod})",
+    log_activity(request, user, "Tambah Pengundi",
+                 f"Tambah pengundi baru: {data.nama_penuh} (KP: {data.no_kp}, PDM: {data.dm}, DUN: {data.dun})",
                  no_kp_terlibat=data.no_kp)
 
-    return {"message": "Pengundi berjaya didaftarkan", "id": new_id, "status_rekod": status_rekod}
+    return {"message": "Pengundi berjaya didaftarkan", "id": new_id, "status_rekod": "Sah"}
 
 
-# Kemaskini pengundi
+# Kemaskini pengundi (Petugas Padang → approval_queue; Admin → terus update)
 @app.put("/api/pengundi/{pengundi_id}")
 def update_pengundi(request: Request, pengundi_id: int, data: PengundiUpdate, user=Depends(get_current_user)):
     check_peranan(user, ["Admin", "Petugas Padang"])
@@ -1514,10 +1558,27 @@ def update_pengundi(request: Request, pengundi_id: int, data: PengundiUpdate, us
         db.close()
         return {"message": "Tiada perubahan dibuat"}
 
-    # If Petugas Padang, set status to Menunggu_Kelulusan
+    # If Petugas Padang → queue the request, do NOT update pengundi directly
     if user["peranan"] == "Petugas Padang":
-        update_fields["status_rekod"] = "Menunggu_Kelulusan"
+        # Build the payload with normalized values
+        payload = {}
+        for k, v in update_fields.items():
+            if k == 'status_sokongan':
+                payload[k] = _normalize_status_sokongan(v)
+            else:
+                payload[k] = v
 
+        queue_id = _submit_to_approval_queue(db, cursor, "UPDATE", "pengundi",
+                                             pengundi_id, payload, user["username"])
+        db.close()
+
+        log_activity(request, user, "Edit Pengundi (Queued)",
+                     f"Permohonan edit pengundi ID {pengundi_id}: {existing['nama_penuh']} - field: {', '.join(update_fields.keys())} (Queue ID: {queue_id})",
+                     no_kp_terlibat=existing['no_kp'])
+
+        return {"message": "Data berjaya dihantar untuk kelulusan Admin.", "queue_id": queue_id, "status": "PENDING"}
+
+    # Admin — terus update
     set_clause = ", ".join([f"{k} = ?" for k in update_fields.keys()])
     values = list(update_fields.values()) + [pengundi_id]
 
