@@ -2396,8 +2396,8 @@ async function tambahPengundi() {
             fetchKkOptions(''),
             fetchPpOptions('')
         ]);
-        const kkOptHtml = kkOptions.map(k => `<option value="${k.id} - ${k.nama_penuh}">`).join('');
-        const ppOptHtml = ppOptions.map(p => `<option value="${p.id} - ${p.nama_penuh}">`).join('');
+        const kkOptHtml = kkOptions.map(k => `<option value="${k.id} - ${k.nama_penuh}">${k.nama_penuh}</option>`).join('');
+        const ppOptHtml = ppOptions.map(p => `<option value="${p.id} - ${p.nama_penuh}">${p.nama_penuh}</option>`).join('');
 
         // Fetch DUN list from API — dynamically
         let dunList = [];
@@ -2502,8 +2502,10 @@ async function tambahPengundi() {
                 <!-- Ketua Keluarga -->
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">Ketua Keluarga</label>
-                    <input type="text" id="tambahKetuaKeluarga" list="tambahKkList" oninput="cariKetuaKeluarga(this)" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Taip nama ketua keluarga">
-                    <datalist id="tambahKkList">${kkOptHtml}</datalist>
+                    <select id="tambahKetuaKeluarga" class="w-full px-3 py-2 text-sm border rounded-lg">
+                        <option value="">- Tiada / Kosong -</option>
+                        ${kkOptHtml}
+                    </select>
                 </div>
                 <!-- Nama Penuh -->
                 <div>
