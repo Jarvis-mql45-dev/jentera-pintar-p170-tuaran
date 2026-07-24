@@ -1777,14 +1777,14 @@ async function renderPengundi() {
                             <td class="text-sm">${p.lokaliti || '-'}</td>
                             <td class="text-xs">${(function(){
                                 const s = p.status_sokongan;
-                                if (!s) return '<span class="badge badge-tiada">Tiada</span>';
+                                if (!s) return '<span class="badge badge-tiada">Tiada Data</span>';
                                 const st = String(s).trim();
                                 const sl = st.toLowerCase();
                                 if (sl === 'putih') return '<span class="badge badge-putih">Putih</span>';
                                 if (sl === 'hitam') return '<span class="badge badge-hitam">Hitam</span>';
                                 if (sl === 'atas pagar') return '<span class="badge badge-atas">Atas Pagar</span>';
-                                // POKA-YOKE: apa-apa nilai tidak sah → display sebagai Tiada
-                                return '<span class="badge badge-tiada">Tiada</span>';
+                                // POKA-YOKE: apa-apa nilai tidak sah → display sebagai Tiada Data
+                                return '<span class="badge badge-tiada">Tiada Data</span>';
                             })()}</td>
                             <td class="text-xs">${p.ketua_keluarga_nama || '<span class="text-gray-400">-</span>'}</td>
                             <td class="text-xs">${p.pegawai_penyelaras_nama || '<span class="text-gray-400">-</span>'}</td>
@@ -2003,7 +2003,7 @@ async function editPengundi(id) {
                                 <option value="Putih" ${p.status_sokongan === 'Putih' ? 'selected' : ''}>Putih</option>
                                 <option value="Hitam" ${p.status_sokongan === 'Hitam' ? 'selected' : ''}>Hitam</option>
                                 <option value="Atas Pagar" ${p.status_sokongan === 'Atas Pagar' ? 'selected' : ''}>Atas Pagar</option>
-                                <option value="Tiada" ${p.status_sokongan === 'Tiada' || !p.status_sokongan ? 'selected' : ''}>Tiada</option>
+                                <option value="Tiada" ${p.status_sokongan === 'Tiada' || !p.status_sokongan ? 'selected' : ''}>Tiada Data</option>
                             </select>
                         </div>
                         <div class="flex-1">
@@ -2565,7 +2565,7 @@ async function tambahPengundi() {
                             <option value="Putih">Putih</option>
                             <option value="Hitam">Hitam</option>
                             <option value="Atas Pagar">Atas Pagar</option>
-                            <option value="Tiada">Tiada</option>
+                            <option value="Tiada">Tiada Data</option>
                         </select>
                     </div>
                     <div class="flex-1">

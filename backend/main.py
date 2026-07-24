@@ -102,18 +102,23 @@ class LoginRequest(BaseModel):
 
 
 # ===== POKA-YOKE: Status Sokongan =====
-VALID_STATUS_SOKONGAN = {"Putih", "Hitam", "Atas Pagar", "Tiada"}
+# 🛡️ POKA-YOKE: Status Sokongan — hanya nilai ini yang diterima
+VALID_STATUS_SOKONGAN = {"Putih", "Hitam", "Atas Pagar"}
 
 def _normalize_status_sokongan(value):
-    """Normalize status_sokongan: null-kan jika tidak sah, trim whitespace.
-       Returns normalized value or None if invalid."""
+    """Normalize status_sokongan:
+       - 'Putih', 'Hitam', 'Atas Pagar' → disimpan dengan huruf besar betul
+       - 'Tiada', 'Tiada Data', '', NULL → None (Tiada Data di DB)
+       - Apa-apa nilai tidak sah lain → None (Poka-Yoke)"""
     if value is None:
         return None
     val = str(value).strip()
     if val == "":
         return None
-    # Case-insensitive matching
     val_lower = val.lower()
+    # "Tiada" / "Tiada Data" → None
+    if val_lower in ("tiada", "tiada data"):
+        return None
     for valid in VALID_STATUS_SOKONGAN:
         if valid.lower() == val_lower:
             return valid
@@ -683,7 +688,7 @@ def get_dashboard_dun(request: Request, dun_kod: str, dm: Optional[str] = None, 
         cursor.execute(f"SELECT status_sokongan, COUNT(*) as jumlah FROM pengundi {where} GROUP BY status_sokongan ORDER BY jumlah DESC", params)
         sokongan = {}
         for row in cursor.fetchall():
-            key = row["status_sokongan"] or "Tiada"
+            key = row["status_sokongan"] or "Tiada Data"
             sokongan[key] = row["jumlah"]
 
         db.close()
@@ -729,7 +734,7 @@ def get_dashboard(request: Request, dun: Optional[str] = None, user=Depends(get_
         cursor.execute(f"SELECT status_sokongan, COUNT(*) as jumlah FROM pengundi {where} GROUP BY status_sokongan ORDER BY jumlah DESC", params)
         sokongan = {}
         for row in cursor.fetchall():
-            key = row["status_sokongan"] or "Tiada"
+            key = row["status_sokongan"] or "Tiada Data"
             sokongan[key] = row["jumlah"]
 
         # Jantina
@@ -791,7 +796,7 @@ def get_dashboard(request: Request, dun: Optional[str] = None, user=Depends(get_
                     WHEN ({THN_SEMASA} - tahun_lahir) >= 60 THEN 'Warga Emas'
                     ELSE 'Lain-lain'
                 END as klasifikasi,
-                COALESCE(status_sokongan, 'Tiada') as sokongan,
+                COALESCE(status_sokongan, 'Tiada Data') as sokongan,
                 COUNT(*) as jumlah
             FROM pengundi {where}
             GROUP BY klasifikasi, sokongan
@@ -1062,7 +1067,7 @@ def get_filter_options(
     cursor.execute(f"SELECT DISTINCT p.status_sokongan FROM pengundi p WHERE {where_str} AND p.status_sokongan IS NOT NULL AND p.status_sokongan != '' ORDER BY p.status_sokongan", params)
     sokongan_list = [r[0] for r in cursor.fetchall()]
     if ada_tiada:
-        sokongan_list.append("Tiada")
+        sokongan_list.append("Tiada Data")
 
     # Ketua Keluarga & Pegawai Penyelaras — dari table rasmi (filter active only)
     cursor.execute("SELECT id, nama_penuh FROM ketua_keluarga WHERE is_active = 1 ORDER BY nama_penuh")
