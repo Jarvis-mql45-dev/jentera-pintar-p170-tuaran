@@ -1595,10 +1595,10 @@ def update_pengundi(request: Request, pengundi_id: int, data: PengundiUpdate, us
     return {"message": "Pengundi berjaya dikemaskini", "fields_updated": list(update_fields.keys())}
 
 
-# ===== DELETE PENGUNDI (Admin sahaja) - untuk padam terus rekod =====
+# ===== DELETE PENGUNDI (Admin → terus padam; Petugas → approval_queue) =====
 @app.delete("/api/pengundi/{pengundi_id}")
 def delete_pengundi(request: Request, pengundi_id: int, user=Depends(get_current_user)):
-    check_peranan(user, ["Admin"])
+    check_peranan(user, ["Admin", "Petugas Padang"])
 
     db = get_db()
     cursor = db.cursor()
@@ -1614,6 +1614,20 @@ def delete_pengundi(request: Request, pengundi_id: int, user=Depends(get_current
     nama = p["nama_penuh"]
     dm = p["dm"]
 
+    # If Petugas Padang → queue the request, do NOT delete from pengundi directly
+    if user["peranan"] == "Petugas Padang":
+        payload = {"no_kp": no_kp, "nama_penuh": nama, "dm": dm}
+        queue_id = _submit_to_approval_queue(db, cursor, "DELETE", "pengundi",
+                                             pengundi_id, payload, user["username"])
+        db.close()
+
+        log_activity(request, user, "Padam Pengundi (Queued)",
+                     f"Permohonan padam pengundi ID {pengundi_id}: {nama} (KP: {no_kp}, Queue ID: {queue_id})",
+                     no_kp_terlibat=no_kp)
+
+        return {"message": "Permohonan padam dihantar. Menunggu kelulusan Admin.", "queue_id": queue_id, "status": "PENDING"}
+
+    # Admin — terus padam
     cursor.execute("DELETE FROM pengundi WHERE id = ?", (pengundi_id,))
     db.commit()
     db.close()
