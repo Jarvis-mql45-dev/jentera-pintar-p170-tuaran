@@ -79,6 +79,10 @@ async function api(path, options = {}) {
         }
         return data;
     } catch (err) {
+        // 🛡️ If user logged out (token cleared) during this async operation, silently abort
+        if (!state.token && !state.user) {
+            return null; // Stale callback from before logout — discard silently
+        }
         if (err.message.includes('Failed to fetch')) {
             showToast('Gagal menyambung ke pelayan. Pastikan backend sedang berjalan.', 'error');
         }
@@ -137,10 +141,15 @@ async function handleLogin(username, password) {
 }
 
 function handleLogout() {
-    state.token = null; state.user = null;
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    renderApp();
+    // 🛡️ CRITICAL: Clear ALL local/session storage to obliterate any stale state
+    localStorage.clear();
+    // Reset in-memory state to prevent any async callbacks from using stale values
+    state.token = null;
+    state.user = null;
+    state.currentPage = 'dashboard';
+    // 🛡️ Full page reload kills all in-flight promises, intervals, and stale async callbacks.
+    // This prevents the bug where resolved API callbacks overwrite the login form with dashboard/voter content.
+    window.location.reload();
 }
 
 function requiresAuth() { return !!(state.token && state.user); }
@@ -3987,7 +3996,7 @@ try {
         </div>
     </div>`;
 }
-setInterval(() => { if (state.user?.peranan==='Admin' && state.token) updateApprovalBadge(); }, 30000);
+setInterval(() => { if (state.token && state.user?.peranan==='Admin') updateApprovalBadge(); }, 30000);
 document.addEventListener('click', (e) => {
     const sidebar = document.getElementById('sidebar');
     if (window.innerWidth < 768 && !sidebar.contains(e.target) && !e.target.closest('#menuToggle')) {
