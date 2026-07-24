@@ -1614,8 +1614,11 @@ def delete_pengundi(request: Request, pengundi_id: int, user=Depends(get_current
     nama = p["nama_penuh"]
     dm = p["dm"]
 
-    # If Petugas Padang → queue the request, do NOT delete from pengundi directly
+    # If Petugas Padang → queue the request, mark as PENDING_DELETE so it disappears from list
     if user["peranan"] == "Petugas Padang":
+        # Set status to PENDING_DELETE so it gets filtered out by status_rekod = 'Sah' in GET queries
+        cursor.execute("UPDATE pengundi SET status_rekod = 'PENDING_DELETE' WHERE id = ?", (pengundi_id,))
+        db.commit()
         payload = {"no_kp": no_kp, "nama_penuh": nama, "dm": dm}
         queue_id = _submit_to_approval_queue(db, cursor, "DELETE", "pengundi",
                                              pengundi_id, payload, user["username"])
@@ -1625,7 +1628,7 @@ def delete_pengundi(request: Request, pengundi_id: int, user=Depends(get_current
                      f"Permohonan padam pengundi ID {pengundi_id}: {nama} (KP: {no_kp}, Queue ID: {queue_id})",
                      no_kp_terlibat=no_kp)
 
-        return {"message": "Permohonan padam dihantar. Menunggu kelulusan Admin.", "queue_id": queue_id, "status": "PENDING"}
+        return {"message": "Permohonan padam telah dihantar. Penama akan dihilangkan sementara daripada pangkalan data menunggu kelulusan Admin.", "queue_id": queue_id, "status": "PENDING"}
 
     # Admin — terus padam
     cursor.execute("DELETE FROM pengundi WHERE id = ?", (pengundi_id,))
@@ -1764,6 +1767,11 @@ def reject_queued_request(request: Request, queue_id: int, user=Depends(get_curr
         raise HTTPException(status_code=404, detail="Permohonan tidak ditemui atau sudah diproses")
 
     now = datetime.now().isoformat()
+
+    # If rejecting a DELETE on pengundi, revert the PENDING_DELETE status back to Sah
+    if q["action_type"] == "DELETE" and q["target_table"] == "pengundi" and q["target_id"]:
+        cursor.execute("UPDATE pengundi SET status_rekod = 'Sah' WHERE id = ? AND status_rekod = 'PENDING_DELETE'", (q["target_id"],))
+
     cursor.execute("""
         UPDATE approval_queue SET status = 'REJECTED', approved_by = ?, approved_at = ?, rejection_reason = ?
         WHERE id = ?
