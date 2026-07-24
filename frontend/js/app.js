@@ -3042,32 +3042,55 @@ async function renderApprovalQueue() {
     const content = document.getElementById('contentArea');
     content.innerHTML = '<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan data kelulusan...</span></div>';
     try {
-const result = await api(`/api/approval-queue?page=${state.approvalPage}`);
+        // Guna endpoint unified approval queue yang baru — merangkumi semua jadual
+        const result = await api(`/api/approval-queue/list?page=${state.approvalPage || 1}&per_page=50`);
         const data = result.data || [];
         const total = result.total || 0;
         const perPage = result.per_page || 50;
-        const totalPages = Math.ceil(total / perPage) || 1;
+        const totalPages = result.total_pages || 1;
+        
+        // Juga dapatkan queue lama (pengundi via status_rekod) untuk backward compatibility
+        const oldResult = await api('/api/approval-queue?page=1&per_page=1');
+        const oldTotal = oldResult.total || 0;
+        const combinedTotal = total + oldTotal;
+        
         content.innerHTML = `
             <div class="card">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="font-semibold text-gray-800">Kelulusan Data</h3>
-                    <span class="text-sm text-gray-500">${total} menunggu kelulusan</span>
+                    <span class="text-sm text-gray-500">${combinedTotal} menunggu kelulusan (${total} queue baru, ${oldTotal} pengundi lama)</span>
                 </div>
-                ${data.length === 0 ? '<div class="text-center py-10 text-gray-400">Tiada data menunggu kelulusan.</div>' : `
+                ${combinedTotal === 0 ? '<div class="text-center py-10 text-gray-400">Tiada data menunggu kelulusan.</div>' : `
                 <div class="overflow-x-auto">
-                    <table>
-                        <thead><tr><th>No KP</th><th>Nama</th><th>DM</th><th>Lokaliti</th><th>Dimuat naik</th><th>Tindakan</th></tr></thead>
-                        <tbody>${data.map(p => `<tr>
-                            <td class="text-xs font-mono">${p.no_kp || '-'}</td>
-                            <td class="font-medium">${p.nama_penuh || '-'}</td>
-                            <td>${p.dm || '-'}</td>
-                            <td>${p.lokaliti || '-'}</td>
-                            <td class="text-sm">${p.dicipta_pada ? new Date(p.dicipta_pada).toLocaleDateString('ms-MY') : '-'}</td>
-                            <td><div class="flex gap-2"><button onclick="approvePengundi(${p.id})" class="btn btn-success text-xs py-1 px-2">Lulus</button><button onclick="rejectPengundi(${p.id})" class="btn btn-danger text-xs py-1 px-2">Tolak</button></div></td>
-                        </tr>`).join('')}</tbody>
+                    <table class="min-w-full text-sm">
+                        <thead><tr>
+                            <th>ID</th>
+                            <th>Tindakan</th>
+                            <th>Jadual</th>
+                            <th>Data</th>
+                            <th>Dimohon oleh</th>
+                            <th>Tarikh</th>
+                            <th>Tindakan</th>
+                        </tr></thead>
+                        <tbody>
+                            ${data.map(q => {
+                                const payload = q.data_payload || {};
+                                const keys = Object.keys(payload).slice(0, 5);
+                                const payloadSummary = keys.map(k => `${k}: ${payload[k] || '-'}`).join(', ');
+                                return `<tr>
+                                    <td class="text-xs font-mono">#${q.id}</td>
+                                    <td><span class="px-2 py-0.5 rounded text-xs font-semibold ${q.action_type === 'CREATE' ? 'bg-green-100 text-green-700' : q.action_type === 'UPDATE' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}">${q.action_type}</span></td>
+                                    <td class="text-xs font-mono">${q.target_table}</td>
+                                    <td class="text-xs max-w-xs truncate" title="${payloadSummary}">${payloadSummary || '(kosong)'}</td>
+                                    <td class="text-sm">${q.requested_by || '-'}</td>
+                                    <td class="text-xs">${q.requested_at ? new Date(q.requested_at).toLocaleDateString('ms-MY') : '-'}</td>
+                                    <td><div class="flex gap-2"><button onclick="approveQueueRequest(${q.id})" class="btn btn-success text-xs py-1 px-2">Lulus</button><button onclick="rejectQueueRequest(${q.id})" class="btn btn-danger text-xs py-1 px-2">Tolak</button></div></td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
                     </table>
                 </div>
-                <div class="pagination">${Array.from({length: Math.min(totalPages,10)},(_,i)=>i+1).map(p => `<button onclick="state.approvalPage=${p};renderApprovalQueue()" class="${state.approvalPage===p?'active':''}">${p}</button>`).join('')}
+                <div class="pagination">${Array.from({length: Math.min(totalPages,10)},(_,i)=>i+1).map(p => `<button onclick="state.approvalPage=${p};renderApprovalQueue()" class="${(state.approvalPage||1)===p?'active':''}">${p}</button>`).join('')}
                     ${totalPages > 10 ? `<span class="text-sm text-gray-400">... ${totalPages}</span>` : ''}</div>`}
             </div>`;
     } catch (err) {
@@ -3075,6 +3098,28 @@ const result = await api(`/api/approval-queue?page=${state.approvalPage}`);
     }
 }
 
+// Approve queue request (unified — action_type CREATE/UPDATE/DELETE)
+async function approveQueueRequest(queueId) {
+    try {
+        await api(`/api/approval-queue/${queueId}/approve`, { method: 'POST' });
+        showToast('Permohonan diluluskan!');
+        renderApprovalQueue();
+        updateApprovalBadge();
+    } catch (err) { showToast(err.message, 'error'); }
+}
+
+// Reject queue request (unified)
+async function rejectQueueRequest(queueId) {
+    const reason = prompt('Sebab penolakan (opsional):') || '';
+    try {
+        await api(`/api/approval-queue/${queueId}/reject?reason=${encodeURIComponent(reason)}`, { method: 'POST' });
+        showToast('Permohonan ditolak');
+        renderApprovalQueue();
+        updateApprovalBadge();
+    } catch (err) { showToast(err.message, 'error'); }
+}
+
+// Kept for backwards compatibility (old pengundi approval via status_rekod)
 async function approvePengundi(id) {
     try {
         await api(`/api/approval-queue/${id}/lulus`, { method: 'POST' });
@@ -3095,10 +3140,13 @@ async function rejectPengundi(id) {
 
 async function updateApprovalBadge() {
     try {
-const result = await api('/api/approval-queue?page=1&per_page=1');
+        // Guna unified endpoint untuk badge count
+        const result = await api('/api/approval-queue/list?page=1&per_page=1');
+        const oldResult = await api('/api/approval-queue?page=1&per_page=1');
+        const total = (result.total || 0) + (oldResult.total || 0);
         const badge = document.getElementById('approvalBadge');
         if (badge) {
-            if (result.total > 0) { badge.textContent = result.total; badge.classList.remove('hidden'); }
+            if (total > 0) { badge.textContent = total; badge.classList.remove('hidden'); }
             else badge.classList.add('hidden');
         }
     } catch (e) {}

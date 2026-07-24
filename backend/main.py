@@ -186,6 +186,17 @@ def _is_admin(user: dict) -> bool:
     return user.get("peranan") == "Admin"
 
 
+def _approval_required(user, action_type, target_table, target_id, data_payload):
+    """Jika bukan Admin, submit ke approval queue dan return response. Return None jika Admin."""
+    if not _is_admin(user):
+        db = get_db()
+        cursor = db.cursor()
+        queue_id = _submit_to_approval_queue(db, cursor, action_type, target_table, target_id, data_payload, user["username"])
+        db.close()
+        return {"message": "Permohonan telah dihantar untuk kelulusan pentadbir", "queue_id": queue_id, "status": "PENDING"}
+    return None
+
+
 # ===== AUDIT TRAIL HELPER =====
 def log_activity(request: Request, user: dict, tindakan: str, penerangan: str, no_kp_terlibat: str = None):
     """Log aktiviti pengguna ke dalam audit_logs untuk pematuhan PDPA."""
@@ -1422,12 +1433,21 @@ def get_pengundi_by_id(request: Request, pengundi_id: int, user=Depends(get_curr
     return dict(p)
 
 
-# Tambah pengundi baru (Petugas Padang - status_rekod = Menunggu_Kelulusan)
+# Tambah pengundi baru (Petugas Padang - submit ke approval queue jika bukan Admin)
 @app.post("/api/pengundi")
 def create_pengundi(request: Request, data: PengundiCreate, user=Depends(get_current_user)):
     check_peranan(user, ["Admin", "Petugas Padang"])
 
-    status_rekod = "Menunggu_Kelulusan" if user["peranan"] == "Petugas Padang" else "Sah"
+    # Jika bukan Admin, submit ke approval queue
+    if not _is_admin(user):
+        payload = data.model_dump()
+        # Convert datetime/date objects to string
+        for k, v in payload.items():
+            if hasattr(v, 'isoformat'):
+                payload[k] = v.isoformat()
+        return _approval_required(user, "CREATE", "pengundi", None, payload)
+
+    status_rekod = "Sah"
 
     db = get_db()
     cursor = db.cursor()
@@ -1487,6 +1507,14 @@ def create_pengundi(request: Request, data: PengundiCreate, user=Depends(get_cur
 def update_pengundi(request: Request, pengundi_id: int, data: PengundiUpdate, user=Depends(get_current_user)):
     check_peranan(user, ["Admin", "Petugas Padang"])
 
+    # Jika bukan Admin, submit ke approval queue
+    if not _is_admin(user):
+        payload = data.model_dump(exclude_unset=True)
+        for k, v in payload.items():
+            if hasattr(v, 'isoformat'):
+                payload[k] = v.isoformat()
+        return _approval_required(user, "UPDATE", "pengundi", pengundi_id, payload)
+
     db = get_db()
     cursor = db.cursor()
 
@@ -1534,10 +1562,14 @@ def update_pengundi(request: Request, pengundi_id: int, data: PengundiUpdate, us
     return {"message": "Pengundi berjaya dikemaskini", "fields_updated": list(update_fields.keys())}
 
 
-# ===== DELETE PENGUNDI (Admin sahaja) - untuk padam terus rekod =====
+# ===== DELETE PENGUNDI (Admin/queue) - untuk padam rekod =====
 @app.delete("/api/pengundi/{pengundi_id}")
 def delete_pengundi(request: Request, pengundi_id: int, user=Depends(get_current_user)):
-    check_peranan(user, ["Admin"])
+    check_peranan(user, ["Admin", "Petugas Padang"])
+
+    # Jika bukan Admin, submit ke approval queue
+    if not _is_admin(user):
+        return _approval_required(user, "DELETE", "pengundi", pengundi_id, {})
 
     db = get_db()
     cursor = db.cursor()
