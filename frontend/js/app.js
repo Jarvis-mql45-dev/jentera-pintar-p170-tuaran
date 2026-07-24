@@ -3042,7 +3042,7 @@ async function renderApprovalQueue() {
     const content = document.getElementById('contentArea');
     content.innerHTML = '<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan data kelulusan...</span></div>';
     try {
-const result = await api(`/api/approval-queue?page=${state.approvalPage}`);
+const result = await api(`/api/approval-queue/list?page=${state.approvalPage}`);
         const data = result.data || [];
         const total = result.total || 0;
         const perPage = result.per_page || 50;
@@ -3056,19 +3056,25 @@ const result = await api(`/api/approval-queue?page=${state.approvalPage}`);
                 ${data.length === 0 ? '<div class="text-center py-10 text-gray-400">Tiada data menunggu kelulusan.</div>' : `
                 <div class="overflow-x-auto">
                     <table>
-                        <thead><tr><th>No KP</th><th>Nama</th><th>DM</th><th>Lokaliti</th><th>Dimuat naik</th><th>Tindakan</th></tr></thead>
-                        <tbody>${data.map(p => `<tr>
-                            <td class="text-xs font-mono">${p.no_kp || '-'}</td>
-                            <td class="font-medium">${p.nama_penuh || '-'}</td>
-                            <td>${p.dm || '-'}</td>
-                            <td>${p.lokaliti || '-'}</td>
-                            <td class="text-sm">${p.dicipta_pada ? new Date(p.dicipta_pada).toLocaleDateString('ms-MY') : '-'}</td>
-                            <td><div class="flex gap-2"><button onclick="approvePengundi(${p.id})" class="btn btn-success text-xs py-1 px-2">Lulus</button><button onclick="rejectPengundi(${p.id})" class="btn btn-danger text-xs py-1 px-2">Tolak</button></div></td>
-                        </tr>`).join('')}</tbody>
+                        <thead><tr><th>Jenis</th><th>Data</th><th>Dimohon oleh</th><th>Tarikh</th><th>Tindakan</th></tr></thead>
+                        <tbody>${data.map(q => {
+                            const payload = q.data_payload || {};
+                            const nama = payload.nama_penuh || payload.nama || '-';
+                            const no_kp = payload.no_kp || '-';
+                            const dm = payload.dm || '-';
+                            const lok = payload.lokaliti || '-';
+                            const detailText = 'KP: '+no_kp+', Nama: '+nama+', DM: '+dm+', Lok: '+lok;
+                            return '<tr>'+
+                            '<td><span class="badge badge-primary">'+(q.action_type||'-')+'</span><br><small class="text-xs text-gray-400">'+(q.target_table||'-')+'</small></td>'+
+                            '<td class="text-xs max-w-xs truncate" title="'+detailText+'">'+detailText+'</td>'+
+                            '<td class="text-sm">'+(q.requested_by||'-')+'</td>'+
+                            '<td class="text-sm">'+(q.requested_at?new Date(q.requested_at).toLocaleDateString('ms-MY'):'-')+'</td>'+
+                            '<td><div class="flex gap-2"><button onclick="approvePengundi('+q.id+')" class="btn btn-success text-xs py-1 px-2">Lulus</button><button onclick="rejectPengundi('+q.id+')" class="btn btn-danger text-xs py-1 px-2">Tolak</button></div></td>'+
+                        '</tr>';}).join('')}</tbody>
                     </table>
                 </div>
-                <div class="pagination">${Array.from({length: Math.min(totalPages,10)},(_,i)=>i+1).map(p => `<button onclick="state.approvalPage=${p};renderApprovalQueue()" class="${state.approvalPage===p?'active':''}">${p}</button>`).join('')}
-                    ${totalPages > 10 ? `<span class="text-sm text-gray-400">... ${totalPages}</span>` : ''}</div>`}
+                <div class="pagination">${Array.from({length: Math.min(totalPages,10)},(_,i)=>i+1).map(p => '<button onclick="state.approvalPage='+p+';renderApprovalQueue()" class="'+(state.approvalPage===p?'active':'')+'">'+p+'</button>').join('')}
+                    ${totalPages > 10 ? '<span class="text-sm text-gray-400">... '+totalPages+'</span>' : ''}</div>`}
             </div>`;
     } catch (err) {
         content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`;
@@ -3077,7 +3083,7 @@ const result = await api(`/api/approval-queue?page=${state.approvalPage}`);
 
 async function approvePengundi(id) {
     try {
-        await api(`/api/approval-queue/${id}/lulus`, { method: 'POST' });
+        await api(`/api/approval-queue/${id}/approve`, { method: 'POST' });
         showToast('Data diluluskan!');
         renderApprovalQueue();
         updateApprovalBadge();
@@ -3086,7 +3092,7 @@ async function approvePengundi(id) {
 
 async function rejectPengundi(id) {
     try {
-        await api(`/api/approval-queue/${id}/tolak`, { method: 'DELETE' });
+        await api(`/api/approval-queue/${id}/reject`, { method: 'POST' });
         showToast('Data ditolak');
         renderApprovalQueue();
         updateApprovalBadge();
@@ -3095,7 +3101,7 @@ async function rejectPengundi(id) {
 
 async function updateApprovalBadge() {
     try {
-const result = await api('/api/approval-queue?page=1&per_page=1');
+const result = await api('/api/approval-queue/list?page=1&per_page=1');
         const badge = document.getElementById('approvalBadge');
         if (badge) {
             if (result.total > 0) { badge.textContent = result.total; badge.classList.remove('hidden'); }
