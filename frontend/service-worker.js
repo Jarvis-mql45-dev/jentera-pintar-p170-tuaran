@@ -1,9 +1,8 @@
 // Nama cache dan versi - tukar versi untuk paksa refresh cache
-// 🔴 v7: BUST CACHE — ringkasan API dibuang, guna renderParlimenMirrorTable()
-//          Tukar versi paksa SW lama dibuang dan HTML/app.js baru diambil dari network.
-// 🔴 v8: BUST CACHE — tambah kpi.js (PPU Pegawai Penyelaras)
-// 🔴 v9: BUST CACHE — PPU layout update: kolum Parlimen/DUN/PDM Mengundi
-const CACHE_NAME = 'pengundi-p170-v9';
+// 🔴 v10: BUST CACHE — logout fix: network-first untuk JS supaya app.js
+//          sentiasa dapat versi terkini dari server. Guna location.href
+//          untuk force fresh navigation request melalui SW network-first.
+const CACHE_NAME = 'pengundi-p170-v10';
 
 // Fail statik yang akan di-cache semasa pemasangan (guna sebagai fallback offline)
 // NOTA: Jangan masukkan CDN URLs (tailwind, chart.js) — ia perlu di-fetch dari network
@@ -44,7 +43,7 @@ self.addEventListener('activate', (event) => {
     self.clients.claim();
 });
 
-// ===== FETCH: Strategi Network First untuk API, Cache First untuk static =====
+// ===== FETCH: Strategi Network First untuk API + HTML + JS, Cache First untuk yang lain =====
 self.addEventListener('fetch', (event) => {
     // TAPIS SKIM: Hanya proses http: dan https:
     // chrome-extension://, data:, blob:, file:, dll. TIDAK disokong oleh SW
@@ -68,7 +67,17 @@ self.addEventListener('fetch', (event) => {
             return;
         }
 
-        // Untuk font, CDN, dan fail statik lain - Cache First
+        // 🛡️ POKA-YOKE: Untuk JS fail utama (app.js, kpi.js, dashboard-layout.js)
+        // guna network-first supaya selepas logout (location.href='/'), app.js
+        // yang baru dimuat turun dari network, bukan dari cache.
+        // Ini mencegah isu SW cache menghidangkan app.js versi lama.
+        const isJsAsset = STATIC_ASSETS.some(asset => requestUrl.includes(asset.replace('./', '')));
+        if (isJsAsset) {
+            event.respondWith(networkFirst(event.request));
+            return;
+        }
+
+        // Untuk font, CDN, gambar, dan fail statik lain - Cache First
         event.respondWith(cacheFirst(event.request));
     } catch (error) {
         console.warn('[SW] fetch error:', error.message);

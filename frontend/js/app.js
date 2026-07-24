@@ -79,8 +79,8 @@ async function api(path, options = {}) {
         }
         return data;
     } catch (err) {
-        // 🛡️ If user logged out (token cleared) during this async operation, silently abort
-        if (!state.token && !state.user) {
+        // 🛡️ POKA-YOKE: If logout is in progress or token already cleared, silently abort
+        if (window._logoutGuard || (!state.token && !state.user)) {
             return null; // Stale callback from before logout — discard silently
         }
         if (err.message.includes('Failed to fetch')) {
@@ -141,15 +141,19 @@ async function handleLogin(username, password) {
 }
 
 function handleLogout() {
-    // 🛡️ CRITICAL: Clear ALL local/session storage to obliterate any stale state
+    // 🛡️ CRITICAL: Set logout guard FIRST to block any stale async callbacks mid-flight
+    window._logoutGuard = true;
+    // 🛡️ Clear ALL local/session storage to obliterate any stale state
     localStorage.clear();
     // Reset in-memory state to prevent any async callbacks from using stale values
     state.token = null;
     state.user = null;
     state.currentPage = 'dashboard';
-    // 🛡️ Full page reload kills all in-flight promises, intervals, and stale async callbacks.
-    // This prevents the bug where resolved API callbacks overwrite the login form with dashboard/voter content.
-    window.location.reload();
+    // 🛡️ Use location.href instead of location.reload() to force a NEW navigation request
+    // (bukan reload). Ini memastikan Service Worker menggunakan network-first strategy
+    // untuk navigate mode, bukan cache-first untuk static assets.
+    // Setelah redirect, SW akan mengambil HTML/app.js terkini dari network.
+    window.location.href = '/';
 }
 
 function requiresAuth() { return !!(state.token && state.user); }
