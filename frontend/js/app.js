@@ -1373,7 +1373,7 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
                         <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-green-700">PUTIH TERKINI</th>
                         <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-yellow-700">Atas Pagar</th>
                         <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-red-700">HITAM</th>
-                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-gray-500">Tidak Di Kenali</th>
+                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-gray-500">Tiada Data</th>
                         <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-gray-500">Meninggal Dunia</th>
                         <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-blue-700">18 - 30</th>
                         <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-blue-700">31 - 59</th>
@@ -1525,7 +1525,7 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
                         <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-green-700">PUTIH TERKINI</th>
                         <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-yellow-700">Atas Pagar</th>
                         <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-red-700">HITAM</th>
-                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-gray-500">Tidak Di Kenali</th>
+                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-gray-500">Tiada Data</th>
                         <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-gray-500">Meninggal Dunia</th>
                         <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-blue-700">18 - 30</th>
                         <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-blue-700">31 - 59</th>
