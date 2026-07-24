@@ -1775,7 +1775,17 @@ async function renderPengundi() {
                             <td class="text-xs">${p.tahun_lahir ? (2026 - p.tahun_lahir) : '-'}</td>
                             <td class="text-sm">${p.dm || '-'}</td>
                             <td class="text-sm">${p.lokaliti || '-'}</td>
-                            <td class="text-xs">${p.status_sokongan ? `<span class="badge ${p.status_sokongan==='Putih'?'badge-putih':p.status_sokongan==='Hitam'?'badge-hitam':p.status_sokongan==='Atas Pagar'?'badge-atas':'badge-tiada'}">${p.status_sokongan}</span>` : '<span class="badge badge-tiada">Tiada</span>'}</td>
+                            <td class="text-xs">${(function(){
+                                const s = p.status_sokongan;
+                                if (!s) return '<span class="badge badge-tiada">Tiada</span>';
+                                const st = String(s).trim();
+                                const sl = st.toLowerCase();
+                                if (sl === 'putih') return '<span class="badge badge-putih">Putih</span>';
+                                if (sl === 'hitam') return '<span class="badge badge-hitam">Hitam</span>';
+                                if (sl === 'atas pagar') return '<span class="badge badge-atas">Atas Pagar</span>';
+                                // POKA-YOKE: apa-apa nilai tidak sah → display sebagai Tiada
+                                return '<span class="badge badge-tiada">Tiada</span>';
+                            })()}</td>
                             <td class="text-xs">${p.ketua_keluarga_nama || '<span class="text-gray-400">-</span>'}</td>
                             <td class="text-xs">${p.pegawai_penyelaras_nama || '<span class="text-gray-400">-</span>'}</td>
                             <td class="text-xs"><button onclick="editPengundi('${p.id}')" class="btn btn-primary text-xs py-1 px-1.5">Edit</button> <button onclick="padamPengundi('${p.id}')" class="btn btn-outline text-xs py-1 px-1.5 border-red-300 text-red-600 hover:bg-red-50">Padam</button></td>

@@ -101,6 +101,26 @@ class LoginRequest(BaseModel):
     kata_laluan: str
 
 
+# ===== POKA-YOKE: Status Sokongan =====
+VALID_STATUS_SOKONGAN = {"Putih", "Hitam", "Atas Pagar", "Tiada"}
+
+def _normalize_status_sokongan(value):
+    """Normalize status_sokongan: null-kan jika tidak sah, trim whitespace.
+       Returns normalized value or None if invalid."""
+    if value is None:
+        return None
+    val = str(value).strip()
+    if val == "":
+        return None
+    # Case-insensitive matching
+    val_lower = val.lower()
+    for valid in VALID_STATUS_SOKONGAN:
+        if valid.lower() == val_lower:
+            return valid
+    # Not in valid set - nullify (Poka-Yoke)
+    return None
+
+
 class PengundiCreate(BaseModel):
     no_kp: str
     nama_penuh: str
@@ -1400,6 +1420,9 @@ def create_pengundi(request: Request, data: PengundiCreate, user=Depends(get_cur
         db.commit()
         ketua_id = cursor.lastrowid
 
+    # 🛡️ POKA-YOKE: Normalize status_sokongan — null-kan jika tidak sah
+    normalized_sokongan = _normalize_status_sokongan(data.status_sokongan)
+
     # Resolve dun_kod -> dun_id (frontend sends DUN code like "N12")
     dun_id = None
     if data.dun:
@@ -1417,7 +1440,7 @@ def create_pengundi(request: Request, data: PengundiCreate, user=Depends(get_cur
     """, (
         data.no_kp, data.nama_penuh, data.jantina, data.tahun_lahir,
         data.dm, data.lokaliti, data.no_telefon,
-        data.status_sokongan, data.status_fizikal, 0,
+        normalized_sokongan, data.status_fizikal, 0,
         status_rekod, f"Didaftar oleh {user['username']}", datetime.now().isoformat(),
         ketua_id, pegawai_id, dun_id
     ))
@@ -1453,6 +1476,9 @@ def update_pengundi(request: Request, pengundi_id: int, data: PengundiUpdate, us
     raw_data = data.model_dump(exclude_unset=True)
     for field, value in raw_data.items():
         if value is not None:
+            # 🛡️ POKA-YOKE: Normalize status_sokongan jika diupdate
+            if field == 'status_sokongan':
+                value = _normalize_status_sokongan(value)
             update_fields[field] = value
         elif field in ('ketua_keluarga_id', 'pegawai_penyelaras_id'):
             # Explicit null: user wants to clear the field
