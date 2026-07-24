@@ -3039,6 +3039,7 @@ function sortPengundi(field) {
 // jadi ia global dan tidak perlu diisytiharkan semula di sini.
 
 async function renderApprovalQueue() {
+    if (!checkAdmin()) { showToast('Akses ditolak. Hanya Admin dibenarkan.', 'error'); navigate('dashboard'); return; }
     const content = document.getElementById('contentArea');
     content.innerHTML = '<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan data kelulusan...</span></div>';
     try {
@@ -4024,9 +4025,9 @@ document.addEventListener('click', (e) => {
         }
         if (page==='dashboard') renderDashboard();
         else if (page==='pengundi') renderPengundi();
-        else if (page==='approval') renderApprovalQueue();
-        else if (page==='audit') renderAuditLogs();
-        else if (page==='users') renderUserManagement();
+    else if (page==='approval') { if (!checkAdmin()) { navigate('dashboard'); return; } renderApprovalQueue(); }
+    else if (page==='audit') renderAuditLogs();
+    else if (page==='users') renderUserManagement();
         else if (page==='import') renderImportData();
         else if (page==='survey') renderSurveyList();
         else if (page==='survey-create') renderCreateSurvey();
