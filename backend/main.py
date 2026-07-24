@@ -165,6 +165,27 @@ class PenggunaCreate(BaseModel):
     dm: Optional[str] = None
 
 
+# ===== APPROVAL QUEUE HELPER =====
+def _submit_to_approval_queue(db, cursor, action_type: str, target_table: str,
+                               target_id, data_payload: dict, username: str) -> int:
+    """Submit a pending operation to the approval queue for non-admin users.
+       Returns the queue ID."""
+    now = datetime.now().isoformat()
+    cursor.execute("""
+        INSERT INTO approval_queue (action_type, target_table, target_id, data_payload,
+                                     requested_by, requested_at, status)
+        VALUES (?, ?, ?, ?, ?, ?, 'PENDING')
+    """, (action_type, target_table, target_id, json.dumps(data_payload, default=str),
+          username, now))
+    db.commit()
+    return cursor.lastrowid
+
+
+def _is_admin(user: dict) -> bool:
+    """Quick check if user is Admin."""
+    return user.get("peranan") == "Admin"
+
+
 # ===== AUDIT TRAIL HELPER =====
 def log_activity(request: Request, user: dict, tindakan: str, penerangan: str, no_kp_terlibat: str = None):
     """Log aktiviti pengguna ke dalam audit_logs untuk pematuhan PDPA."""
@@ -1543,7 +1564,146 @@ def delete_pengundi(request: Request, pengundi_id: int, user=Depends(get_current
     return {"message": f"Rekod {nama} berjaya dipadamkan"}
 
 
-# ===== ENDPOINT APPROVAL QUEUE (Admin sahaja) =====
+# ===== NEW SYSTEM-WIDE APPROVAL QUEUE ENDPOINTS =====
+
+# List all PENDING approval requests across all tables
+@app.get("/api/approval-queue/list")
+def get_approval_queue_list(request: Request, page: int = 1, per_page: int = 50, user=Depends(get_current_user)):
+    check_peranan(user, ["Admin"])
+
+    db = get_db()
+    cursor = db.cursor()
+
+    cursor.execute("SELECT COUNT(*) FROM approval_queue WHERE status = 'PENDING'")
+    total = cursor.fetchone()[0]
+
+    offset = (page - 1) * per_page
+    cursor.execute("""
+        SELECT id, action_type, target_table, target_id, data_payload,
+               requested_by, requested_at, status
+        FROM approval_queue
+        WHERE status = 'PENDING'
+        ORDER BY requested_at DESC
+        LIMIT ? OFFSET ?
+    """, (per_page, offset))
+
+    queue = []
+    for row in cursor.fetchall():
+        item = dict(row)
+        # Parse data_payload JSON for display
+        try:
+            item["data_payload"] = json.loads(item["data_payload"]) if item["data_payload"] else {}
+        except:
+            item["data_payload"] = {"raw": item["data_payload"]}
+        queue.append(item)
+
+    db.close()
+
+    return {
+        "data": queue,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": max(1, (total + per_page - 1) // per_page)
+    }
+
+
+# Approve a queued request (Admin only)
+@app.post("/api/approval-queue/{queue_id}/approve")
+def approve_queued_request(request: Request, queue_id: int, user=Depends(get_current_user)):
+    check_peranan(user, ["Admin"])
+
+    db = get_db()
+    cursor = db.cursor()
+
+    cursor.execute("SELECT * FROM approval_queue WHERE id = ? AND status = 'PENDING'", (queue_id,))
+    q = cursor.fetchone()
+    if not q:
+        db.close()
+        raise HTTPException(status_code=404, detail="Permohonan tidak ditemui atau sudah diproses")
+
+    action_type = q["action_type"]
+    target_table = q["target_table"]
+    target_id = q["target_id"]
+    payload = json.loads(q["data_payload"]) if q["data_payload"] else {}
+
+    now = datetime.now().isoformat()
+    username = user["username"]
+
+    try:
+        if action_type == "CREATE":
+            # INSERT the payload into the target table
+            if payload:
+                cols = ", ".join(payload.keys())
+                placeholders = ", ".join(["?"] * len(payload))
+                sql = f"INSERT INTO {target_table} ({cols}) VALUES ({placeholders})"
+                cursor.execute(sql, list(payload.values()))
+                new_id = cursor.lastrowid
+            else:
+                new_id = None
+
+        elif action_type == "UPDATE":
+            # UPDATE the target table record
+            if payload and target_id:
+                set_clause = ", ".join([f"{k} = ?" for k in payload.keys()])
+                values = list(payload.values()) + [target_id]
+                cursor.execute(f"UPDATE {target_table} SET {set_clause} WHERE id = ?", values)
+
+        elif action_type == "DELETE":
+            # DELETE from target table
+            if target_id:
+                cursor.execute(f"DELETE FROM {target_table} WHERE id = ?", (target_id,))
+
+        # Mark as APPROVED
+        cursor.execute("""
+            UPDATE approval_queue SET status = 'APPROVED', approved_by = ?, approved_at = ?
+            WHERE id = ?
+        """, (username, now, queue_id))
+        db.commit()
+        db.close()
+
+        log_activity(request, user, "Lulus Permohonan",
+                     f"{action_type} pada {target_table} (Queue ID {queue_id})")
+
+        return {"message": "Permohonan berjaya diluluskan"}
+
+    except Exception as e:
+        db.rollback()
+        db.close()
+        raise HTTPException(status_code=500, detail=f"Gagal melaksanakan {action_type}: {str(e)}")
+
+
+# Reject a queued request (Admin only)
+@app.post("/api/approval-queue/{queue_id}/reject")
+def reject_queued_request(request: Request, queue_id: int, user=Depends(get_current_user),
+                          reason: str = ""):
+    check_peranan(user, ["Admin"])
+
+    db = get_db()
+    cursor = db.cursor()
+
+    cursor.execute("SELECT * FROM approval_queue WHERE id = ? AND status = 'PENDING'", (queue_id,))
+    q = cursor.fetchone()
+    if not q:
+        db.close()
+        raise HTTPException(status_code=404, detail="Permohonan tidak ditemui atau sudah diproses")
+
+    now = datetime.now().isoformat()
+    cursor.execute("""
+        UPDATE approval_queue SET status = 'REJECTED', approved_by = ?, approved_at = ?, rejection_reason = ?
+        WHERE id = ?
+    """, (user["username"], now, reason, queue_id))
+    db.commit()
+    db.close()
+
+    log_activity(request, user, "Tolak Permohonan",
+                 f"Tolak permohonan Queue ID {queue_id} ({q['action_type']} pada {q['target_table']})")
+
+    return {"message": "Permohonan berjaya ditolak"}
+
+
+# ===== OLD APPROVAL QUEUE ENDPOINTS (pengundi via status_rekod) — kept for backwards compatibility =====
+
 @app.get("/api/approval-queue")
 def get_approval_queue(request: Request, page: int = 1, per_page: int = 50, user=Depends(get_current_user)):
     check_peranan(user, ["Admin"])
@@ -1578,7 +1738,6 @@ def get_approval_queue(request: Request, page: int = 1, per_page: int = 50, user
     }
 
 
-# Luluskan rekod (Admin sahaja)
 @app.post("/api/approval-queue/{pengundi_id}/lulus")
 def approve_record(request: Request, pengundi_id: int, user=Depends(get_current_user)):
     check_peranan(user, ["Admin"])
@@ -1586,7 +1745,6 @@ def approve_record(request: Request, pengundi_id: int, user=Depends(get_current_
     db = get_db()
     cursor = db.cursor()
     
-    # Get data before approve
     cursor.execute("SELECT no_kp, nama_penuh FROM pengundi WHERE id = ?", (pengundi_id,))
     p = cursor.fetchone()
     if not p:
@@ -1607,7 +1765,6 @@ def approve_record(request: Request, pengundi_id: int, user=Depends(get_current_
     return {"message": "Rekod berjaya diluluskan"}
 
 
-# Tolak rekod (Admin sahaja)
 @app.delete("/api/approval-queue/{pengundi_id}/tolak")
 def reject_record(request: Request, pengundi_id: int, user=Depends(get_current_user)):
     check_peranan(user, ["Admin"])
@@ -1615,7 +1772,6 @@ def reject_record(request: Request, pengundi_id: int, user=Depends(get_current_u
     db = get_db()
     cursor = db.cursor()
     
-    # Get data before reject
     cursor.execute("SELECT no_kp, nama_penuh FROM pengundi WHERE id = ? AND status_rekod = 'Menunggu_Kelulusan'", (pengundi_id,))
     p = cursor.fetchone()
     if not p:
@@ -1636,7 +1792,6 @@ def reject_record(request: Request, pengundi_id: int, user=Depends(get_current_u
     return {"message": "Rekod berjaya ditolak dan dipadamkan"}
 
 
-# ===== APPROVE ALL PENDING (Admin sahaja) =====
 @app.post("/api/pengundi/approve-all")
 def approve_all_pending(request: Request, user=Depends(get_current_user)):
     check_peranan(user, ["Admin"])
@@ -1644,7 +1799,6 @@ def approve_all_pending(request: Request, user=Depends(get_current_user)):
     db = get_db()
     cursor = db.cursor()
 
-    # Count pending records
     cursor.execute("SELECT COUNT(*) FROM pengundi WHERE status_rekod = 'Menunggu_Kelulusan'")
     count = cursor.fetchone()[0]
 
@@ -1652,7 +1806,6 @@ def approve_all_pending(request: Request, user=Depends(get_current_user)):
         db.close()
         return {"message": "Tiada rekod yang menunggu kelulusan", "jumlah": 0}
 
-    # Bulk approve all pending
     cursor.execute("UPDATE pengundi SET status_rekod = 'Sah' WHERE status_rekod = 'Menunggu_Kelulusan'")
     db.commit()
     db.close()

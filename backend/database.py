@@ -781,6 +781,46 @@ def init_db():
         except Exception as e:
             print(f"⚠️ Migrasi kolum pegawai_penyelaras gagal (mungkin sudah wujud): {e}")
 
+        # 15. approval_queue — system-wide approval workflow for non-admin operations
+        try:
+            if USE_POSTGRES:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS approval_queue (
+                        id SERIAL PRIMARY KEY,
+                        action_type VARCHAR(20) NOT NULL,
+                        target_table VARCHAR(50) NOT NULL,
+                        target_id INTEGER,
+                        data_payload TEXT,
+                        requested_by VARCHAR(255) NOT NULL,
+                        requested_at TEXT NOT NULL,
+                        status VARCHAR(20) DEFAULT 'PENDING',
+                        approved_by VARCHAR(255),
+                        approved_at TEXT,
+                        rejection_reason TEXT
+                    )
+                """)
+            else:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS approval_queue (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        action_type TEXT NOT NULL,
+                        target_table TEXT NOT NULL,
+                        target_id INTEGER,
+                        data_payload TEXT,
+                        requested_by TEXT NOT NULL,
+                        requested_at TEXT NOT NULL,
+                        status TEXT DEFAULT 'PENDING',
+                        approved_by TEXT,
+                        approved_at TEXT,
+                        rejection_reason TEXT
+                    )
+                """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_approval_queue_status ON approval_queue(status)
+            """)
+        except Exception as e:
+            print(f"⚠️ Cipta table approval_queue gagal: {e}")
+
         db.commit()
         db.close()
     except Exception as e:
