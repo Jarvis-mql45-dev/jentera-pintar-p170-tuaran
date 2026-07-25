@@ -623,6 +623,15 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_pengundi_status_sokongan ON pengundi(status_sokongan)
         """)
         cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pengundi_status_fizikal ON pengundi(status_fizikal)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pengundi_tahun_lahir ON pengundi(tahun_lahir)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pengundi_rekod_dun ON pengundi(status_rekod, dun_id)
+        """)
+        cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_audit_logs_username ON audit_logs(username)
         """)
         cursor.execute("""

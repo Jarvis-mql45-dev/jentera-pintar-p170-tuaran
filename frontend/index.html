@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
     <script>
         tailwind.config = {
             theme: {
@@ -190,7 +190,7 @@
         .hover\:bg-gray-50:hover { background-color: #f9fafb; }
         .hover\:text-red-500:hover { color: #ef4444; }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js" defer></script>
 </head>
 <body>
 <div id="app" class="flex min-h-screen">
@@ -321,7 +321,7 @@ function renderLoginPage() {
         <div class="flex items-center justify-center min-h-[70vh]">
             <div class="card w-full max-w-md p-8">
                 <div class="text-center mb-6">
-                    <img src="/logo.png" alt="JenteraPintar Logo" class="w-32 h-32 mx-auto mb-4">
+                    <img src="/logo.png" alt="JenteraPintar Logo" class="w-32 h-32 mx-auto mb-4" loading="lazy">
                     <h2 class="text-xl font-bold text-gray-800">JenteraPintar</h2>
                     <p class="text-sm text-gray-500 mt-1">P170 Tuaran</p>
                 </div>
@@ -347,7 +347,7 @@ function renderSidebar() {
     sidebar.innerHTML = `
         <div class="sidebar-header p-4 border-b">
             <div class="d-flex align-items-center" style="display: flex; align-items: center;">
-                <img src="/assets/image_8261c1.png" alt="UPKO Logo" style="height: 42px; margin-right: 10px;" onerror="this.onerror=null; this.src='https://upload.wikimedia.org/wikipedia/ms/3/3d/Logo_UPKO_baru.png';">
+                <img src="/assets/image_8261c1.png" alt="UPKO Logo" style="height: 42px; margin-right: 10px;" loading="lazy" onerror="this.onerror=null; this.src='https://upload.wikimedia.org/wikipedia/ms/3/3d/Logo_UPKO_baru.png';">
                 <div><h1 style="font-size: 16px; font-weight: bold; margin: 0; line-height: 1.2;">JenteraPintar</h1><small style="font-size: 12px; color: #6c757d; display: block; margin-top: 2px;">P170 Tuaran</small></div>
             </div>
         </div>
