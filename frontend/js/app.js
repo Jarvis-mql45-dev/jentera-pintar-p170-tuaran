@@ -143,16 +143,15 @@ async function handleLogin(username, password) {
 function handleLogout() {
     // 🛡️ CRITICAL: Set logout guard FIRST to block any stale async callbacks mid-flight
     window._logoutGuard = true;
-    // 🛡️ Clear ALL local/session storage to obliterate any stale state
-    localStorage.clear();
+    // 🛡️ Clear ONLY auth-related keys — preserve layout settings (dashboardInteractLayout, etc.)
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('currentPage');
     // Reset in-memory state to prevent any async callbacks from using stale values
     state.token = null;
     state.user = null;
     state.currentPage = 'dashboard';
     // 🛡️ Use location.href instead of location.reload() to force a NEW navigation request
-    // (bukan reload). Ini memastikan Service Worker menggunakan network-first strategy
-    // untuk navigate mode, bukan cache-first untuk static assets.
-    // Setelah redirect, SW akan mengambil HTML/app.js terkini dari network.
     window.location.href = '/';
 }
 
@@ -233,8 +232,8 @@ function renderSidebar() {
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Kelulusan Data
                 <span id="approvalBadge" class="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full hidden">0</span>
             </button>` : ''}
-             <!-- PENTADBIRAN: Log Aktiviti & Pengurusan Pengguna – hanya sorok untuk Pemerhati & Petugas 2 -->
-             ${peranan !== 'Pemerhati' && !checkPetugas2() ? `
+             <!-- PENTADBIRAN: Log Aktiviti & Pengurusan Pengguna – sorok untuk Pemerhati, Petugas 1 & Petugas 2 -->
+             ${peranan !== 'Pemerhati' && !checkPetugas1() && !checkPetugas2() ? `
              <div class="text-xs text-gray-400 uppercase font-semibold mb-2 mt-4 px-3">Pentadbiran</div>
              <button onclick="navigate('audit')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='audit'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg> Log Aktiviti
@@ -912,12 +911,7 @@ async function renderDashboard() {
         // 🛡️ Build Parlimen Mirror Table (aggregated from 4 DUN PDM data)
         const parlimenMirrorHtml = renderParlimenMirrorTable(pdmResults, DUN_PDM_CODES, DUN_PDM_NAMES);
 
-        content.innerHTML = `
-            ${parlimenMirrorHtml}
-
-            <div id="pdm-tables" class="mt-6">${pdmTablesHtml}</div>
-            `;
-
+        // 🛡️ Single innerHTML assignment — render both Parlimen Mirror and PDM tables at once
         content.innerHTML = `
             ${parlimenMirrorHtml}
 
@@ -1137,8 +1131,6 @@ async function renderDashboard() {
 
         // ═══════════════════════════════════════════════════════════════
         // PDM Table Input Sync — Two-Way Mirror ke P170 inputs
-        // Apabila PDM input diubah, sync nilai ke P170 input dan trigger
-        // event 'input' supaya semua table recalc secara automatik.
         // ═══════════════════════════════════════════════════════════════
 
         // Guard variable to prevent infinite loop during two-way sync
@@ -1221,7 +1213,6 @@ async function renderDashboard() {
         });
 
         // Also sync the P170 inputs back to PDM tables when changed
-        // (for cases when PDM table already rendered before P170 input changes)
         const syncP170ToPdm = (p170Id, pdmClass) => {
             const p170Input = document.getElementById(p170Id);
             if (!p170Input) return;
@@ -1453,12 +1444,7 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
 // ============================================================
 // PARLIMEN MIRROR TABLE — Agregasi data daripada 4 DUN PDM
 // ============================================================
-// Fungsi ini menghasilkan jadual "PANEL STRATEGI PARLIMEN P170 TUARAN"
-// dengan struktur SAMA seperti jadual PDM DUN (17 kolum), tetapi data
-// adalah agregasi (SUM) daripada 4 DUN: N12+N13+N14+N15.
-// ============================================================
 function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
-    // Agregasi data PDM per DUN
     const dunAgg = {};
     const allDunCodes = dunCodes || ['N12', 'N13', 'N14', 'N15'];
     const allDunNames = dunNames || { 'N12': 'DUN N12 SULAMAN', 'N13': 'DUN N13 PANTAI DALIT', 'N14': 'DUN N14 TAMPARULI', 'N15': 'DUN N15 KIULU' };
@@ -1466,8 +1452,6 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
     allDunCodes.forEach((kod, idx) => {
         const pdmData = (pdmResults[idx] && pdmResults[idx].data) || [];
         const cleanData = pdmData.filter(p => p.dm !== 'Tidak Diagihkan' && p.dm !== 'ZZ');
-        // jumlah_ketua_keluarga dikira dengan COUNT(DISTINCT ketua_keluarga_id) dari backend
-        // Untuk agregasi parlimen, kita jumlahkan COUNT DISTINCT dari setiap DUN
         const sumKkTerkini = cleanData.reduce((s, p) => s + (p.jumlah_ketua_keluarga || 0), 0);
         dunAgg[kod] = {
             nama: allDunNames[kod],
@@ -1484,7 +1468,6 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
         };
     });
 
-    // Baca input global (guna nilai yang SAMA dengan renderPdmTable)
     const turnOutInput = parseFloat(document.getElementById('inputTurnoutPercentage')?.value || '75');
     const factor = turnOutInput / 100;
     const kkRatio = parseFloat(document.getElementById('inputKKRatio')?.value || '13');
@@ -1492,7 +1475,7 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
     const col2Label = document.getElementById('inputElectionCol2')?.value || 'PRN 2025';
     const sasaranUndiMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
 
-    const pdmCount = allDunCodes.length; // 4 DUN
+    const pdmCount = allDunCodes.length;
     let rows = '';
     let isFirstRow = true;
     const colSums = { berdaftar: 0, turnout: 0, pru15: 0, prn2025: 0, sasaran_undi: 0, kk: 0, kk_terkini: 0, putih: 0, atas: 0, hitam: 0, tidak: 0, meninggal: 0, usia18: 0, usia31: 0, usia60: 0 };
@@ -1503,10 +1486,8 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
         const anggaran = Math.round(jumlah * factor);
         const sasaranUndi = Math.round(anggaran * sasaranUndiMultiplier / 100);
         const sasaranKK = Math.round(sasaranUndi / kkRatio);
-        // kkTerkini diambil terus dari agregasi database (COUNT DISTINCT ketua_keluarga_id)
         const kkTerkini = agg.jumlah_ketua_keluarga ?? Math.round(jumlah / kkRatio);
 
-        // First row gets PARLIMEN rowspan
         let parlimenCell = '';
         if (isFirstRow) {
             parlimenCell = `<td rowspan="${pdmCount}" class="border border-gray-300 px-2 py-1 font-bold text-center text-gray-800 align-middle" style="min-width:65px;">P 170<br>TUARAN</td>`;
@@ -1541,7 +1522,6 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
         colSums.usia18 += agg.usia_18_30; colSums.usia31 += agg.usia_31_59; colSums.usia60 += agg.usia_60plus;
     });
 
-    // Baris JUMLAH
     rows += `<tr class="bg-gray-100 font-semibold">
         <td colspan="2" class="border border-gray-300 px-2 py-1 font-bold text-gray-800">JUMLAH</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.berdaftar.toLocaleString()}</td>
@@ -1685,7 +1665,6 @@ function toggleFilterItem(type, value) {
 
 function clearFilterType(type) {
     selectedFilters[type] = [];
-    // Re-render dropdown if it's still open (poka-yoke: ensure visual state matches data state)
     const dd = document.getElementById('filterDropdown');
     if (dd) {
         const btn = document.querySelector(`[onclick*="toggleFilterDropdown('${type}')"]`);
@@ -1706,7 +1685,6 @@ function buildFilterParams() {
 }
 
 function handlePdmFilterChange(value) {
-    // Check if value is a DUN code (N12, N13, N14, N15)
     if (value === 'N12' || value === 'N13' || value === 'N14' || value === 'N15') {
         state.pengundiDun = value;
         state.pengundiDm = '';
@@ -1724,25 +1702,19 @@ function handlePdmFilterChange(value) {
 function renderSmartPagination(currentPage, totalPages, pageStateVar, renderFunc) {
     if (totalPages <= 1) return '';
     let html = '';
-    // Always show page 1
     html += `<button onclick="${pageStateVar}=1;${renderFunc}()" class="${currentPage===1?'active':''}">1</button>`;
-    // Calculate start and end of the 9-page window starting from current page
     let startPage = currentPage;
     let endPage = Math.min(currentPage + 9, totalPages);
-    // Ellipsis after page 1 if start page > 2
     if (startPage > 2) {
         html += '<span class="text-sm text-gray-400">...</span>';
     }
-    // If startPage > 1, ensure we don't duplicate page 1; else start from 2
     const firstNum = startPage > 1 ? Math.max(startPage, 2) : 2;
     for (let p = firstNum; p <= endPage; p++) {
         html += `<button onclick="${pageStateVar}=${p};${renderFunc}()" class="${currentPage===p?'active':''}">${p}</button>`;
     }
-    // Ellipsis before last page if endPage < totalPages - 1
     if (endPage < totalPages - 1) {
         html += '<span class="text-sm text-gray-400">...</span>';
     }
-    // Always show last page
     if (totalPages > 1) {
         html += `<button onclick="${pageStateVar}=${totalPages};${renderFunc}()" class="${currentPage===totalPages?'active':''}">${totalPages}</button>`;
     }
@@ -1767,13 +1739,10 @@ async function renderPengundi() {
     content.innerHTML = '<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan senarai pengundi...</span></div>';
     try {
         if (!state.pdmList.length) state.pdmList = await api('/api/pdm');
-        // Fix: Muat filterOptions dan hantar selectedFilters ke API
-        // Elak duplikasi dm — jika selectedFilters.pdm ada, guna itu; jika tidak, guna state.pengundiDm
         const dmParam = selectedFilters.pdm && selectedFilters.pdm.length
-            ? ''  // buildFilterParams() akan handle dm=
+            ? ''
             : (state.pengundiDm ? `&dm[]=${encodeURIComponent(state.pengundiDm)}` : '');
         const dunParam = state.pengundiDun ? `&dun=${encodeURIComponent(state.pengundiDun)}` : '';
-        // Build filter params for filter-options too — so dropdowns show only relevant choices
         const filterOptsParam = `${dunParam}${dmParam}${buildFilterParams()}`;
         const filterOptsUrl = filterOptsParam ? `/api/pengundi/filter-options?${filterOptsParam.replace(/^&/, '')}` : '/api/pengundi/filter-options';
         const [filterRes, result] = await Promise.all([
@@ -1789,7 +1758,6 @@ async function renderPengundi() {
         const totalPages = Math.ceil(total / perPage) || 1;
         const filterCount = getActiveFilterCount();
         const pdmList = state.pdmList || [];
-        const groupedPdm = groupPdmByDun(pdmList);
 
         content.innerHTML = `
             <div class="card">
@@ -1845,7 +1813,6 @@ async function renderPengundi() {
                                 if (sl === 'putih') return '<span class="badge badge-putih">Putih</span>';
                                 if (sl === 'hitam') return '<span class="badge badge-hitam">Hitam</span>';
                                 if (sl === 'atas pagar') return '<span class="badge badge-atas">Atas Pagar</span>';
-                                // POKA-YOKE: apa-apa nilai tidak sah → display sebagai Tiada Data
                                 return '<span class="badge badge-tiada">Tiada Data</span>';
                             })()}</td>
                             <td class="text-xs">${p.ketua_keluarga_nama || '<span class="text-gray-400">-</span>'}</td>
@@ -1864,7 +1831,6 @@ async function renderPengundi() {
 }
 
 async function editPengundi(id) {
-    // 🛡️ Guard: cegah modal berlapis akibat klik berturut-turut
     if (window._editModalBusy) return;
     window._editModalBusy = true;
     try {
@@ -1874,8 +1840,6 @@ async function editPengundi(id) {
         overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
         overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
-        // POKA-YOKE: Pre-fetch FULL unfiltered lokaliti list (tanpa DUN/PDM params)
-        // Pastikan dropdown menunjukkan SEMUA lokaliti, bukan terhad kepada satu DUN/PDM
         let lokalitiList = [];
         try {
             lokalitiList = await api('/api/lokaliti');
@@ -1884,19 +1848,16 @@ async function editPengundi(id) {
         }
         const lokalitiOptions = (lokalitiList || []).map(l => `<option value="${l.nama}">${l.nama} (${l.jumlah_pengundi || 0})</option>`).join('');
 
-        // Pre-fetch KK & PP candidates from their respective tables
         const [kkOptions, ppOptions] = await Promise.all([
             fetchKkOptions(''),
             fetchPpOptions('')
         ]);
-        // Build PP dropdown options with pre-selection (poka-yoke: full <select> not <input list>)
         const ppSelectedVal = p.pegawai_penyelaras_id ? `${p.pegawai_penyelaras_id} - ${(p.pegawai_penyelaras_nama || '')}` : '';
         const ppOptHtml = ppOptions.map(p2 => {
             const val = `${p2.id} - ${p2.nama_penuh}`;
             const sel = val === ppSelectedVal ? ' selected' : '';
             return `<option value="${val}"${sel}>${p2.nama_penuh}</option>`;
         }).join('');
-        // Build KK dropdown options with pre-selection (poka-yoke: full <select> not <input list>)
         const kkSelectedVal = p.ketua_keluarga_id ? `${p.ketua_keluarga_id} - ${(p.ketua_keluarga_nama || '')}` : '';
         const kkOptHtml = kkOptions.map(k => {
             const val = `${k.id} - ${k.nama_penuh}`;
@@ -1904,7 +1865,6 @@ async function editPengundi(id) {
             return `<option value="${val}"${sel}>${k.nama_penuh}</option>`;
         }).join('');
 
-        // Pre-fetch DUN list with voter counts from API (same as tambahPengundi)
         let dunList = [];
         try {
             dunList = await api('/api/dun');
@@ -1912,7 +1872,6 @@ async function editPengundi(id) {
             dunList = [];
         }
 
-        // Fetch PDM list — guna state.pdmList sebagai single source of truth (poka-yoke: synchronous)
         const dunKod = p.dun || '';
         if (!state.pdmList || !state.pdmList.length) {
             try { state.pdmList = await api('/api/pdm'); } catch (e) { state.pdmList = []; }
@@ -1930,14 +1889,12 @@ async function editPengundi(id) {
                     <button onclick="this.closest('#editModalOverlay').remove()" class="text-gray-400 hover:text-red-500 text-2xl leading-none">&times;</button>
                 </div>
                 <div class="p-4 space-y-3">
-                    <!-- Parlimen -->
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">Parlimen</label>
                         <select id="editParlimen" class="w-full px-3 py-2 text-sm border rounded-lg bg-gray-100 text-gray-500" disabled>
                             <option value="P170" selected>P170 Tuaran</option>
                         </select>
                     </div>
-                    <!-- DUN -->
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">DUN <span class="text-red-500">*</span></label>
                         <div class="flex gap-2">
@@ -1949,7 +1906,6 @@ async function editPengundi(id) {
                             <button id="editBtnHapusDun" onclick="editHapusDun()" class="btn btn-outline text-sm px-2 py-1 text-red-600 border-red-300 hover:bg-red-50 hidden" title="Padam DUN">🗑️</button>
                         </div>
                     </div>
-                    <!-- Input untuk DUN baru (tersembunyi) -->
                     <div id="editDunBaruContainer" style="display:none;">
                         <label class="block text-sm font-medium text-gray-600 mb-1">Nama DUN Baru <span class="text-red-500">*</span></label>
                         <div class="flex gap-2">
@@ -1958,7 +1914,6 @@ async function editPengundi(id) {
                         </div>
                         <p class="text-xs text-gray-400 mt-0.5">Masukkan kod dan nama DUN baru, cth: N16 - BANGGI. Klik "Tambah DUN" untuk create.</p>
                     </div>
-                    <!-- PDM: dropdown + add new (same pattern as DUN) -->
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">PDM <span class="text-red-500">*</span></label>
                         <div class="flex gap-2">
@@ -1969,7 +1924,6 @@ async function editPengundi(id) {
                             </select>
                             <button id="editBtnHapusPdm" onclick="editHapusPdm()" class="btn btn-outline text-sm px-2 py-1 text-red-600 border-red-300 hover:bg-red-50 hidden" title="Padam PDM">🗑️</button>
                         </div>
-                        <!-- Input untuk PDM baru (tersembunyi) -->
                         <div id="editPdmBaruContainer" style="display:none;" class="mt-2">
                             <label class="block text-sm font-medium text-gray-600 mb-1">Nama PDM Baru <span class="text-red-500">*</span></label>
                             <div class="flex gap-2">
@@ -1979,7 +1933,6 @@ async function editPengundi(id) {
                             <p class="text-xs text-gray-400 mt-0.5">Masukkan nama PDM baru. Klik "Tambah PDM" untuk create.</p>
                         </div>
                     </div>
-                    <!-- Lokaliti: dropdown + add new (same pattern as Tambah Pengundi) -->
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">Lokaliti <span class="text-red-500">*</span></label>
                         <div class="flex gap-2">
@@ -1990,7 +1943,6 @@ async function editPengundi(id) {
                             </select>
                             <button id="editBtnHapusLokaliti" onclick="editHapusLokaliti()" class="btn btn-outline text-sm px-2 py-1 text-red-600 border-red-300 hover:bg-red-50 hidden" title="Padam Lokaliti">🗑️</button>
                         </div>
-                        <!-- Input untuk Lokaliti baru (tersembunyi) -->
                         <div id="editLokalitiBaruContainer" style="display:none;" class="mt-2">
                             <label class="block text-sm font-medium text-gray-600 mb-1">Nama Lokaliti Baru <span class="text-red-500">*</span></label>
                             <div class="flex gap-2">
@@ -2000,7 +1952,6 @@ async function editPengundi(id) {
                             <p class="text-xs text-gray-400 mt-0.5">Masukkan nama Lokaliti baru. Klik "Tambah Lokaliti" untuk create.</p>
                         </div>
                     </div>
-                    <!-- Pegawai Penyelaras -->
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">Pegawai Penyelaras</label>
                         <select id="editPegawai" class="w-full px-3 py-2 text-sm border rounded-lg">
@@ -2008,7 +1959,6 @@ async function editPengundi(id) {
                             ${ppOptHtml}
                         </select>
                     </div>
-                    <!-- Ketua Keluarga -->
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">Ketua Keluarga</label>
                         <select id="editKetuaKeluarga" class="w-full px-3 py-2 text-sm border rounded-lg">
@@ -2016,17 +1966,14 @@ async function editPengundi(id) {
                             ${kkOptHtml}
                         </select>
                     </div>
-                    <!-- Nama Penuh -->
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">Nama Penuh <span class="text-red-500">*</span></label>
                         <input type="text" id="editNama" value="${(p.nama_penuh || '').replace(/"/g, '"')}" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Nama penuh tanpa singkatan">
                     </div>
-                    <!-- No KP -->
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">No KP</label>
                         <input type="text" id="editNoKp" value="${(p.no_kp || '').replace(/"/g, '"')}" class="w-full px-3 py-2 text-sm border rounded-lg bg-gray-100 text-gray-500" disabled placeholder="000101-01-0001">
                     </div>
-                    <!-- Hari/Bulan/Tahun Lahir (manual) -->
                     ${(() => { const dob = parseIcToDob(p.no_kp || ''); return `
                     <div class="flex gap-2">
                         <div class="flex-1">
@@ -2056,7 +2003,6 @@ async function editPengundi(id) {
                             <input type="text" id="editNoTelefon" value="${(p.no_telefon || '').replace(/"/g, '"')}" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="012-3456789">
                         </div>
                     </div>
-                    <!-- Sokongan & Fizikal -->
                     <div class="flex gap-3">
                         <div class="flex-1">
                             <label class="block text-sm font-medium text-gray-600 mb-1">Status Sokongan</label>
@@ -2085,20 +2031,16 @@ async function editPengundi(id) {
         `;
         document.body.appendChild(overlay);
         
-        // POKA-YOKE: Auto-select voter's current lokaliti from the full unfiltered list
         const editLokalitiSelect = document.getElementById('editLokaliti');
         if (editLokalitiSelect && p.lokaliti) {
-            // Check if the value exists in the full options list
             const matchingOption = Array.from(editLokalitiSelect.options).find(o => o.value === p.lokaliti);
             if (matchingOption) {
                 editLokalitiSelect.value = p.lokaliti;
-                // Show 🗑️ button for lokaliti since a valid selection exists
                 const btnHapus = document.getElementById('editBtnHapusLokaliti');
                 if (btnHapus) btnHapus.classList.remove('hidden');
             }
         }
         
-        // Show/hide 🗑️ button for DUN (poka-yoke: core DUNs N12-N15 cannot be deleted)
         const editDunSelect = document.getElementById('editDun');
         const editBtnHapus = document.getElementById('editBtnHapusDun');
         if (editDunSelect && editBtnHapus) {
@@ -2112,7 +2054,6 @@ async function editPengundi(id) {
                     editBtnHapus.classList.add('hidden');
                 }
             });
-            // Initial state
             if (coreDuns.includes(editDunSelect.value)) {
                 editBtnHapus.classList.add('hidden');
             } else if (editDunSelect.value && editDunSelect.value !== 'TAMBAH_DUN') {
@@ -2122,7 +2063,6 @@ async function editPengundi(id) {
     } catch (err) {
         showToast('Gagal memuat data pengundi: ' + err.message, 'error');
     } finally {
-        // 🔓 Reset guard selepas modal siap atau gagal
         window._editModalBusy = false;
     }
 }
@@ -2143,7 +2083,6 @@ async function savePengundi(id) {
         ketua_keluarga_id: parsePengundiId(kkVal),
         pegawai_penyelaras_id: parsePengundiId(pegawaiVal)
     };
-    // Remove empty strings so backend treats them as unchanged
     Object.keys(data).forEach(k => { if (data[k] === '') data[k] = null; });
     try {
         await api(`/api/pengundi/${id}`, {
@@ -2164,7 +2103,6 @@ function editDunChanged() {
     const dunBaruContainer = document.getElementById('editDunBaruContainer');
     const btnHapusPdm = document.getElementById('editBtnHapusPdm');
     
-    // Handle Tambah DUN Baru option
     if (dunKod === 'TAMBAH_DUN') {
         if (dunBaruContainer) dunBaruContainer.style.display = 'block';
         return;
@@ -2172,7 +2110,6 @@ function editDunChanged() {
         if (dunBaruContainer) dunBaruContainer.style.display = 'none';
     }
     
-    // Show/hide 🗑️ button for DUN (poka-yoke: core DUNs N12-N15 cannot be deleted)
     const editBtnHapus = document.getElementById('editBtnHapusDun');
     const coreDuns = ['N12', 'N13', 'N14', 'N15'];
     if (editBtnHapus) {
@@ -2185,10 +2122,8 @@ function editDunChanged() {
         }
     }
     
-    // Hide 🗑️ button for PDM when DUN changes (selection resets)
     if (btnHapusPdm) btnHapusPdm.classList.add('hidden');
     
-    // Refresh PDM dropdown synchronous guna state.pdmList (poka-yoke: single source of truth)
     if (dmInput) {
         const pdmOptions = renderDunPdmDataList(dunKod || '')
             .split('</option>')
@@ -2200,11 +2135,9 @@ function editDunChanged() {
             pdmOptions;
         dmInput.value = '';
     }
-    // Refresh lokaliti based on selected DUN
     refreshEditLokaliti(dunKod, '');
 }
 
-// Edit modal PDM changed handler — updates lokaliti dynamically based on PDM selection
 function editPdmChanged() {
     const pdmVal = document.getElementById('editDm').value;
     const pdmBaruContainer = document.getElementById('editPdmBaruContainer');
@@ -2221,11 +2154,9 @@ function editPdmChanged() {
     document.getElementById('editPdmBaru').value = '';
     if (btnHapus) btnHapus.classList.remove('hidden');
     
-    // Refresh lokaliti dropdown based on selected DUN + PDM
     refreshEditLokaliti(dunKod, pdmVal);
 }
 
-// Edit modal lokaliti handlers (same pattern as Tambah Pengundi)
 function editLokalitiChanged() {
     const lokalitiVal = document.getElementById('editLokaliti').value;
     const lokalitiBaruContainer = document.getElementById('editLokalitiBaruContainer');
@@ -2375,14 +2306,10 @@ function cariEditKetuaKeluarga(input) {
 }
 
 async function padamPengundi(id) {
-    // OFFLOAD to next macrotask to unblock INP
     setTimeout(() => {
-        // Gunakan confirm() yang sudah sedia — tiada blok INP kerana ia dalam setTimeout
         if (!confirm('Anda pasti mahu memadamkan rekod pengundi ini? Tindakan ini tidak boleh dikembalikan.')) return;
-        // Gunakan API terus tanpa await (biarkan background)
         api(`/api/pengundi/${id}`, { method: 'DELETE' }).then(result => {
             showToast(result.message || 'Pengundi berjaya dipadamkan', 'success');
-            // Offload render ke next animation frame
             requestAnimationFrame(() => {
                 renderPengundi();
             });
@@ -2411,10 +2338,9 @@ function parseIcToDob(ic) {
 
 function getPdmListForDun(dunKod) {
     if (!dunKod) {
-        // Return all PDMs across all DUNs
         const all = [];
         Object.values(PDM_BY_DUN).forEach(list => all.push(...list));
-        return all.filter((v, i, a) => a.indexOf(v) === i); // unique
+        return all.filter((v, i, a) => a.indexOf(v) === i);
     }
     return PDM_BY_DUN[dunKod] || [];
 }
@@ -2442,11 +2368,9 @@ async function getLokalitiList(dunKod) {
 }
 
 async function tambahPengundi() {
-    // 🛡️ Guard: cegah modal berlapis akibat klik berturut-turut
     if (window._tambahModalBusy) return;
     window._tambahModalBusy = true;
 
-    // 🛡️ Cipta & lock modal serta-merta sebelum sebarang panggilan API
     const existingOverlay = document.getElementById('tambahModalOverlay');
     if (existingOverlay) existingOverlay.remove();
     
@@ -2454,16 +2378,13 @@ async function tambahPengundi() {
     overlay.id = 'tambahModalOverlay';
     overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-    // Paparkan loading sementara menunggu data API
     overlay.innerHTML = `<div class="bg-white rounded-xl p-6 text-center shadow-lg font-medium">Memuatkan borang tambah pengundi...</div>`;
     document.body.appendChild(overlay);
 
     try {
-        // Pre-fetch lokaliti list with voter counts
         const lokalitiList = await getLokalitiList();
         const lokalitiOptions = (lokalitiList || []).map(l => `<option value="${l.nama}">${l.nama} (${l.jumlah_pengundi || 0})</option>`).join('');
 
-        // Pre-fetch KK & PP candidates from their respective tables
         const [kkOptions, ppOptions] = await Promise.all([
             fetchKkOptions(''),
             fetchPpOptions('')
@@ -2471,7 +2392,6 @@ async function tambahPengundi() {
         const kkOptHtml = kkOptions.map(k => `<option value="${k.id} - ${k.nama_penuh}">${k.nama_penuh}</option>`).join('');
         const ppOptHtml = ppOptions.map(p => `<option value="${p.id} - ${p.nama_penuh}">${p.nama_penuh}</option>`).join('');
 
-        // Fetch DUN list from API — dynamically
         let dunList = [];
         try {
             dunList = await api('/api/dun');
@@ -2479,7 +2399,6 @@ async function tambahPengundi() {
             dunList = DUN_OPTIONS;
         }
 
-        // Default DUN = N12 for initial PDM list
         const defaultDun = '';
         const initialPdmOptions = renderDunPdmDataList(defaultDun);
 
@@ -2490,14 +2409,12 @@ async function tambahPengundi() {
                 <button onclick="this.closest('#tambahModalOverlay').remove()" class="text-gray-400 hover:text-red-500 text-2xl leading-none">&times;</button>
             </div>
             <div class="p-4 space-y-3">
-                <!-- Parlimen -->
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">Parlimen</label>
                     <select id="tambahParlimen" class="w-full px-3 py-2 text-sm border rounded-lg bg-gray-100 text-gray-500" disabled>
                         <option value="P170" selected>P170 Tuaran</option>
                     </select>
                 </div>
-                <!-- DUN -->
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">DUN <span class="text-red-500">*</span></label>
                     <div class="flex gap-2">
@@ -2509,7 +2426,6 @@ async function tambahPengundi() {
                         <button id="btnHapusDun" onclick="hapusDun()" class="btn btn-outline text-sm px-2 py-1 text-red-600 border-red-300 hover:bg-red-50 hidden" title="Padam DUN">🗑️</button>
                     </div>
                 </div>
-                <!-- Input untuk DUN baru (tersembunyi) -->
                 <div id="tambahDunBaruContainer" style="display:none;">
                     <label class="block text-sm font-medium text-gray-600 mb-1">Nama DUN Baru <span class="text-red-500">*</span></label>
                     <div class="flex gap-2">
@@ -2518,7 +2434,6 @@ async function tambahPengundi() {
                     </div>
                     <p class="text-xs text-gray-400 mt-0.5">Masukkan kod dan nama DUN baru, cth: N16 - BANGGI. Klik "Tambah DUN" untuk create.</p>
                 </div>
-                <!-- PDM: dropdown + add new -->
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">PDM <span class="text-red-500">*</span></label>
                     <div class="flex gap-2">
@@ -2529,7 +2444,6 @@ async function tambahPengundi() {
                         </select>
                         <button id="btnHapusPdm" onclick="hapusPdm()" class="btn btn-outline text-sm px-2 py-1 text-red-600 border-red-300 hover:bg-red-50 hidden" title="Padam PDM">🗑️</button>
                     </div>
-                    <!-- Input untuk PDM baru (tersembunyi) -->
                     <div id="tambahPdmBaruContainer" style="display:none;" class="mt-2">
                         <label class="block text-sm font-medium text-gray-600 mb-1">Nama PDM Baru <span class="text-red-500">*</span></label>
                         <div class="flex gap-2">
@@ -2539,7 +2453,6 @@ async function tambahPengundi() {
                         <p class="text-xs text-gray-400 mt-0.5">Masukkan nama PDM baru. Klik "Tambah PDM" untuk create.</p>
                     </div>
                 </div>
-                <!-- Lokaliti: dropdown + add new (pattern sama dengan PDM) -->
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">Lokaliti <span class="text-red-500">*</span></label>
                     <div class="flex gap-2">
@@ -2550,7 +2463,6 @@ async function tambahPengundi() {
                         </select>
                         <button id="btnHapusLokaliti" onclick="hapusLokaliti()" class="btn btn-outline text-sm px-2 py-1 text-red-600 border-red-300 hover:bg-red-50 hidden" title="Padam Lokaliti">🗑️</button>
                     </div>
-                    <!-- Input untuk Lokaliti baru (tersembunyi) -->
                     <div id="tambahLokalitiBaruContainer" style="display:none;" class="mt-2">
                         <label class="block text-sm font-medium text-gray-600 mb-1">Nama Lokaliti Baru <span class="text-red-500">*</span></label>
                         <div class="flex gap-2">
@@ -2560,7 +2472,6 @@ async function tambahPengundi() {
                         <p class="text-xs text-gray-400 mt-0.5">Masukkan nama Lokaliti baru. Klik "Tambah Lokaliti" untuk create.</p>
                     </div>
                 </div>
-                <!-- Pegawai Penyelaras -->
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">Pegawai Penyelaras</label>
                     <select id="tambahPegawai" class="w-full px-3 py-2 text-sm border rounded-lg">
@@ -2571,7 +2482,6 @@ async function tambahPengundi() {
                         }).join('')}
                     </select>
                 </div>
-                <!-- Ketua Keluarga -->
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">Ketua Keluarga</label>
                     <select id="tambahKetuaKeluarga" class="w-full px-3 py-2 text-sm border rounded-lg">
@@ -2579,17 +2489,14 @@ async function tambahPengundi() {
                         ${kkOptHtml}
                     </select>
                 </div>
-                <!-- Nama Penuh -->
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">Nama Penuh <span class="text-red-500">*</span></label>
                     <input type="text" id="tambahNama" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="Nama penuh tanpa singkatan">
                 </div>
-                <!-- No KP -->
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">No KP</label>
                     <input type="text" id="tambahNoKp" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="000101-01-0001">
                 </div>
-                <!-- Hari/Bulan/Tahun Lahir (manual) -->
                 <div class="flex gap-2">
                     <div class="flex-1">
                         <label class="block text-sm font-medium text-gray-600 mb-1">Hari Lahir</label>
@@ -2618,7 +2525,6 @@ async function tambahPengundi() {
                         <input type="text" id="tambahNoTelefon" class="w-full px-3 py-2 text-sm border rounded-lg" placeholder="012-3456789">
                     </div>
                 </div>
-                <!-- Sokongan & Fizikal -->
                 <div class="flex gap-3">
                     <div class="flex-1">
                         <label class="block text-sm font-medium text-gray-600 mb-1">Status Sokongan</label>
@@ -2649,7 +2555,6 @@ async function tambahPengundi() {
     } catch (err) {
         showToast('Gagal: ' + err.message, 'error');
     } finally {
-        // 🔓 Reset guard selepas modal siap atau gagal
         window._tambahModalBusy = false;
     }
 }
@@ -2800,7 +2705,6 @@ function tambahLokalitiBaruSekarang() {
         lokalitiInput.value = '';
         document.getElementById('tambahLokalitiBaruContainer').style.display = 'none';
         const lokalitiSelect = document.getElementById('tambahLokaliti');
-        // Add new option and select it
         lokalitiSelect.innerHTML += `<option value="${lokalitiVal.toUpperCase()}">${lokalitiVal.toUpperCase()}</option>`;
         lokalitiSelect.value = lokalitiVal.toUpperCase();
         tambahLokalitiChanged();
@@ -2827,7 +2731,6 @@ function hapusLokaliti() {
 }
 
 async function refreshTambahLokaliti(dunKod, dmValue) {
-    // Build params to filter lokaliti by selected DUN and/or PDM
     let params = '';
     if (dunKod) params += `dun=${encodeURIComponent(dunKod)}`;
     if (dmValue) params += (params ? '&' : '') + `dm=${encodeURIComponent(dmValue)}`;
@@ -2842,18 +2745,15 @@ async function refreshTambahLokaliti(dunKod, dmValue) {
                 <option value="TAMBAH_LOKALITI" style="color:#2563eb;font-weight:600;">➕ Tambah Lokaliti Baru</option>
                 ${(res || []).map(l => `<option value="${l.nama}">${l.nama} (${l.jumlah_pengundi || 0})</option>`).join('')}
             `;
-            // Preserve selection if value still exists
             if (currentVal && Array.from(lokalitiSelect.options).some(o => o.value === currentVal)) {
                 lokalitiSelect.value = currentVal;
             }
         }
     } catch (e) {
-        // Silent fail — keep existing lokaliti list
     }
 }
 
 async function refreshEditLokaliti(dunKod, dmValue) {
-    // Build params to filter lokaliti by selected DUN and/or PDM
     let params = '';
     if (dunKod) params += `dun=${encodeURIComponent(dunKod)}`;
     if (dmValue) params += (params ? '&' : '') + `dm=${encodeURIComponent(dmValue)}`;
@@ -2868,13 +2768,11 @@ async function refreshEditLokaliti(dunKod, dmValue) {
                 <option value="TAMBAH_LOKALITI" style="color:#2563eb;font-weight:600;">➕ Tambah Lokaliti Baru</option>
                 ${(res || []).map(l => `<option value="${l.nama}">${l.nama} (${l.jumlah_pengundi || 0})</option>`).join('')}
             `;
-            // Preserve selection if value still exists
             if (currentVal && Array.from(lokalitiSelect.options).some(o => o.value === currentVal)) {
                 lokalitiSelect.value = currentVal;
             }
         }
     } catch (e) {
-        // Silent fail — keep existing lokaliti list
     }
 }
 
@@ -2885,7 +2783,6 @@ function tambahDunBaruSekarang() {
         showToast('Sila masukkan nama DUN baru (cth: N16 - BANGGI)', 'error');
         return;
     }
-    // Parse "N16 - BANGGI" → kod: "N16", nama: "BANGGI"
     const dashIdx = dunBaruVal.indexOf('-');
     let dunKod = '', dunNama = '';
     if (dashIdx > -1) {
@@ -2899,16 +2796,13 @@ function tambahDunBaruSekarang() {
         showToast('Format DUN baru tidak sah. Guna format: N16 - BANGGI', 'error');
         return;
     }
-    // Call API to create DUN
     api('/api/dun', {
         method: 'POST',
         body: JSON.stringify({ kod: dunKod, nama: dunNama })
     }).then(result => {
         showToast(`DUN ${dunKod} - ${dunNama} berjaya ditambah!`, 'success');
-        // Reset container
         dunBaruInput.value = '';
         document.getElementById('tambahDunBaruContainer').style.display = 'none';
-        // Re-fetch DUN list and update dropdown
         api('/api/dun').then(dunList => {
             const dunSelect = document.getElementById('tambahDun');
             dunSelect.innerHTML = `
@@ -2916,19 +2810,15 @@ function tambahDunBaruSekarang() {
                 <option value="TAMBAH_DUN" style="color:#2563eb;font-weight:600;">➕ Tambah DUN Baru</option>
                 ${dunList.map(d => `<option value="${d.kod}">${d.nama} (${d.jumlah_pengundi || 0})</option>`).join('')}
             `;
-            // Auto-pilih DUN baru dan trigger onChange untuk 🗑️ button
             dunSelect.value = result.kod;
             tambahDunChanged();
-            // Show PDM & Lokaliti fields
             const dmDiv = document.getElementById('tambahDm')?.closest('div');
             const lokalitiDiv = document.getElementById('tambahLokaliti')?.closest('div');
             if (dmDiv) dmDiv.style.display = 'block';
             if (lokalitiDiv) lokalitiDiv.style.display = 'block';
-            // Clear PDM list (kosong for new DUN — user can type new PDM)
             const pdmDl = document.getElementById('pdmList');
             if (pdmDl) pdmDl.innerHTML = '';
             document.getElementById('tambahDm').value = '';
-            // Refresh lokaliti
             refreshTambahLokaliti(result.kod, '');
         });
     }).catch(err => {
@@ -2942,7 +2832,6 @@ function hapusDun() {
     if (!confirm(`Anda pasti mahu memadamkan DUN ${dunKod}? Tindakan ini tidak boleh dikembalikan.`)) return;
     api(`/api/dun/${dunKod}`, { method: 'DELETE' }).then(result => {
         showToast(`DUN ${dunKod} berjaya dipadamkan!`, 'success');
-        // Re-fetch DUN list and update dropdown
         api('/api/dun').then(dunList => {
             const dunSelect = document.getElementById('tambahDun');
             dunSelect.innerHTML = `
@@ -2966,7 +2855,6 @@ function tambahDunChanged() {
     const btnHapus = document.getElementById('btnHapusDun');
     
     if (dunKod === 'TAMBAH_DUN' || dunKod === '') {
-        // Show DUN baru input if TAMBAH_DUN, hide PDM & Lokaliti
         if (dunBaruContainer) dunBaruContainer.style.display = dunKod === 'TAMBAH_DUN' ? 'block' : 'none';
         if (dmDiv) dmDiv.style.display = 'none';
         if (lokalitiDiv) lokalitiDiv.style.display = 'none';
@@ -2975,7 +2863,6 @@ function tambahDunChanged() {
         return;
     }
     
-    // Hide DUN baru container if visible
     if (dunBaruContainer) {
         dunBaruContainer.style.display = 'none';
         document.getElementById('tambahDunBaru').value = '';
@@ -2983,7 +2870,6 @@ function tambahDunChanged() {
     if (dmDiv) dmDiv.style.display = 'block';
     if (lokalitiDiv) lokalitiDiv.style.display = 'block';
     
-    // Show delete button only for non-core DUNs (not N12-N15)
     const coreDuns = ['N12', 'N13', 'N14', 'N15'];
     if (btnHapus) {
         if (coreDuns.includes(dunKod)) {
@@ -3000,7 +2886,6 @@ function tambahDunChanged() {
         renderDunPdmDataList(dunKod);
     dmSelect.value = '';
     document.getElementById('btnHapusPdm').classList.add('hidden');
-    // Refresh lokaliti based on selected DUN
     refreshTambahLokaliti(dunKod, '');
 }
 
@@ -3013,18 +2898,15 @@ async function simpanPengundiBaru() {
     const kkVal = document.getElementById('tambahKetuaKeluarga').value.trim();
     const pegawaiId = parsePengundiId(pegawaiVal);
     const kkId = parsePengundiId(kkVal);
-    // If value is not in "ID - Nama" format, treat it as a new name to create
     const pegawaiNamaBaru = (!pegawaiId && pegawaiVal) ? pegawaiVal : null;
     const kkNamaBaru = (!kkId && kkVal) ? kkVal : null;
 
-    // Jika "Tambah DUN Baru" dipilih, auto-create DUN dulu
     if (dun === 'TAMBAH_DUN') {
         const dunBaruVal = document.getElementById('tambahDunBaru').value.trim();
         if (!dunBaruVal) {
             showToast('Sila masukkan nama DUN baru (cth: N16 - BANGGI)', 'error');
             return;
         }
-        // Parse "N16 - BANGGI" → kod: "N16", nama: "BANGGI"
         const dashIdx = dunBaruVal.indexOf('-');
         let dunKod = '', dunNama = '';
         if (dashIdx > -1) {
@@ -3202,7 +3084,6 @@ async function renderAuditLogs() {
 }
 
 // ========= ROLE HELPER FUNCTIONS =========
-// Role hierarchy rank (lower = higher rank)
 const ROLE_RANK = {
     'Developer': 1,
     'Admin (System Preset)': 2,
@@ -3231,16 +3112,15 @@ function getRoleRank(peranan) {
 }
 
 function getRoleBadge(peranan) {
-    // Legacy role mapping: normalize old DB values to new role names & badges
     const map = {
         'Developer': 'bh-badge-dev',
         'Admin (System Preset)': 'bh-badge-admin-system',
-        'Admin': 'bh-badge-admin-system',       // legacy "Admin" → Admin (System Preset)
+        'Admin': 'bh-badge-admin-system',
         'Admin (Future creation / Custom Admin)': 'bh-badge-admin-custom',
         'Admin (Custom)': 'bh-badge-admin-custom',
         'Petugas 1 (System Preset)': 'bh-badge-petugas1-system',
         'Petugas 1 (Pegawai Penyelaras)': 'bh-badge-petugas1-pp',
-        'Petugas Padang': 'bh-badge-petugas1-pp', // legacy → Petugas 1 (Pegawai Penyelaras)
+        'Petugas Padang': 'bh-badge-petugas1-pp',
         'Petugas 2 (Ketua Keluarga)': 'bh-badge-petugas2',
         'Pemerhati': 'bh-badge-pemerhati'
     };
@@ -3248,7 +3128,6 @@ function getRoleBadge(peranan) {
 }
 
 function getRoleDisplayName(peranan) {
-    // Normalize legacy role names for display
     const map = {
         'Petugas Padang': 'Petugas 1 (Pegawai Penyelaras)',
         'Admin': 'Admin (System Preset)',
@@ -3267,7 +3146,6 @@ async function renderUserManagement() {
         users.sort((a, b) => getRoleRank(a.peranan) - getRoleRank(b.peranan));
         
         content.innerHTML = `
-            <!-- Hirarki & Hak Akses Legend -->
             <div class="card mb-4">
                 <div class="flex items-center justify-between mb-3">
                     <h3 class="font-semibold text-gray-800">Hirarki & Hak Akses</h3>
@@ -3297,7 +3175,6 @@ async function renderUserManagement() {
                 </div>
             </div>
 
-            <!-- User Table -->
             <div class="card">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="font-semibold text-gray-800">Pengurusan Pengguna</h3>
@@ -3577,7 +3454,6 @@ async function renderKetuaKeluarga() {
                 </div>`}
             </div>
 
-            <!-- Modal Daftar/Edit Ketua Keluarga -->
             <div id="modalKetuaKeluarga" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden" onclick="if(event.target===this)this.classList.add('hidden')">
                 <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4">
                     <div class="flex items-center justify-between p-4 border-b">
@@ -3617,7 +3493,6 @@ async function renderKetuaKeluarga() {
             </div>
         `;
 
-        // Load DUN list into select
         try {
             const dunList = await api('/api/dun');
             const dunSelect = document.getElementById('ketuaDun');
@@ -3823,7 +3698,6 @@ async function renderPegawaiPenyelaras() {
                 </div>`}
             </div>
 
-            <!-- Modal Daftar/Edit Pegawai Penyelaras -->
             <div id="modalPegawaiPenyelaras" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden" onclick="if(event.target===this)this.classList.add('hidden')">
                 <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4">
                     <div class="flex items-center justify-between p-4 border-b">
@@ -3863,7 +3737,6 @@ async function renderPegawaiPenyelaras() {
             </div>
         `;
 
-        // Load DUN list into select
         try {
             const dunList = await api('/api/dun');
             const dunSelect = document.getElementById('pegawaiDun');
@@ -3885,7 +3758,6 @@ function pegawaiDunChanged() {
     const dunKod = document.getElementById('pegawaiDun').value;
     const dmInput = document.getElementById('pegawaiDm');
     if (dunKod && dmInput) {
-        // If DUN selected, optionally set a hint in dm field
         dmInput.placeholder = `Atau taip PDM untuk ${dunKod}`;
     } else if (dmInput) {
         dmInput.placeholder = 'Atau taip PDM';
@@ -3993,20 +3865,16 @@ function renderComingSoon(page) {
 // ============================================================
 // GLOBAL REPORTING FUNCTIONS (Cetak / Excel / PDF)
 // ============================================================
-// Fungsi generik yang mengesan jadual aktif dan mengeksport data
-
 function globalPrint() {
     window.print();
 }
 
 function globalDownloadExcel() {
-    // Cari jadual yang kelihatan dalam contentArea
     const container = document.getElementById('contentArea');
     if (!container) return;
     const table = container.querySelector('table');
     if (!table) { showToast('Tiada jadual untuk dieksport', 'error'); return; }
 
-    // Ekstrak data dari jadual (tbody sahaja, skip tfoot)
     let csv = '\uFEFF';
     const thead = table.querySelector('thead');
     if (thead) {
@@ -4031,7 +3899,6 @@ function globalDownloadExcel() {
         });
     }
 
-    // Download
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -4045,22 +3912,14 @@ function globalDownloadExcel() {
 }
 
 function globalDownloadPDF() {
-    // IMMEDIATE: Show loading toast so browser registers visual change (Next Paint)
     showToast('⏳ Menyediakan PDF...', 'success');
-
-    // OFFLOAD heavy DOM + window.open to setTimeout to unblock main thread (INP fix)
     setTimeout(() => {
         const container = document.getElementById('contentArea');
         if (!container) return;
         const table = container.querySelector('table');
         if (!table) { showToast('Tiada jadual untuk dieksport', 'error'); return; }
-
-        // Clone jadual untuk PDF (pastikan semua style inline untuk cetakan)
         const clone = table.cloneNode(true);
-        
-        // Dapatkan tajuk halaman
         const pageTitle = document.getElementById('pageTitle')?.textContent || 'Laporan';
-
         const pdfHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${pageTitle}</title>
             <style>
                 body { font-family: 'Segoe UI', Arial, sans-serif; margin: 20px; }
@@ -4076,14 +3935,13 @@ function globalDownloadPDF() {
             <p class="subtitle">Dikeluarkan: ${new Date().toLocaleDateString('ms-MY')}</p>
             ${clone.outerHTML}
     </body></html>`;
-
         const w = window.open('', '_blank', 'width=1100,height=700');
         if (w) {
             w.document.write(pdfHtml);
             w.document.close();
             setTimeout(() => { w.print(); }, 500);
         }
-    }, 0); // setTimeout 0 — offload to macrotask queue, unblocks main thread
+    }, 0);
 }
 
 // ============================================================
@@ -4095,7 +3953,6 @@ function renderApp() {
     if (window.innerWidth < 768) document.getElementById('sidebar').classList.add('closed');
     else document.getElementById('sidebar').classList.remove('closed');
     document.getElementById('userInfo').innerHTML = `
-        <!-- Butang Utiliti Global -->
         <button onclick="globalPrint()" class="text-gray-500 hover:text-gray-700 p-1.5 rounded-lg hover:bg-gray-100 transition-colors" title="Cetak">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
@@ -4111,9 +3968,7 @@ function renderApp() {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
             </svg>
         </button>
-        <!-- Pembahagi -->
         <span class="text-gray-300 text-lg mx-0.5">|</span>
-        <!-- Akaun -->
         <span class="hidden md:block text-sm text-gray-600">${state.user?.nama_penuh}</span><span class="${(() => {
             const r = state.user?.peranan || '';
             if (r === 'Developer') return 'badge bh-badge-dev';
@@ -4142,7 +3997,6 @@ function toggleSidebar() {
 }
 
 document.getElementById('menuToggle')?.addEventListener('click', toggleSidebar);
-// 🛡️ SAFETY: renderApp() in try/catch
 try {
     renderApp();
 } catch(e) {
@@ -4170,13 +4024,45 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// 🛡️ OVERRIDE: app.js telah selesai dimuat — override navigate() dan re-render current page
-// Ini memastikan fungsi render sebenar (bukan stub dari index.html) digunakan
+// 🛡️ OVERRIDE: app.js telah selesai dimuat — override navigate() dengan RBAC guards lengkap
 (function() {
     const savedNavigate = window.navigate;
     window.navigate = function(page) {
-        // Only call if user is authenticated
         if (!requiresAuth()) { renderLoginPage(); return; }
+        
+        // 🛡️ ACL ROUTE GUARD: Pemerhati hanya dihalang dari audit & users
+        if (checkPemerhati()) {
+            const blockedPages = ['audit', 'users'];
+            if (blockedPages.includes(page)) {
+                showToast('Akses Tidak Dibenarkan', 'error');
+                page = 'dashboard';
+                state.currentPage = page;
+                localStorage.setItem('currentPage', page);
+            }
+        }
+        
+        // 🛡️ ACL ROUTE GUARD: Petugas 1 hanya boleh akses dashboard, pengundi, ketua-keluarga
+        if (checkPetugas1()) {
+            const allowedPages = ['dashboard', 'pengundi', 'ketua-keluarga'];
+            if (!allowedPages.includes(page)) {
+                showToast('Akses Tidak Dibenarkan', 'error');
+                page = 'dashboard';
+                state.currentPage = page;
+                localStorage.setItem('currentPage', page);
+            }
+        }
+        
+        // 🛡️ ACL ROUTE GUARD: Petugas 2 hanya boleh akses dashboard & pengundi
+        if (checkPetugas2()) {
+            const allowedPages = ['dashboard', 'pengundi'];
+            if (!allowedPages.includes(page)) {
+                showToast('Akses Tidak Dibenarkan', 'error');
+                page = 'dashboard';
+                state.currentPage = page;
+                localStorage.setItem('currentPage', page);
+            }
+        }
+        
         state.currentPage = page;
         localStorage.setItem('currentPage', page);
         renderSidebar();
@@ -4199,9 +4085,9 @@ document.addEventListener('click', (e) => {
         }
         if (page==='dashboard') renderDashboard();
         else if (page==='pengundi') renderPengundi();
-    else if (page==='approval') { if (!checkAdmin()) { navigate('dashboard'); return; } renderApprovalQueue(); }
-    else if (page==='audit') renderAuditLogs();
-    else if (page==='users') renderUserManagement();
+        else if (page==='approval') { if (!checkAdmin()) { navigate('dashboard'); return; } renderApprovalQueue(); }
+        else if (page==='audit') renderAuditLogs();
+        else if (page==='users') renderUserManagement();
         else if (page==='import') renderImportData();
         else if (page==='survey') renderSurveyList();
         else if (page==='survey-create') renderCreateSurvey();
@@ -4211,7 +4097,6 @@ document.addEventListener('click', (e) => {
         else if (page==='ketua-keluarga') renderKetuaKeluarga();
         else renderComingSoon(page);
     };
-    // Re-render current page with the real navigate function
     if (state.currentPage && requiresAuth()) {
         window.navigate(state.currentPage);
     }
