@@ -3348,7 +3348,7 @@ function renderDunPdmColumn(p) {
 // ========= KETUA KELUARGA MANAGEMENT (Admin + Petugas 1 View-Only) =========
 async function renderKetuaKeluarga() {
     const isViewOnly = checkPetugas1();
-    if (!checkAdmin() && !checkPetugas1()) { showToast('Akses ditolak.', 'error'); navigate('dashboard'); return; }
+    if (!checkAdmin() && !checkPetugas1() && !checkPemerhati()) { showToast('Akses ditolak.', 'error'); navigate('dashboard'); return; }
     const content = document.getElementById('contentArea');
     content.innerHTML = '<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan data Ketua Keluarga...</span></div>';
     try {
