@@ -913,6 +913,52 @@ async function renderDashboard() {
             <div id="pdm-tables" class="mt-6">${pdmTablesHtml}</div>
             `;
 
+        // ================================================================
+        // 🛡️ BOTTOM-UP SYNC HELPER: After PDM recalculation, copy PDM JUMLAH
+        // row values to Parlimen rows — guarantees 100% match between DUN
+        // tables and Parlimen table.
+        // ================================================================
+        function syncPdmJumlahToParlimen() {
+            const dunCodes = ['N12', 'N13', 'N14', 'N15'];
+            dunCodes.forEach(dunKod => {
+                const pdmCard = document.querySelector(`.pdm-table-card[data-dun-code="${dunKod}"]`);
+                const parlRow = document.querySelector(`#parlimenMirrorBody tr[data-dun-row="${dunKod}"]`);
+                if (!pdmCard || !parlRow) return;
+                const pdmTable = pdmCard.querySelector('table');
+                if (!pdmTable) return;
+                const rows = pdmTable.querySelectorAll('tbody tr');
+                const pdmJumlah = rows[rows.length - 1];
+                if (!pdmJumlah || !pdmJumlah.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
+                const pdmTds = pdmJumlah.querySelectorAll('td');
+                const parlTds = parlRow.children;
+                // PDM JUMLAH: td[0]=colspan2, td[1]=Berdaftar, td[2]=Anggaran, td[3]=PRU, td[4]=PRN, td[5]=SasaranUndi, td[6]=SasaranKK, td[7]=KKTerkini
+                // Parlimen: td[0]=PARLIMEN(rowspan), td[1]=DUN, td[2]=Berdaftar, td[3]=Anggaran, td[4]=PRU, td[5]=PRN, td[6]=SasaranUndi, td[7]=SasaranKK, td[8]=KKTerkini
+                if (pdmTds[1] && parlTds[2]) parlTds[2].textContent = pdmTds[1].textContent;
+                if (pdmTds[2] && parlTds[3]) parlTds[3].textContent = pdmTds[2].textContent;
+                if (pdmTds[5] && parlTds[6]) parlTds[6].textContent = pdmTds[5].textContent;
+                if (pdmTds[6] && parlTds[7]) parlTds[7].textContent = pdmTds[6].textContent;
+                if (pdmTds[7] && parlTds[8]) parlTds[8].textContent = pdmTds[7].textContent;
+            });
+            // Recalculate Parlimen JUMLAH row by summing per-DUN rows
+            const parlJumlah = document.querySelector('#parlimenMirrorBody tr:last-child');
+            if (!parlJumlah || !parlJumlah.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
+            const parlJumlahTds = parlJumlah.querySelectorAll('td');
+            let sumBerdaftar = 0, sumAnggaran = 0, sumSasaranUndi = 0, sumSasaranKK = 0, sumKKTerkini = 0;
+            document.querySelectorAll('#parlimenMirrorBody tr:not(:last-child)').forEach(tr => {
+                const cells = tr.children;
+                sumBerdaftar += parseInt((cells[2]?.textContent || '0').replace(/,/g, '')) || 0;
+                sumAnggaran += parseInt((cells[3]?.textContent || '0').replace(/,/g, '')) || 0;
+                sumSasaranUndi += parseInt((cells[6]?.textContent || '0').replace(/,/g, '')) || 0;
+                sumSasaranKK += parseInt((cells[7]?.textContent || '0').replace(/,/g, '')) || 0;
+                sumKKTerkini += parseInt((cells[8]?.textContent || '0').replace(/,/g, '')) || 0;
+            });
+            if (parlJumlahTds[2]) parlJumlahTds[2].textContent = sumBerdaftar.toLocaleString();
+            if (parlJumlahTds[3]) parlJumlahTds[3].textContent = sumAnggaran.toLocaleString();
+            if (parlJumlahTds[6]) parlJumlahTds[6].textContent = sumSasaranUndi.toLocaleString();
+            if (parlJumlahTds[7]) parlJumlahTds[7].textContent = sumSasaranKK.toLocaleString();
+            if (parlJumlahTds[8]) parlJumlahTds[8].textContent = sumKKTerkini.toLocaleString();
+        }
+
         // Live turnout input binding (DOM now exists)
         const turnoutInput = document.getElementById('inputTurnoutPercentage');
         if (turnoutInput) {
@@ -965,26 +1011,6 @@ async function renderDashboard() {
         if (kkRatioInput) {
             kkRatioInput.addEventListener('input', function() {
                 const ratio = parseFloat(this.value) || 13;
-                
-                // 🛡️ Parlimen Mirror Table: recalculate sasaran-kk-pdm by CSS class
-                document.querySelectorAll('#parlimenMirrorBody .sasaran-kk-pdm').forEach(kkCell => {
-                    const row = kkCell.closest('tr');
-                    if (row && row.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
-                    const undiCell = row?.querySelector('.sasaran-undi-pdm');
-                    if (undiCell) {
-                        const undi = parseInt((undiCell.textContent || '0').replace(/,/g, '')) || 0;
-                        kkCell.textContent = Math.round(undi / ratio).toLocaleString();
-                    }
-                });
-                const lastRow = document.querySelector('#parlimenMirrorBody tr:last-child');
-                if (lastRow && lastRow.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) {
-                    const lastKKCell = lastRow.querySelector('.sasaran-kk-pdm');
-                    let sumKK = 0;
-                    document.querySelectorAll('#parlimenMirrorBody tr:not(:last-child) .sasaran-kk-pdm').forEach(kkCell => {
-                        sumKK += parseInt((kkCell.textContent || '0').replace(/,/g, '')) || 0;
-                    });
-                    if (lastKKCell) lastKKCell.textContent = sumKK.toLocaleString();
-                }
 
                 // PDM Tables: recalculate sasaran-kk-pdm and sum each table's total
                 document.querySelectorAll('#pdm-tables .sasaran-kk-pdm').forEach(kkCell => {
@@ -1010,6 +1036,8 @@ async function renderDashboard() {
                         if (lastCells[6]) lastCells[6].textContent = sumKK.toLocaleString();
                     }
                 });
+                // 🛡️ BOTTOM-UP: After PDM recalc, mirror PDM JUMLAH to Parlimen rows
+                syncPdmJumlahToParlimen();
             });
         }
 
