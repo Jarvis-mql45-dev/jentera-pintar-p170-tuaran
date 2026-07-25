@@ -884,7 +884,7 @@ async function renderDashboard() {
         const DUN_PDM_CODES = ['N12', 'N13', 'N14', 'N15'];
         const DUN_PDM_NAMES = { 'N12': 'DUN N12 SULAMAN', 'N13': 'DUN N13 PANTAI DALIT', 'N14': 'DUN N14 TAMPARULI', 'N15': 'DUN N15 KIULU' };
         const [data, ...pdmResults] = await Promise.all([
-            api(`/api/dashboard${selectedDun ? `?dun=${selectedDun}` : ''}`),
+            api(`/api/dashboard${selectedDun ? `?dun=${selectedDun}` : ''}`).catch(() => ({})),
             ...DUN_PDM_CODES.map(kod => api(`/api/dashboard/pdm/${kod}`).catch(() => ({ data: [] })))
         ]);
         console.log("[Dashboard Data Fetched]", data);
@@ -896,7 +896,7 @@ async function renderDashboard() {
             const targetContainer = document.getElementById('contentArea') || document.getElementById('dashboard-container') || document.querySelector('.main-content') || document.body;
             if (!targetContainer) throw new Error("Could not find any suitable DOM container (like #contentArea) to inject the HTML.");
             
-            if (!state.pdmList.length) state.pdmList = await api('/api/pdm');
+            if (!state.pdmList || !state.pdmList.length) state.pdmList = await api('/api/pdm');
             // 🛡️ Guarded destructuring with optional chaining to prevent "Cannot read properties of undefined"
 
         // 🛡️ Build PDM tables HTML FIRST (before any template reference)
@@ -1738,7 +1738,7 @@ async function renderPengundi() {
     const content = document.getElementById('contentArea');
     content.innerHTML = '<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan senarai pengundi...</span></div>';
     try {
-        if (!state.pdmList.length) state.pdmList = await api('/api/pdm');
+        if (!state.pdmList || !state.pdmList.length) state.pdmList = await api('/api/pdm');
         const dmParam = selectedFilters.pdm && selectedFilters.pdm.length
             ? ''
             : (state.pengundiDm ? `&dm[]=${encodeURIComponent(state.pengundiDm)}` : '');
