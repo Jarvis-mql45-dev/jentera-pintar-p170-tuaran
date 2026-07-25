@@ -159,6 +159,10 @@ function handleLogout() {
 function requiresAuth() { return !!(state.token && state.user); }
 
 function checkAdmin() { return state.user?.peranan?.startsWith('Admin') || state.user?.peranan === 'Developer'; }
+function checkPemerhati() { return state.user?.peranan === 'Pemerhati'; }
+function checkPetugas1() { return state.user?.peranan === 'Petugas 1 (System Preset)' || state.user?.peranan === 'Petugas 1 (Pegawai Penyelaras)'; }
+function checkDeveloper() { return state.user?.peranan === 'Developer'; }
+function checkAdminOrDeveloper() { return checkAdmin() || checkDeveloper(); }
 
 // ============================================================
 // RENDER FUNCTIONS
@@ -228,7 +232,7 @@ function renderSidebar() {
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Kelulusan Data
                 <span id="approvalBadge" class="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full hidden">0</span>
             </button>` : ''}
-            ${peranan.startsWith('Admin') || peranan==='Developer' ? `
+            ${!(peranan==='Pemerhati' || peranan.startsWith('Petugas 1')) ? `
             <div class="text-xs text-gray-400 uppercase font-semibold mb-2 mt-4 px-3">Pentadbiran</div>
             <button onclick="navigate('audit')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='audit'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg> Log Aktiviti
@@ -242,6 +246,13 @@ function renderSidebar() {
             <button onclick="navigate('pegawai-penyelaras')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='pegawai-penyelaras'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg> Pegawai Penyelaras
             </button>
+            ` : ''}
+            ${checkPetugas1() ? `
+            <button onclick="navigate('ketua-keluarga')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='ketua-keluarga'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg> Ketua Keluarga
+            </button>
+            ` : ''}
+            ${peranan.startsWith('Admin') || peranan==='Developer' ? `
             <button onclick="navigate('ketua-keluarga')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='ketua-keluarga'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg> Ketua Keluarga
             </button>
@@ -293,6 +304,28 @@ function renderSidebar() {
 
 function navigate(page) {
     if (!requiresAuth()) { renderLoginPage(); return; }
+    
+    // 🛡️ ACL ROUTE GUARD: Pemerhati hanya boleh akses dashboard & pengundi
+    if (checkPemerhati()) {
+        if (page !== 'dashboard' && page !== 'pengundi') {
+            showToast('Akses Tidak Dibenarkan', 'error');
+            page = 'dashboard';
+            state.currentPage = page;
+            localStorage.setItem('currentPage', page);
+        }
+    }
+    
+    // 🛡️ ACL ROUTE GUARD: Petugas 1 hanya boleh akses dashboard, pengundi, ketua-keluarga
+    if (checkPetugas1()) {
+        const allowedPages = ['dashboard', 'pengundi', 'ketua-keluarga'];
+        if (!allowedPages.includes(page)) {
+            showToast('Akses Tidak Dibenarkan', 'error');
+            page = 'dashboard';
+            state.currentPage = page;
+            localStorage.setItem('currentPage', page);
+        }
+    }
+    
     state.currentPage = page;
     localStorage.setItem('currentPage', page);
     renderSidebar();
@@ -3171,10 +3204,10 @@ const ROLE_LEGEND = [
     { rank: 1, peranan: 'Developer', badge: 'bh-badge-dev', css: 'background:#7c3aed;color:#fff;', akses: 'Full akses sistem (Superuser)' },
     { rank: 2, peranan: 'Admin (System Preset)', badge: 'bh-badge-admin-system', css: 'background:#2563eb;color:#fff;', akses: 'Semua pentadbiran & kelulusan' },
     { rank: 3, peranan: 'Admin (Custom)', badge: 'bh-badge-admin-custom', css: 'background:#0ea5e9;color:#fff;', akses: 'Semua pentadbiran & kelulusan' },
-    { rank: 4, peranan: 'Petugas 1 (System Preset)', badge: 'bh-badge-petugas1-system', css: 'background:#16a34a;color:#fff;', akses: 'Urus pengundi & data lapangan' },
-    { rank: 5, peranan: 'Petugas 1 (Pegawai Penyelaras)', badge: 'bh-badge-petugas1-pp', css: 'background:#059669;color:#fff;', akses: 'Urus pengundi & data lapangan' },
+    { rank: 4, peranan: 'Petugas 1 (System Preset)', badge: 'bh-badge-petugas1-system', css: 'background:#16a34a;color:#fff;', akses: 'Urus pengundi & data lapangan, View-only Ketua Keluarga' },
+    { rank: 5, peranan: 'Petugas 1 (Pegawai Penyelaras)', badge: 'bh-badge-petugas1-pp', css: 'background:#059669;color:#fff;', akses: 'Urus pengundi & data lapangan, View-only Ketua Keluarga' },
     { rank: 6, peranan: 'Petugas 2 (Ketua Keluarga)', badge: 'bh-badge-petugas2', css: 'background:#ea580c;color:#fff;', akses: 'Lihat & kemaskini KK' },
-    { rank: 7, peranan: 'Pemerhati', badge: 'bh-badge-pemerhati', css: 'background:#6b7280;color:#fff;', akses: 'Lihat sahaja' }
+    { rank: 7, peranan: 'Pemerhati', badge: 'bh-badge-pemerhati', css: 'background:#6b7280;color:#fff;', akses: 'Lihat sahaja (Kecuali Pengurusan Pengguna & Log Aktiviti)' }
 ];
 
 function getRoleRank(peranan) {
@@ -3419,9 +3452,10 @@ function renderDunPdmColumn(p) {
     return dunPart || dmPart || '-';
 }
 
-// ========= KETUA KELUARGA MANAGEMENT (Admin only) =========
+// ========= KETUA KELUARGA MANAGEMENT (Admin + Petugas 1 View-Only) =========
 async function renderKetuaKeluarga() {
-    if (!checkAdmin()) { showToast('Akses ditolak. Hanya Admin dibenarkan.', 'error'); navigate('dashboard'); return; }
+    const isViewOnly = checkPetugas1();
+    if (!checkAdmin() && !checkPetugas1()) { showToast('Akses ditolak.', 'error'); navigate('dashboard'); return; }
     const content = document.getElementById('contentArea');
     content.innerHTML = '<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan data Ketua Keluarga...</span></div>';
     try {
@@ -3465,7 +3499,7 @@ async function renderKetuaKeluarga() {
                 <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
                     <h3 class="font-semibold text-gray-800">Senarai Ketua Keluarga</h3>
                     <div class="flex items-center gap-2">
-                        <button onclick="showTambahKetuaKeluarga()" class="btn btn-primary text-sm">+ Tambah Ketua Keluarga</button>
+                        ${isViewOnly ? '<span class="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-lg">(Lihat Sahaja / View Only)</span>' : '<button onclick="showTambahKetuaKeluarga()" class="btn btn-primary text-sm">+ Tambah Ketua Keluarga</button>'}
                         <span class="text-sm text-gray-500">${total.toLocaleString()} ketua keluarga</span>
                     </div>
                 </div>
