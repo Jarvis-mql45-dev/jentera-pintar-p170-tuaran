@@ -1045,7 +1045,8 @@ async function renderDashboard() {
                             const kk = rows[i].querySelector('.sasaran-kk-pdm');
                             if (kk) sumKK += parseInt((kk.textContent || '0').replace(/,/g, '')) || 0;
                         }
-                        if (lastCells[7]) lastCells[7].textContent = sumKK.toLocaleString();
+                        // 🛡️ POKA-YOKE: lastCells[6] = Sasaran K.K (after colspan="2" at [0])
+                        if (lastCells[6]) lastCells[6].textContent = sumKK.toLocaleString();
                     }
                 });
             });
