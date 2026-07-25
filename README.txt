@@ -412,6 +412,29 @@ Sistem ini menyediakan:
    Status : SELESAI ✅
 
 
+   4.13 ROLES & HIERARKI PENGGUNA (SISTEM BAHARU)
+   --------------------------------------------------------------------
+   ISU    : Sistem lama hanya menyokong 3 peranan (Admin, Petugas Padang,
+            Pemerhati). Role baru diperkenalkan untuk menyelaraskan struktur
+            hierarki dengan keperluan pengurusan jentera P170 Tuaran.
+   PENYELESAIAN:
+      - 7 peranan baru diperkenalkan dengan hierarki jelas:
+        1. Developer — Superuser, full akses sistem
+        2. Admin (System Preset) — Pentadbiran penuh, preset sistem
+        3. Admin (Future creation / Custom Admin) — Pentadbiran penuh, custom
+        4. Petugas 1 (System Preset) — Urus pengundi & data, preset sistem
+        5. Petugas 1 (Pegawai Penyelaras) — Urus pengundi & data lapangan
+        6. Petugas 2 (Ketua Keluarga) — Lihat & kemaskini KK
+        7. Pemerhati — Lihat sahaja
+      - Pattern-based admin detection: `peranan.startsWith('Admin')`
+      - Legacy mapping: "Petugas Padang" → "Petugas 1 (Pegawai Penyelaras)"
+      - Legacy mapping: "Admin" → "Admin (System Preset)"
+      - Hierarki legend ditambah dalam halaman Pengurusan Pengguna
+      - Sorting mengikut rank (Developer → Pemerhati)
+   Fail   : backend/main.py, frontend/js/app.js
+   Status : SELESAI ✅
+
+
 5. PELAN PEMBANGUNAN MENYELURUH (OVERALL DEVELOPMENT PLAN)
 ================================================================================
 
@@ -486,6 +509,34 @@ Sistem ini menyediakan:
      Menyediakan fungsi satu klik untuk Ketua Jentera memuat turun
      laporan statistik status sokongan semasa dalam format .csv atau
      .pdf bagi tujuan mesyuarat strategi.
+
+
+6. MAKLUMAT LOG MASUK LALAI (DEFAULT LOGIN CREDENTIALS)
+================================================================================
+
+  Sistem datang dengan 5 akaun lalai yang di-seed secara automatik semasa
+  permulaan (startup). Akaun-akaun ini dicipta jika dan hanya jika ia belum
+  wujud dalam pangkalan data.
+
+  ╔═══════════════╤══════════════╤═══════════════════════════════════════════╗
+  ║ Nama Pengguna │ Kata Laluan  │ Peranan                                  ║
+  ╠═══════════════╪══════════════╪═══════════════════════════════════════════╣
+  ║ developer     │ dev123       │ Developer (Superuser)                    ║
+  ║ admin         │ admin123     │ Admin (System Preset)                    ║
+  ║ petugas       │ petugas123   │ Petugas 1 (System Preset)                ║
+  ║ ketuafamily   │ family123    │ Petugas 2 (Ketua Keluarga)               ║
+  ║ pemerhati     │ pemerhati123 │ Pemerhati                                ║
+  ╚═══════════════╧══════════════╧═══════════════════════════════════════════╝
+
+  NOTA PENTING:
+  1. Akaun Developer adalah superuser — boleh mengakses semua endpoint
+     tanpa sekatan peranan.
+  2. Semua akaun lalai hanya dicipta jika username belum wujud dalam DB.
+     Jika akaun telah dimanipulasi (contoh: dipadam), ia TIDAK akan
+     dicipta semula secara automatik.
+  3. Kata laluan boleh ditukar selepas log masuk pertama.
+  4. Untuk pengeluaran (production), disarankan menukar kata laluan lalai
+     sebaik sahaja sistem digunakan secara rasmi.
 
 
 ================================================================================
