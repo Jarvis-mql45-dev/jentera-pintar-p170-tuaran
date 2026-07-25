@@ -390,7 +390,7 @@ function renderSurveyList() {
             <div class="card">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="font-semibold text-gray-800">Senarai Soal Selidik</h3>
-                    <button onclick="navigate('survey-create')" class="btn btn-primary text-sm">+ Cipta Baru</button>
+                    ${checkPemerhati() ? '<button disabled class="bg-gray-300 text-gray-500 opacity-60 cursor-not-allowed rounded-lg px-3 py-2 text-sm border-0">+ Cipta Baru</button>' : '<button onclick="navigate(\'survey-create\')" class="btn btn-primary text-sm">+ Cipta Baru</button>'}
                 </div>
                 ${!hasSurveys ? '<div class="text-center py-10 text-gray-400">Tiada soal selidik yet. Klik "Cipta Baru" untuk mulakan.</div>' : `
                 <div class="overflow-x-auto">
@@ -409,7 +409,7 @@ function renderSurveyList() {
                                         <button onclick="viewSurvey(${s.id})" class="btn btn-primary text-xs py-1 px-2">Lihat</button>
                                         <button onclick="viewSurveyResponses(${s.id})" class="btn btn-outline text-xs py-1 px-2">Respons</button>
                                         <button onclick="copySurveyLink(${s.id})" class="btn btn-warning text-xs py-1 px-2">Salin Pautan</button>
-                                        <button onclick="deleteSurvey(${s.id})" class="btn btn-danger text-xs py-1 px-2">Padam</button>
+                                        ${checkPemerhati() ? '<button disabled class="bg-gray-300 text-gray-500 opacity-60 cursor-not-allowed rounded px-2 py-1 text-xs border-0">Padam</button>' : '<button onclick="deleteSurvey(' + s.id + ')" class="btn btn-danger text-xs py-1 px-2">Padam</button>'}
                                     </div>
                                 </td>
                             </tr>`;
@@ -528,12 +528,10 @@ function renderCreateSurvey() {
                 </div>
 
                 <div id="manualAddSection" class="flex gap-2 mb-4">
-                    <button onclick="addQuestion('short_text')" class="btn btn-outline text-sm">+ Teks Pendek</button>
-                    <button onclick="addQuestion('multiple_choice')" class="btn btn-outline text-sm">+ Pilihan Tunggal</button>
-                    <button onclick="addQuestion('checkboxes')" class="btn btn-outline text-sm">+ Pilihan Pelbagai</button>
+                    ${checkPemerhati() ? '<button disabled class="bg-gray-300 text-gray-500 opacity-60 cursor-not-allowed rounded-lg px-3 py-2 text-sm border-0">+ Teks Pendek</button><button disabled class="bg-gray-300 text-gray-500 opacity-60 cursor-not-allowed rounded-lg px-3 py-2 text-sm border-0">+ Pilihan Tunggal</button><button disabled class="bg-gray-300 text-gray-500 opacity-60 cursor-not-allowed rounded-lg px-3 py-2 text-sm border-0">+ Pilihan Pelbagai</button>' : '<button onclick="addQuestion(\'short_text\')" class="btn btn-outline text-sm">+ Teks Pendek</button><button onclick="addQuestion(\'multiple_choice\')" class="btn btn-outline text-sm">+ Pilihan Tunggal</button><button onclick="addQuestion(\'checkboxes\')" class="btn btn-outline text-sm">+ Pilihan Pelbagai</button>'}
                 </div>
 
-                <button onclick="publishSurvey()" class="btn btn-success w-full">Terbitkan Soal Selidik</button>
+                ${checkPemerhati() ? '<button disabled class="bg-gray-300 text-gray-500 opacity-60 cursor-not-allowed w-full rounded-lg px-4 py-2.5 text-sm border-0 font-semibold">Terbitkan Soal Selidik</button>' : '<button onclick="publishSurvey()" class="btn btn-success w-full">Terbitkan Soal Selidik</button>'}
             </div>
         </div>`;
 }
@@ -1766,7 +1764,7 @@ async function renderPengundi() {
                 <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
                     <h3 class="font-semibold text-gray-800">Senarai Pengundi</h3>
                     <div class="flex items-center gap-2">
-                        <button onclick="tambahPengundi()" class="btn btn-primary text-sm">+ Tambah Pengundi</button>
+                        ${checkPemerhati() ? '<button disabled class="bg-gray-300 text-gray-500 opacity-60 cursor-not-allowed rounded-lg px-3 py-2 text-sm border-0">+ Tambah Pengundi</button>' : '<button onclick="tambahPengundi()" class="btn btn-primary text-sm">+ Tambah Pengundi</button>'}
                         <span class="text-sm text-gray-500">${total.toLocaleString()} pengundi</span>
                     </div>
                 </div>
@@ -1819,7 +1817,7 @@ async function renderPengundi() {
                             })()}</td>
                             <td class="text-xs">${p.ketua_keluarga_nama || '<span class="text-gray-400">-</span>'}</td>
                             <td class="text-xs">${p.pegawai_penyelaras_nama || '<span class="text-gray-400">-</span>'}</td>
-                            <td class="text-xs"><button onclick="editPengundi('${p.id}')" class="btn btn-primary text-xs py-1 px-1.5">Edit</button> <button onclick="padamPengundi('${p.id}')" class="btn btn-outline text-xs py-1 px-1.5 border-red-300 text-red-600 hover:bg-red-50">Padam</button></td>
+                            <td class="text-xs">${checkPemerhati() ? '<button disabled class="bg-gray-300 text-gray-500 opacity-60 cursor-not-allowed rounded px-1.5 py-1 text-xs border-0 mr-1">Edit</button> <button disabled class="bg-gray-300 text-gray-500 opacity-60 cursor-not-allowed rounded px-1.5 py-1 text-xs border-0">Padam</button>' : '<button onclick="editPengundi(\'' + p.id + '\')" class="btn btn-primary text-xs py-1 px-1.5">Edit</button> <button onclick="padamPengundi(\'' + p.id + '\')" class="btn btn-outline text-xs py-1 px-1.5 border-red-300 text-red-600 hover:bg-red-50">Padam</button>'}</td>
                         </tr>`).join('')}</tbody>
                     </table>
                 </div>
@@ -3394,7 +3392,7 @@ async function renderKetuaKeluarga() {
                 <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
                     <h3 class="font-semibold text-gray-800">Senarai Ketua Keluarga</h3>
                     <div class="flex items-center gap-2">
-                        ${isViewOnly ? '<span class="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-lg">(Lihat Sahaja / View Only)</span>' : '<button onclick="showTambahKetuaKeluarga()" class="btn btn-primary text-sm">+ Tambah Ketua Keluarga</button>'}
+                        ${checkPemerhati() ? '<button disabled class="bg-gray-300 text-gray-500 opacity-60 cursor-not-allowed rounded-lg px-3 py-2 text-sm border-0">+ Tambah Ketua Keluarga</button>' : (isViewOnly ? '<span class="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-lg">(Lihat Sahaja / View Only)</span>' : '<button onclick="showTambahKetuaKeluarga()" class="btn btn-primary text-sm">+ Tambah Ketua Keluarga</button>')}
                         <span class="text-sm text-gray-500">${total.toLocaleString()} ketua keluarga</span>
                     </div>
                 </div>
@@ -3437,8 +3435,7 @@ async function renderKetuaKeluarga() {
                                 <td><span class="badge badge-sah">${p.jumlah_pengundi || 0}</span></td>
                                 <td>
                                     <div class="flex gap-1">
-                                        <button onclick="editKetuaKeluarga(${p.id})" class="btn btn-primary text-xs py-1 px-2">Edit</button>
-                                        <button onclick="padamKetuaKeluarga(${p.id})" class="btn btn-outline text-xs py-1 px-2 border-red-300 text-red-600 hover:bg-red-50">Padam</button>
+                                        ${checkPemerhati() ? '<button disabled class="bg-gray-300 text-gray-500 opacity-60 cursor-not-allowed rounded px-2 py-1 text-xs border-0 mr-1">Edit</button><button disabled class="bg-gray-300 text-gray-500 opacity-60 cursor-not-allowed rounded px-2 py-1 text-xs border-0">Padam</button>' : '<button onclick="editKetuaKeluarga(' + p.id + ')" class="btn btn-primary text-xs py-1 px-2">Edit</button><button onclick="padamKetuaKeluarga(' + p.id + ')" class="btn btn-outline text-xs py-1 px-2 border-red-300 text-red-600 hover:bg-red-50">Padam</button>'}
                                     </div>
                                 </td>
                             </tr>`).join('')}
@@ -3638,7 +3635,7 @@ async function renderPegawaiPenyelaras() {
                 <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
                     <h3 class="font-semibold text-gray-800">Senarai Pegawai Penyelaras</h3>
                     <div class="flex items-center gap-2">
-                        <button onclick="showTambahPegawaiPenyelaras()" class="btn btn-primary text-sm">+ Tambah Pegawai Baru</button>
+                        ${checkPemerhati() ? '<button disabled class="bg-gray-300 text-gray-500 opacity-60 cursor-not-allowed rounded-lg px-3 py-2 text-sm border-0">+ Tambah Pegawai Baru</button>' : '<button onclick="showTambahPegawaiPenyelaras()" class="btn btn-primary text-sm">+ Tambah Pegawai Baru</button>'}
                         <span class="text-sm text-gray-500">${total.toLocaleString()} pegawai</span>
                     </div>
                 </div>
@@ -3681,8 +3678,7 @@ async function renderPegawaiPenyelaras() {
                                 <td><span class="badge badge-sah">${p.jumlah_pengundi || 0}</span></td>
                                 <td>
                                     <div class="flex gap-1">
-                                        <button onclick="editPegawaiPenyelaras(${p.id})" class="btn btn-primary text-xs py-1 px-2">Edit</button>
-                                        <button onclick="padamPegawaiPenyelaras(${p.id})" class="btn btn-outline text-xs py-1 px-2 border-red-300 text-red-600 hover:bg-red-50">Padam</button>
+                                        ${checkPemerhati() ? '<button disabled class="bg-gray-300 text-gray-500 opacity-60 cursor-not-allowed rounded px-2 py-1 text-xs border-0 mr-1">Edit</button><button disabled class="bg-gray-300 text-gray-500 opacity-60 cursor-not-allowed rounded px-2 py-1 text-xs border-0">Padam</button>' : '<button onclick="editPegawaiPenyelaras(' + p.id + ')" class="btn btn-primary text-xs py-1 px-2">Edit</button><button onclick="padamPegawaiPenyelaras(' + p.id + ')" class="btn btn-outline text-xs py-1 px-2 border-red-300 text-red-600 hover:bg-red-50">Padam</button>'}
                                     </div>
                                 </td>
                             </tr>`).join('')}
