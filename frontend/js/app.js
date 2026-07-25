@@ -1479,6 +1479,8 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
     let rows = '';
     let isFirstRow = true;
     const colSums = { berdaftar: 0, turnout: 0, pru15: 0, prn2025: 0, sasaran_undi: 0, kk: 0, kk_terkini: 0, putih: 0, atas: 0, hitam: 0, tidak: 0, meninggal: 0, usia18: 0, usia31: 0, usia60: 0 };
+    // 🛡️ POKA-YOKE: Track individual DUN sasaranKK values for guaranteed-accurate total
+    const sasaranKKValues = [];
 
     allDunCodes.forEach((kod) => {
         const agg = dunAgg[kod];
@@ -1520,6 +1522,8 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
         colSums.putih += agg.putih; colSums.atas += agg.atas_pagar; colSums.hitam += agg.hitam;
         colSums.tidak += agg.tidak_dikenali; colSums.meninggal += agg.meninggal;
         colSums.usia18 += agg.usia_18_30; colSums.usia31 += agg.usia_31_59; colSums.usia60 += agg.usia_60plus;
+        // 🛡️ Track each DUN's sasaranKK for guaranteed-accurate total calculation
+        sasaranKKValues.push(sasaranKK);
     });
 
     rows += `<tr class="bg-gray-100 font-semibold">
@@ -1529,7 +1533,7 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.pru15.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.prn2025.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.sasaran_undi.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.kk.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-kk-pdm">${sasaranKKValues.reduce((a, b) => a + b, 0).toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.kk_terkini.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle text-green-700">${colSums.putih.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle text-yellow-700">${colSums.atas.toLocaleString()}</td>
