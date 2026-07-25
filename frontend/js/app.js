@@ -113,16 +113,13 @@ function showToast(message, type = 'success') {
 }
 
 async function handleLogin(username, password) {
-    console.log("🔐 Login payload:", { username, kata_laluan_length: password.length });
     try {
         const res = await fetch(`${API_BASE}/api/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, kata_laluan: password })
         });
-        console.log("🔐 Login response status:", res.status, res.statusText);
         const data = await res.json();
-        console.log("🔐 Login response data:", data);
         
         if (!res.ok) {
             throw new Error(data.detail || 'Ralat berlaku');
