@@ -157,14 +157,6 @@ class PengundiUpdate(BaseModel):
     pegawai_penyelaras_id: Optional[int] = None
 
 
-VALID_PERANAN = {
-    "Developer",
-    "Admin",
-    "Petugas 1 (Pegawai Penyelaras)",
-    "Petugas 2 (Ketua Keluarga)",
-    "Pemerhati"
-}
-
 class PenggunaCreate(BaseModel):
     username: str
     nama_penuh: str
@@ -190,8 +182,9 @@ def _submit_to_approval_queue(db, cursor, action_type: str, target_table: str,
 
 
 def _is_admin(user: dict) -> bool:
-    """Quick check if user is Admin."""
-    return user.get("peranan") == "Admin"
+    """Quick check if user is Admin (termasuk Admin (System Preset) dan Admin (Custom))."""
+    peranan = user.get("peranan", "")
+    return peranan.startswith("Admin") or peranan == "Developer"
 
 
 # ===== AUDIT TRAIL HELPER =====
@@ -237,8 +230,8 @@ def startup():
         cursor = db.cursor()
         default_users = [
             ("developer", "Developer KM", hash_kata_laluan("dev123"), "Developer"),
-            ("admin", "Admin Sistem", hash_kata_laluan("admin123"), "Admin"),
-            ("petugas", "Pegawai Penyelaras", hash_kata_laluan("petugas123"), "Petugas 1 (Pegawai Penyelaras)"),
+            ("admin", "Admin Sistem", hash_kata_laluan("admin123"), "Admin (System Preset)"),
+            ("petugas", "Petugas Sistem", hash_kata_laluan("petugas123"), "Petugas 1 (System Preset)"),
             ("ketuafamily", "Ketua Keluarga", hash_kata_laluan("family123"), "Petugas 2 (Ketua Keluarga)"),
             ("pemerhati", "Pemerhati", hash_kata_laluan("pemerhati123"), "Pemerhati"),
         ]
@@ -535,6 +528,15 @@ def get_lokaliti_list(dun: Optional[str] = None, dm: Optional[str] = None, user=
 def check_peranan(user: dict, peranan_dibenarkan: list):
     # Developer mempunyai akses ke semua peranan/endpoint (Superuser)
     if user.get("peranan") == "Developer":
+        return
+    # Admin variants (System Preset / Custom Admin) — layan sebagai Admin
+    if user["peranan"].startswith("Admin"):
+        # Check if "Admin" is in the allowed roles list
+        if not any(r.startswith("Admin") for r in peranan_dibenarkan):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Akses ditolak. Peranan '{user['peranan']}' tidak dibenarkan."
+            )
         return
     if user["peranan"] not in peranan_dibenarkan:
         raise HTTPException(
@@ -1984,9 +1986,6 @@ def get_users(user=Depends(get_current_user)):
 @app.post("/api/users")
 def create_user(request: Request, data: PenggunaCreate, user=Depends(get_current_user)):
     check_peranan(user, ["Admin"])
-
-    if data.peranan not in VALID_PERANAN:
-        raise HTTPException(status_code=400, detail=f"Peranan '{data.peranan}' tidak sah. Peranan yang sah: {', '.join(VALID_PERANAN)}")
 
     db = get_db()
     cursor = db.cursor()
