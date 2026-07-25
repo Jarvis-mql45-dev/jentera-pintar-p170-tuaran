@@ -157,6 +157,14 @@ class PengundiUpdate(BaseModel):
     pegawai_penyelaras_id: Optional[int] = None
 
 
+VALID_PERANAN = {
+    "Developer",
+    "Admin",
+    "Petugas 1 (Pegawai Penyelaras)",
+    "Petugas 2 (Ketua Keluarga)",
+    "Pemerhati"
+}
+
 class PenggunaCreate(BaseModel):
     username: str
     nama_penuh: str
@@ -228,8 +236,10 @@ def startup():
         db = get_db()
         cursor = db.cursor()
         default_users = [
+            ("developer", "Developer KM", hash_kata_laluan("dev123"), "Developer"),
             ("admin", "Admin Sistem", hash_kata_laluan("admin123"), "Admin"),
-            ("petugas", "Petugas Padang", hash_kata_laluan("petugas123"), "Petugas Padang"),
+            ("petugas", "Pegawai Penyelaras", hash_kata_laluan("petugas123"), "Petugas 1 (Pegawai Penyelaras)"),
+            ("ketuafamily", "Ketua Keluarga", hash_kata_laluan("family123"), "Petugas 2 (Ketua Keluarga)"),
             ("pemerhati", "Pemerhati", hash_kata_laluan("pemerhati123"), "Pemerhati"),
         ]
         now = datetime.now().isoformat()
@@ -523,6 +533,9 @@ def get_lokaliti_list(dun: Optional[str] = None, dm: Optional[str] = None, user=
 
 # ===== FUNGSI CHECK PERANAN =====
 def check_peranan(user: dict, peranan_dibenarkan: list):
+    # Developer mempunyai akses ke semua peranan/endpoint (Superuser)
+    if user.get("peranan") == "Developer":
+        return
     if user["peranan"] not in peranan_dibenarkan:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -1971,6 +1984,9 @@ def get_users(user=Depends(get_current_user)):
 @app.post("/api/users")
 def create_user(request: Request, data: PenggunaCreate, user=Depends(get_current_user)):
     check_peranan(user, ["Admin"])
+
+    if data.peranan not in VALID_PERANAN:
+        raise HTTPException(status_code=400, detail=f"Peranan '{data.peranan}' tidak sah. Peranan yang sah: {', '.join(VALID_PERANAN)}")
 
     db = get_db()
     cursor = db.cursor()

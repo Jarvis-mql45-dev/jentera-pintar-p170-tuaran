@@ -143,22 +143,30 @@ async function handleLogin(username, password) {
 function handleLogout() {
     // 🛡️ CRITICAL: Set logout guard FIRST to block any stale async callbacks mid-flight
     window._logoutGuard = true;
+    // 🛡️ 🛡️ NUCLEAR OPTION: window.stop() membunuh SEMUA pending network requests secara serta-merta.
+    // Semua fetch() yang sedang dalam perjalanan akan gagal serta-merta, trigger catch blocks,
+    // yang akan detect _logoutGuard = true dan return null tanpa tulis ke DOM.
+    // Ini adalah SATU-SATUNYA cara yang pasti untuk abort semua pending async callbacks.
+    window.stop();
     // 🛡️ Clear ALL local/session storage to obliterate any stale state
     localStorage.clear();
     // Reset in-memory state to prevent any async callbacks from using stale values
     state.token = null;
     state.user = null;
     state.currentPage = 'dashboard';
-    // 🛡️ Use location.href instead of location.reload() to force a NEW navigation request
-    // (bukan reload). Ini memastikan Service Worker menggunakan network-first strategy
-    // untuk navigate mode, bukan cache-first untuk static assets.
-    // Setelah redirect, SW akan mengambil HTML/app.js terkini dari network.
-    window.location.href = '/';
+    // 🛡️ Render login page SYNCHRONOUSLY - guna renderLoginPage() sedia ada
+    renderLoginPage();
+    // 🛡️ Clear sidebar visibility
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) sidebar.classList.add('hidden');
+    const userInfoEl = document.getElementById('userInfo');
+    if (userInfoEl) userInfoEl.innerHTML = '';
+    document.getElementById('pageTitle').textContent = 'Log Masuk';
 }
 
 function requiresAuth() { return !!(state.token && state.user); }
 
-function checkAdmin() { return state.user?.peranan === 'Admin'; }
+function checkAdmin() { return state.user?.peranan === 'Admin' || state.user?.peranan === 'Developer'; }
 
 // ============================================================
 // RENDER FUNCTIONS
@@ -204,6 +212,7 @@ function renderLoginPage() {
 function renderSidebar() {
     const sidebar = document.getElementById('sidebar');
     const peranan = state.user?.peranan || '';
+    const userIsAdmin = peranan === 'Admin' || peranan === 'Developer';
     sidebar.classList.remove('hidden');
     sidebar.innerHTML = `
         <div class="sidebar-header p-4 border-b">
@@ -3167,13 +3176,67 @@ async function renderUserManagement() {
                 <div class="overflow-x-auto">
                     <table>
                         <thead><tr><th>Nama Pengguna</th><th>Nama Penuh</th><th>Peranan</th><th>Status</th><th>Tindakan</th></tr></thead>
-                        <tbody>${users.map(u => `<tr>
+                        <tbody>${users.map(u => {
+                            const roleBadgeClass = u.peranan==='Developer'?'badge bh-badge-dev':
+                                u.peranan==='Admin'?'badge badge-putih':
+                                u.peranan==='Petugas 1 (Pegawai Penyelaras)'?'badge bh-badge-petugas1':
+                                u.peranan==='Petugas 2 (Ketua Keluarga)'?'badge bh-badge-petugas2':
+                                'badge badge-tiada';
+                            return `<tr>
                             <td class="font-medium">${u.username}</td>
                             <td>${u.nama_penuh || '-'}</td>
-                            <td><span class="badge ${u.peranan==='Admin'?'badge-putih':u.peranan==='Petugas Padang'?'badge-atas':'badge-tiada'}">${u.peranan || '-'}</span></td>
+                            <td><span class="${roleBadgeClass}">${u.peranan || '-'}</span></td>
                             <td>${u.aktif ? '<span class="text-green-600 font-medium">Aktif</span>' : '<span class="text-red-500">Tidak Aktif</span>'}</td>
                             <td><div class="flex gap-1"><button onclick="toggleUserActive(${u.id},${!u.aktif})" class="btn ${u.aktif?'btn-warning':'btn-success'} text-xs py-1 px-2">${u.aktif?'Nyahaktif':'Aktifkan'}</button><button onclick="deleteUser(${u.id})" class="btn btn-danger text-xs py-1 px-2">Padam</button></div></td>
-                        </tr>`).join('')}</tbody>
+                        </tr>`;
+                        }).join('')}</tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- Hirarki & Hak Akses Reference Table -->
+            <div class="card mt-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <h3 class="font-semibold text-gray-800">Hirarki & Hak Akses</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr>
+                                <th class="w-8 text-center">Tahap</th>
+                                <th>Peranan</th>
+                                <th>Skop Capaian</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-purple-100 text-purple-800 text-xs font-bold">1</span></td>
+                                <td><span class="badge" style="background:#7c3aed;color:white;font-weight:600;">Developer</span></td>
+                                <td class="text-sm text-gray-600">Akses penuh sistem termasuk konfigurasi, debug, dan pengurusan semua data. Akses ke log teknikal dan panel pentadbiran penuh.</td>
+                            </tr>
+                            <tr>
+                                <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-xs font-bold">2</span></td>
+                                <td><span class="badge badge-putih">Admin</span></td>
+                                <td class="text-sm text-gray-600">Akses penuh pentadbiran — urus pengguna, data pengundi, kelulusan data, log aktiviti, dan semua modul P170 Tuaran.</td>
+                            </tr>
+                            <tr>
+                                <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-100 text-green-800 text-xs font-bold">3</span></td>
+                                <td><span class="badge" style="background:#059669;color:white;font-weight:600;">Petugas 1 (Pegawai Penyelaras)</span></td>
+                                <td class="text-sm text-gray-600">Urus pengundi & data di kawasan DUN/PDM ditugaskan. Tambah, edit, dan padam pengundi dalam kawasan tanggungjawab.</td>
+                            </tr>
+                            <tr>
+                                <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-800 text-xs font-bold">4</span></td>
+                                <td><span class="badge" style="background:#d97706;color:white;font-weight:600;">Petugas 2 (Ketua Keluarga)</span></td>
+                                <td class="text-sm text-gray-600">Urus pengundi dalam keluarga sendiri. Lihat dan edit data ahli keluarga, lapor status sokongan.</td>
+                            </tr>
+                            <tr>
+                                <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 text-gray-500 text-xs font-bold">5</span></td>
+                                <td><span class="badge badge-tiada">Pemerhati</span></td>
+                                <td class="text-sm text-gray-600">Lihat data sahaja — dashboard, senarai pengundi, dan laporan. Tiada akses untuk menambah, mengedit, atau memadam data.</td>
+                            </tr>
+                        </tbody>
                     </table>
                 </div>
             </div>`;
@@ -3192,7 +3255,7 @@ function showCreateUser() {
                     <div><label class="block text-sm font-medium mb-1">Nama Pengguna</label><input id="newUsername" class="w-full" placeholder="Nama pengguna"></div>
                     <div><label class="block text-sm font-medium mb-1">Nama Penuh</label><input id="newNamaPenuh" class="w-full" placeholder="Nama penuh"></div>
                     <div><label class="block text-sm font-medium mb-1">Kata Laluan</label><input id="newPassword" type="password" class="w-full" placeholder="Kata laluan"></div>
-                    <div><label class="block text-sm font-medium mb-1">Peranan</label><select id="newPeranan" class="w-full"><option value="Petugas Padang">Petugas Padang</option><option value="Pemerhati">Pemerhati</option><option value="Admin">Admin</option></select></div>
+                    <div><label class="block text-sm font-medium mb-1">Peranan</label><select id="newPeranan" class="w-full"><option value="Pemerhati">Pemerhati</option><option value="Petugas 2 (Ketua Keluarga)">Petugas 2 (Ketua Keluarga)</option><option value="Petugas 1 (Pegawai Penyelaras)">Petugas 1 (Pegawai Penyelaras)</option><option value="Admin">Admin</option><option value="Developer">Developer</option></select></div>
                     <button onclick="createUser()" class="btn btn-primary w-full">Tambah Pengguna</button>
                     <button onclick="navigate('users')" class="btn btn-outline w-full">Batal</button>
                 </div>
