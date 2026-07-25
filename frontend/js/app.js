@@ -158,7 +158,7 @@ function handleLogout() {
 
 function requiresAuth() { return !!(state.token && state.user); }
 
-function checkAdmin() { return state.user?.peranan === 'Admin'; }
+function checkAdmin() { return state.user?.peranan?.startsWith('Admin') || state.user?.peranan === 'Developer'; }
 
 // ============================================================
 // RENDER FUNCTIONS
@@ -223,12 +223,12 @@ function renderSidebar() {
             <button onclick="navigate('pengundi')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='pengundi'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg> Senarai Pengundi
             </button>
-            ${peranan==='Admin' ? `
+            ${peranan.startsWith('Admin') || peranan==='Developer' ? `
             <button onclick="navigate('approval')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='approval'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Kelulusan Data
                 <span id="approvalBadge" class="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full hidden">0</span>
             </button>` : ''}
-            ${peranan==='Admin' ? `
+            ${peranan.startsWith('Admin') || peranan==='Developer' ? `
             <div class="text-xs text-gray-400 uppercase font-semibold mb-2 mt-4 px-3">Pentadbiran</div>
             <button onclick="navigate('audit')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='audit'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg> Log Aktiviti
@@ -3152,13 +3152,103 @@ async function renderAuditLogs() {
     }
 }
 
+// ========= ROLE HELPER FUNCTIONS =========
+// Role hierarchy rank (lower = higher rank)
+const ROLE_RANK = {
+    'Developer': 1,
+    'Admin (System Preset)': 2,
+    'Admin': 2,
+    'Admin (Future creation / Custom Admin)': 3,
+    'Admin (Custom)': 3,
+    'Petugas 1 (System Preset)': 4,
+    'Petugas 1 (Pegawai Penyelaras)': 5,
+    'Petugas Padang': 5,
+    'Petugas 2 (Ketua Keluarga)': 6,
+    'Pemerhati': 7
+};
+
+const ROLE_LEGEND = [
+    { rank: 1, peranan: 'Developer', badge: 'bh-badge-dev', css: 'background:#7c3aed;color:#fff;', akses: 'Full akses sistem (Superuser)' },
+    { rank: 2, peranan: 'Admin (System Preset)', badge: 'bh-badge-admin-system', css: 'background:#2563eb;color:#fff;', akses: 'Semua pentadbiran & kelulusan' },
+    { rank: 3, peranan: 'Admin (Custom)', badge: 'bh-badge-admin-custom', css: 'background:#0ea5e9;color:#fff;', akses: 'Semua pentadbiran & kelulusan' },
+    { rank: 4, peranan: 'Petugas 1 (System Preset)', badge: 'bh-badge-petugas1-system', css: 'background:#16a34a;color:#fff;', akses: 'Urus pengundi & data lapangan' },
+    { rank: 5, peranan: 'Petugas 1 (Pegawai Penyelaras)', badge: 'bh-badge-petugas1-pp', css: 'background:#059669;color:#fff;', akses: 'Urus pengundi & data lapangan' },
+    { rank: 6, peranan: 'Petugas 2 (Ketua Keluarga)', badge: 'bh-badge-petugas2', css: 'background:#ea580c;color:#fff;', akses: 'Lihat & kemaskini KK' },
+    { rank: 7, peranan: 'Pemerhati', badge: 'bh-badge-pemerhati', css: 'background:#6b7280;color:#fff;', akses: 'Lihat sahaja' }
+];
+
+function getRoleRank(peranan) {
+    return ROLE_RANK[peranan] || 99;
+}
+
+function getRoleBadge(peranan) {
+    // Legacy role mapping: normalize old DB values to new role names & badges
+    const map = {
+        'Developer': 'bh-badge-dev',
+        'Admin (System Preset)': 'bh-badge-admin-system',
+        'Admin': 'bh-badge-admin-system',       // legacy "Admin" → Admin (System Preset)
+        'Admin (Future creation / Custom Admin)': 'bh-badge-admin-custom',
+        'Admin (Custom)': 'bh-badge-admin-custom',
+        'Petugas 1 (System Preset)': 'bh-badge-petugas1-system',
+        'Petugas 1 (Pegawai Penyelaras)': 'bh-badge-petugas1-pp',
+        'Petugas Padang': 'bh-badge-petugas1-pp', // legacy → Petugas 1 (Pegawai Penyelaras)
+        'Petugas 2 (Ketua Keluarga)': 'bh-badge-petugas2',
+        'Pemerhati': 'bh-badge-pemerhati'
+    };
+    return map[peranan] || 'badge-tiada';
+}
+
+function getRoleDisplayName(peranan) {
+    // Normalize legacy role names for display
+    const map = {
+        'Petugas Padang': 'Petugas 1 (Pegawai Penyelaras)',
+        'Admin': 'Admin (System Preset)',
+        'Admin (Custom)': 'Admin (Future creation / Custom Admin)'
+    };
+    return map[peranan] || peranan || '-';
+}
+
 // ========= USER MANAGEMENT =========
 async function renderUserManagement() {
     const content = document.getElementById('contentArea');
     content.innerHTML = '<div class="flex items-center justify-center py-20"><div class="loading-spinner"></div><span class="ml-3 text-gray-500">Memuatkan pengguna...</span></div>';
     try {
         const users = await api('/api/users');
+        // 🛡️ Sort by role hierarchy rank (strict ascending)
+        users.sort((a, b) => getRoleRank(a.peranan) - getRoleRank(b.peranan));
+        
         content.innerHTML = `
+            <!-- Hirarki & Hak Akses Legend -->
+            <div class="card mb-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-semibold text-gray-800">Hirarki & Hak Akses</h3>
+                    <button onclick="this.closest('.card').querySelector('.legend-body').classList.toggle('hidden')" class="text-sm text-blue-600 hover:text-blue-800 font-medium">Sembunyi / Tunjuk</button>
+                </div>
+                <div class="legend-body">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="bg-gray-100">
+                                    <th class="border border-gray-300 px-3 py-1.5 text-left font-semibold text-gray-700 w-12">#</th>
+                                    <th class="border border-gray-300 px-3 py-1.5 text-left font-semibold text-gray-700">Peranan</th>
+                                    <th class="border border-gray-300 px-3 py-1.5 text-left font-semibold text-gray-700">Akses Utama</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${ROLE_LEGEND.map(r => `
+                                <tr class="hover:bg-gray-50">
+                                    <td class="border border-gray-300 px-3 py-1.5 text-center font-bold text-gray-600">${r.rank}</td>
+                                    <td class="border border-gray-300 px-3 py-1.5"><span class="badge ${r.badge}" style="${r.css}">${r.peranan}</span></td>
+                                    <td class="border border-gray-300 px-3 py-1.5 text-gray-600">${r.akses}</td>
+                                </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2 italic">* Developer adalah superuser dengan akses penuh ke semua endpoint. Hanya boleh diurus melalui sistem sewaan.</p>
+                </div>
+            </div>
+
+            <!-- User Table -->
             <div class="card">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="font-semibold text-gray-800">Pengurusan Pengguna</h3>
@@ -3167,15 +3257,20 @@ async function renderUserManagement() {
                 <div class="overflow-x-auto">
                     <table>
                         <thead><tr><th>Nama Pengguna</th><th>Nama Penuh</th><th>Peranan</th><th>Status</th><th>Tindakan</th></tr></thead>
-                        <tbody>${users.map(u => `<tr>
+                        <tbody>${users.map(u => {
+                            const displayRole = getRoleDisplayName(u.peranan);
+                            const badgeClass = getRoleBadge(u.peranan);
+                            return `<tr>
                             <td class="font-medium">${u.username}</td>
                             <td>${u.nama_penuh || '-'}</td>
-                            <td><span class="badge ${u.peranan==='Admin'?'badge-putih':u.peranan==='Petugas Padang'?'badge-atas':'badge-tiada'}">${u.peranan || '-'}</span></td>
+                            <td><span class="badge ${badgeClass}">${displayRole}</span></td>
                             <td>${u.aktif ? '<span class="text-green-600 font-medium">Aktif</span>' : '<span class="text-red-500">Tidak Aktif</span>'}</td>
                             <td><div class="flex gap-1"><button onclick="toggleUserActive(${u.id},${!u.aktif})" class="btn ${u.aktif?'btn-warning':'btn-success'} text-xs py-1 px-2">${u.aktif?'Nyahaktif':'Aktifkan'}</button><button onclick="deleteUser(${u.id})" class="btn btn-danger text-xs py-1 px-2">Padam</button></div></td>
-                        </tr>`).join('')}</tbody>
+                        </tr>`;
+                        }).join('')}</tbody>
                     </table>
                 </div>
+                <p class="text-xs text-gray-400 mt-3">* Susunan mengikut hirarki: Developer → Admin → Petugas → Pemerhati</p>
             </div>`;
     } catch (err) {
         content.innerHTML = `<div class="card text-center py-10"><p class="text-red-500">${err.message}</p></div>`;
@@ -3192,7 +3287,14 @@ function showCreateUser() {
                     <div><label class="block text-sm font-medium mb-1">Nama Pengguna</label><input id="newUsername" class="w-full" placeholder="Nama pengguna"></div>
                     <div><label class="block text-sm font-medium mb-1">Nama Penuh</label><input id="newNamaPenuh" class="w-full" placeholder="Nama penuh"></div>
                     <div><label class="block text-sm font-medium mb-1">Kata Laluan</label><input id="newPassword" type="password" class="w-full" placeholder="Kata laluan"></div>
-                    <div><label class="block text-sm font-medium mb-1">Peranan</label><select id="newPeranan" class="w-full"><option value="Petugas Padang">Petugas Padang</option><option value="Pemerhati">Pemerhati</option><option value="Admin">Admin</option></select></div>
+                    <div><label class="block text-sm font-medium mb-1">Peranan</label><select id="newPeranan" class="w-full">
+                        <option value="Admin (System Preset)">Admin (System Preset)</option>
+                        <option value="Admin (Future creation / Custom Admin)">Admin (Custom)</option>
+                        <option value="Petugas 1 (System Preset)">Petugas 1 (System Preset)</option>
+                        <option value="Petugas 1 (Pegawai Penyelaras)">Petugas 1 (Pegawai Penyelaras)</option>
+                        <option value="Petugas 2 (Ketua Keluarga)">Petugas 2 (Ketua Keluarga)</option>
+                        <option value="Pemerhati">Pemerhati</option>
+                    </select></div>
                     <button onclick="createUser()" class="btn btn-primary w-full">Tambah Pengguna</button>
                     <button onclick="navigate('users')" class="btn btn-outline w-full">Batal</button>
                 </div>
@@ -3962,10 +4064,19 @@ function renderApp() {
         <!-- Pembahagi -->
         <span class="text-gray-300 text-lg mx-0.5">|</span>
         <!-- Akaun -->
-        <span class="hidden md:block text-sm text-gray-600">${state.user?.nama_penuh}</span><span class="badge ${state.user?.peranan==='Admin'?'badge-putih':state.user?.peranan==='Petugas Padang'?'badge-atas':'badge-tiada'}">${state.user?.peranan}</span>
+        <span class="hidden md:block text-sm text-gray-600">${state.user?.nama_penuh}</span><span class="${(() => {
+            const r = state.user?.peranan || '';
+            if (r === 'Developer') return 'badge bh-badge-dev';
+            if (r.startsWith('Admin')) return 'badge bh-badge-admin-system';
+            if (r === 'Petugas 1 (System Preset)') return 'badge bh-badge-petugas1-system';
+            if (r === 'Petugas 1 (Pegawai Penyelaras)') return 'badge bh-badge-petugas1-pp';
+            if (r === 'Petugas 2 (Ketua Keluarga)') return 'badge bh-badge-petugas2';
+            if (r === 'Pemerhati') return 'badge bh-badge-pemerhati';
+            return 'badge badge-tiada';
+        })()}">${state.user?.peranan}</span>
         <button onclick="handleLogout()" class="btn btn-danger text-sm flex items-center gap-1.5 px-3 py-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg> Log Keluar</button>`;
     navigate(state.currentPage);
-    if (state.user?.peranan==='Admin') updateApprovalBadge();
+    if (state.user?.peranan?.startsWith('Admin')) updateApprovalBadge();
 }
 
 function toggleSidebar() {
@@ -4000,7 +4111,7 @@ try {
         </div>
     </div>`;
 }
-setInterval(() => { if (state.token && state.user?.peranan==='Admin') updateApprovalBadge(); }, 30000);
+setInterval(() => { if (state.token && state.user?.peranan?.startsWith('Admin')) updateApprovalBadge(); }, 30000);
 document.addEventListener('click', (e) => {
     const sidebar = document.getElementById('sidebar');
     if (window.innerWidth < 768 && !sidebar.contains(e.target) && !e.target.closest('#menuToggle')) {
