@@ -918,50 +918,43 @@ async function renderDashboard() {
         // row values to Parlimen rows — guarantees 100% match between DUN
         // tables and Parlimen table.
         // ================================================================
-        function syncPdmJumlahToParlimen() {
-            const dunCodes = ['N12', 'N13', 'N14', 'N15'];
+        function recalcParlimenSasaran() {
+            const multiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
+            const kkRatio = parseFloat(document.getElementById('inputKKRatio')?.value) || 13;
             dunCodes.forEach(dunKod => {
                 const pdmCard = document.querySelector(`.pdm-table-card[data-dun-code="${dunKod}"]`);
                 const parlRow = document.querySelector(`#parlimenMirrorBody tr[data-dun-row="${dunKod}"]`);
                 if (!pdmCard || !parlRow) return;
-                const pdmTable = pdmCard.querySelector('table');
-                if (!pdmTable) return;
-                const rows = pdmTable.querySelectorAll('tbody tr');
-                const pdmJumlah = rows[rows.length - 1];
-                if (!pdmJumlah || !pdmJumlah.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
-                const pdmTds = pdmJumlah.querySelectorAll('td');
-                const parlTds = parlRow.children;
-                // 🛡️ POKA-YOKE: CSS class selectors untuk SasaranUndi & SasaranKK tidak terjejas
-                //     oleh perbezaan indeks akibat rowspan. Gunakan .sasaran-undi-pdm dan .sasaran-kk-pdm.
-                // PDM JUMLAH: td[0]=colspan2, td[1]=Berdaftar, td[2]=Anggaran, td[3]=PRU, td[4]=PRN, td[5]=SasaranUndi, td[6]=SasaranKK, td[7]=KKTerkini
-                // Parlimen (ada rowspan N12): td[0]=PARLIMEN(rowspan), td[1]=DUN, td[2]=Berdaftar, td[3]=Anggaran, td[4]=PRU, td[5]=PRN, td[6]=SasaranUndi, td[7]=SasaranKK, td[8]=KKTerkini
-                // Parlimen (tiada rowspan N13-N15): td[0]=DUN, td[1]=Berdaftar, td[2]=Anggaran, td[3]=PRU, td[4]=PRN, td[5]=SasaranUndi, td[6]=SasaranKK, td[7]=KKTerkini
-                const pdmBerdaftar = pdmTds[1]?.textContent || '0';
-                const pdmAnggaran = pdmTds[2]?.textContent || '0';
-                const pdmKKTerkini = pdmTds[7]?.textContent || '0';
-                // Berdaftar & Anggaran: detect offset akibat rowspan
-                const hasRowspan = parlRow.querySelector('td[rowspan]') !== null;
-                const berdaftarIdx = hasRowspan ? 2 : 1;
-                const anggaranIdx = hasRowspan ? 3 : 2;
-                const kkTerkiniIdx = hasRowspan ? 8 : 7;
-                if (parlTds[berdaftarIdx]) parlTds[berdaftarIdx].textContent = pdmBerdaftar;
-                if (parlTds[anggaranIdx]) parlTds[anggaranIdx].textContent = pdmAnggaran;
-                if (parlTds[kkTerkiniIdx]) parlTds[kkTerkiniIdx].textContent = pdmKKTerkini;
-                // 🛡️ SasaranUndi & SasaranKK: guna CSS class selector (tidak terjejas rowspan offset)
-                const parlSasaranUndi = parlRow.querySelector('.sasaran-undi-pdm');
-                const pdmSasaranUndi = pdmJumlah.querySelector('.sasaran-undi-pdm');
-                if (parlSasaranUndi && pdmSasaranUndi) {
-                    parlSasaranUndi.textContent = pdmSasaranUndi.textContent;
-                    // 🛡️ CRITICAL: Copy dataset.raw* so Parlimen JUMLAH recalc reads LIVE values (not stale initial render)
-                    parlSasaranUndi.dataset.rawSasaranUndi = pdmSasaranUndi.dataset.rawSasaranUndi;
-                }
-                const parlSasaranKK = parlRow.querySelector('.sasaran-kk-pdm');
-                const pdmSasaranKK = pdmJumlah.querySelector('.sasaran-kk-pdm');
-                if (parlSasaranKK && pdmSasaranKK) {
-                    parlSasaranKK.textContent = pdmSasaranKK.textContent;
-                    // 🛡️ CRITICAL: Copy dataset.raw* so Parlimen JUMLAH recalc reads LIVE values (not stale initial render)
-                    parlSasaranKK.dataset.rawSasaranKk = pdmSasaranKK.dataset.rawSasaranKk;
-                }
+                const tbody = document.getElementById('parlimenMirrorBody');
+                if (!tbody) return;
+                const rows = tbody.querySelectorAll('tr[data-dun-row]');
+                let rawSumSasaranUndi = 0;
+                let rawSumSasaranKK = 0;
+
+                rows.forEach(tr => {
+                    const hasRowspan = tr.querySelector('td[rowspan]') !== null;
+                    const anggaranIdx = hasRowspan ? 3 : 2;
+                    const anggaranText = tr.children[anggaranIdx]?.textContent || '0';
+                    const anggaran = parseInt(anggaranText.replace(/,/g, '')) || 0;
+
+                    const rawSasaranUndi = anggaran * (multiplier / 100);
+                    const perPdmSasaranUndi = Math.round(rawSasaranUndi);
+                    const rawSasaranKK = rawSasaranUndi / kkRatio;
+                    const perPdmSasaranKK = Math.round(rawSasaranKK);
+
+                    const undiCell = tr.querySelector('.sasaran-undi-pdm');
+                    const kkCell = tr.querySelector('.sasaran-kk-pdm');
+                    if (undiCell) {
+                        undiCell.textContent = perPdmSasaranUndi.toLocaleString();
+                        undiCell.dataset.rawSasaranUndi = rawSasaranUndi;
+                    }
+                    if (kkCell) {
+                        kkCell.textContent = perPdmSasaranKK.toLocaleString();
+                        kkCell.dataset.rawSasaranKk = rawSasaranKK;
+                    }
+                    rawSumSasaranUndi += rawSasaranUndi;
+                    rawSumSasaranKK += rawSasaranKK;
+                });
             });
                 // 🛡️ Recalculate Parlimen JUMLAH row by summing per-DUN rows — HIGH-PRECISION using data-raw-*
                 // 🛡️ POKA-YOKE: CSS class selectors (.sasaran-undi-pdm, .sasaran-kk-pdm) digunakan
@@ -1059,8 +1052,8 @@ async function renderDashboard() {
     if (lastCells[6]) lastCells[6].textContent = Math.round(rawSumKK).toLocaleString();
                 });
 
-                // 🛡️ BOTTOM-UP: After PDM recalc, mirror PDM JUMLAH to Parlimen rows
-                syncPdmJumlahToParlimen();
+        // 🛡️ POKA-YOKE: Recalculate Parlimen DUN rows from DIRECT formula (not PDM sum)
+                recalcParlimenSasaran();
             });
         }
 
@@ -1099,8 +1092,8 @@ async function renderDashboard() {
                         if (lastCells[6]) lastCells[6].textContent = Math.round(rawSumKK).toLocaleString();
                     }
                 });
-                // 🛡️ BOTTOM-UP: After PDM recalc, mirror PDM JUMLAH to Parlimen rows
-                syncPdmJumlahToParlimen();
+                // 🛡️ POKA-YOKE: Recalculate Parlimen DUN rows from DIRECT formula (not PDM sum)
+                recalcParlimenSasaran();
             });
         }
 
@@ -1157,8 +1150,8 @@ async function renderDashboard() {
                     if (lastCells[6]) lastCells[6].textContent = Math.round(rawSumKK).toLocaleString();
                 });
 
-                // 🛡️ BOTTOM-UP: After PDM recalc, mirror PDM JUMLAH to Parlimen rows
-                syncPdmJumlahToParlimen();
+                // 🛡️ POKA-YOKE: Recalculate Parlimen DUN rows from DIRECT formula (not PDM sum)
+                recalcParlimenSasaran();
             });
         }
 
