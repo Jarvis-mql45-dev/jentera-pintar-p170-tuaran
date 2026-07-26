@@ -1357,7 +1357,7 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
     const kkRatio = parseFloat(document.getElementById('inputKKRatio')?.value || '13');
     const col1Label = document.getElementById('inputElectionCol1')?.value || 'PRU15 2022';
     const col2Label = document.getElementById('inputElectionCol2')?.value || 'PRN 2025';
-    const sasaranUndiMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 50;
+    const sasaranUndiMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
     
     let rows = '';
     let isFirstRow = true;
@@ -1498,7 +1498,7 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
     const kkRatio = parseFloat(document.getElementById('inputKKRatio')?.value || '13');
     const col1Label = document.getElementById('inputElectionCol1')?.value || 'PRU15 2022';
     const col2Label = document.getElementById('inputElectionCol2')?.value || 'PRN 2025';
-    const sasaranUndiMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 50;
+    const sasaranUndiMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
 
     const pdmCount = allDunCodes.length;
     let rows = '';
@@ -1516,14 +1516,14 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
         const jumlah = cleanData.reduce((s, p) => s + (p.jumlah || 0), 0);
         const sumKKTerkini = cleanData.reduce((s, p) => s + (p.jumlah_ketua_keluarga || 0), 0);
         
-        // Row-level raw (high-precision) values — NOT aggregated per-PDM with individual rounding
+        // 🛡️ ROW-LEVEL FORMULA: DUN rows calculate Sasaran UNDI DIRECTLY from the DUN's total turnout
+        //     NOT from summing pre-rounded per-PDM values (which causes accumulation errors like 9,993→9,994).
+        //     Formula: Math.round(dunTurnout * (sasaranUndiMultiplier / 100))
         const rawAnggaran = jumlah * factor;
-        const rawSasaranUndi = rawAnggaran * sasaranUndiMultiplier / 100;
-        const rawSasaranKK = rawSasaranUndi / kkRatio;
-        
-        // Display values: Math.round() once per row
         const perPdmAnggaran = Math.round(rawAnggaran);
-        const perPdmSasaranUndi = Math.round(rawSasaranUndi);
+        const perPdmSasaranUndi = Math.round(perPdmAnggaran * (sasaranUndiMultiplier / 100));
+        const rawSasaranUndi = perPdmAnggaran * (sasaranUndiMultiplier / 100);
+        const rawSasaranKK = rawSasaranUndi / kkRatio;
         const perPdmSasaranKK = Math.round(rawSasaranKK);
 
         // Raw aggregates (non-calculated columns) still use plain sum
