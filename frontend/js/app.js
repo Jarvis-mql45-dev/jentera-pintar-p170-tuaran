@@ -955,17 +955,19 @@ async function renderDashboard() {
                 const pdmSasaranKK = pdmJumlah.querySelector('.sasaran-kk-pdm');
                 if (parlSasaranKK && pdmSasaranKK) parlSasaranKK.textContent = pdmSasaranKK.textContent;
             });
-                // 🛡️ Recalculate Parlimen JUMLAH row by summing per-DUN rows
+                // 🛡️ Recalculate Parlimen JUMLAH row by summing per-DUN rows — HIGH-PRECISION using data-raw-*
                 // 🛡️ POKA-YOKE: CSS class selectors (.sasaran-undi-pdm, .sasaran-kk-pdm) digunakan
                 //     supaya tidak terjejas oleh perbezaan indeks akibat rowspan pada baris pertama.
                 //     Baris N12 ada td[rowspan] untuk "P170 TUARAN", baris N13-N15 tiada — jadi
                 //     indeks hardcoded akan off-by-one. CSS class menjamin 100% ketepatan.
                 // 🛡️ JUMLAH row: colspan="2" pada td[0] (JUMLAH), jadi indeks sebenar:
                 //     [1]=Berdaftar, [2]=Anggaran, [5]=SasaranUndi, [6]=SasaranKK, [7]=KKTerkini
+                // 🛡️ HIGH-PRECISION: Use data-raw-sasaran-undi / data-raw-sasaran-kk attributes for accumulation,
+                //     single Math.round() at JUMLAH display.
                 const parlJumlah = document.querySelector('#parlimenMirrorBody tr:last-child');
                 if (!parlJumlah || !parlJumlah.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
                 const parlJumlahTds = parlJumlah.querySelectorAll('td');
-                let sumBerdaftar = 0, sumAnggaran = 0, sumSasaranUndi = 0, sumSasaranKK = 0, sumKKTerkini = 0;
+                let sumBerdaftar = 0, sumAnggaran = 0, rawSumSasaranUndi = 0, rawSumSasaranKK = 0, sumKKTerkini = 0;
                 document.querySelectorAll('#parlimenMirrorBody tr:not(:last-child)').forEach(tr => {
                     const cells = tr.children;
                     // 🛡️ Detect if row has td[rowspan] (baris pertama N12) untuk offset berdaftar/anggaran
@@ -973,24 +975,25 @@ async function renderDashboard() {
                     const berdaftarIdx = hasRowspan ? 2 : 1;
                     const anggaranIdx = hasRowspan ? 3 : 2;
                     const kkTerkiniIdx = hasRowspan ? 8 : 7;
-                    // 🛡️ Gunakan CSS class selector untuk kolum 7 & 8 (bukan indeks hardcoded)
+                    // 🛡️ Gunakan data-raw attributes & CSS class selector untuk ketepatan cemerlang
                     const sasaranUndiCell = tr.querySelector('.sasaran-undi-pdm');
                     const sasaranKKCell = tr.querySelector('.sasaran-kk-pdm');
                     
                     sumBerdaftar += parseInt((cells[berdaftarIdx]?.textContent || '0').replace(/,/g, '')) || 0;
                     sumAnggaran += parseInt((cells[anggaranIdx]?.textContent || '0').replace(/,/g, '')) || 0;
-                    sumSasaranUndi += parseInt((sasaranUndiCell?.textContent || '0').replace(/,/g, '')) || 0;
-                    sumSasaranKK += parseInt((sasaranKKCell?.textContent || '0').replace(/,/g, '')) || 0;
+                    rawSumSasaranUndi += parseFloat(sasaranUndiCell?.dataset?.rawSasaranUndi) || 0;
+                    rawSumSasaranKK += parseFloat(sasaranKKCell?.dataset?.rawSasaranKk) || 0;
                     sumKKTerkini += parseInt((cells[kkTerkiniIdx]?.textContent || '0').replace(/,/g, '')) || 0;
                 });
                 // 🛡️ JUMLAH row indices: [0]=colspan2(JUMLAH), [1]=Berdaftar, [2]=Anggaran,
                 //     [3]=PRU, [4]=PRN, [5]=SasaranUndi, [6]=SasaranKK, [7]=KKTerkini
+                // Single Math.round() at the end for JUMLAH display
                 if (parlJumlahTds[1]) parlJumlahTds[1].textContent = sumBerdaftar.toLocaleString();
                 if (parlJumlahTds[2]) parlJumlahTds[2].textContent = sumAnggaran.toLocaleString();
-                if (parlJumlahTds[5]) parlJumlahTds[5].textContent = sumSasaranUndi.toLocaleString();
+                if (parlJumlahTds[5]) parlJumlahTds[5].textContent = Math.round(rawSumSasaranUndi).toLocaleString();
                 // 🛡️ SasaranKK: guna CSS class selector untuk ketepatan maksimum
                 const sasaranKKJumlah = parlJumlah.querySelector('.sasaran-kk-pdm');
-                if (sasaranKKJumlah) sasaranKKJumlah.textContent = sumSasaranKK.toLocaleString();
+                if (sasaranKKJumlah) sasaranKKJumlah.textContent = Math.round(rawSumSasaranKK).toLocaleString();
                 if (parlJumlahTds[7]) parlJumlahTds[7].textContent = sumKKTerkini.toLocaleString();
         }
 
@@ -1019,21 +1022,24 @@ async function renderDashboard() {
                         kkCell.textContent = Math.round(newSasaranUndi / kkRatioVal).toLocaleString();
                     }
                 });
-                // Recalculate PDM table JUMLAH footers
+                // Recalculate PDM table JUMLAH footers — HIGH-PRECISION: accumulate from data-raw-*
                 document.querySelectorAll('#pdm-tables table').forEach(table => {
                     const rows = table.querySelectorAll('tbody tr');
                     const lastRow = rows[rows.length - 1];
                     if (!lastRow || !lastRow.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
                     const lastCells = lastRow.querySelectorAll('td');
-                    let sumUndi = 0, sumKK = 0;
+                    let rawSumUndi = 0, rawSumKK = 0;
     for (let i = 0; i < rows.length - 1; i++) {
         const undi = rows[i].querySelector('.sasaran-undi-pdm');
         const kk = rows[i].querySelector('.sasaran-kk-pdm');
-        if (undi) sumUndi += parseInt((undi.textContent || '0').replace(/,/g, '')) || 0;
-        if (kk) sumKK += parseInt((kk.textContent || '0').replace(/,/g, '')) || 0;
+        const rawUndi = parseFloat(undi?.dataset?.rawSasaranUndi) || 0;
+        const rawKK = parseFloat(kk?.dataset?.rawSasaranKk) || 0;
+        rawSumUndi += rawUndi;
+        rawSumKK += rawKK;
     }
-    if (lastCells[5]) lastCells[5].textContent = sumUndi.toLocaleString();
-    if (lastCells[6]) lastCells[6].textContent = sumKK.toLocaleString();
+    // Single Math.round() at the end for JUMLAH display
+    if (lastCells[5]) lastCells[5].textContent = Math.round(rawSumUndi).toLocaleString();
+    if (lastCells[6]) lastCells[6].textContent = Math.round(rawSumKK).toLocaleString();
                 });
 
                 // 🛡️ BOTTOM-UP: After PDM recalc, mirror PDM JUMLAH to Parlimen rows
@@ -1057,18 +1063,21 @@ async function renderDashboard() {
                         kkCell.textContent = Math.round(undi / ratio).toLocaleString();
                     }
                 });
+                // HIGH-PRECISION: accumulate KK from data-raw-sasaran-kk, single Math.round at JUMLAH
                 document.querySelectorAll('#pdm-tables table').forEach(table => {
                     const rows = table.querySelectorAll('tbody tr');
                     const lastPdm = rows[rows.length - 1];
                     if (lastPdm && lastPdm.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) {
                         const lastCells = lastPdm.querySelectorAll('td');
-                        let sumKK = 0;
+                        let rawSumKK = 0;
                         for (let i = 0; i < rows.length - 1; i++) {
                             const kk = rows[i].querySelector('.sasaran-kk-pdm');
-                            if (kk) sumKK += parseInt((kk.textContent || '0').replace(/,/g, '')) || 0;
+                            const rawKK = parseFloat(kk?.dataset?.rawSasaranKk) || 0;
+                            rawSumKK += rawKK;
                         }
                         // 🛡️ POKA-YOKE: lastCells[6] = Sasaran K.K (after colspan="2" at [0])
-                        if (lastCells[6]) lastCells[6].textContent = sumKK.toLocaleString();
+                        // Single Math.round() at the end for JUMLAH display
+                        if (lastCells[6]) lastCells[6].textContent = Math.round(rawSumKK).toLocaleString();
                     }
                 });
                 // 🛡️ BOTTOM-UP: After PDM recalc, mirror PDM JUMLAH to Parlimen rows
@@ -1103,21 +1112,24 @@ async function renderDashboard() {
                     if (kkCell) kkCell.textContent = Math.round(newSasaranUndi / kkRatioVal).toLocaleString();
                 });
 
-                // Recalculate PDM table JUMLAH footers
+                // Recalculate PDM table JUMLAH footers — HIGH-PRECISION: accumulate from data-raw-*
                 document.querySelectorAll('#pdm-tables table').forEach(table => {
                     const rows = table.querySelectorAll('tbody tr');
                     const lastPdm = rows[rows.length - 1];
                     if (!lastPdm || !lastPdm.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
                     const lastCells = lastPdm.querySelectorAll('td');
-                    let sumUndi = 0, sumKK = 0;
+                    let rawSumUndi = 0, rawSumKK = 0;
                     for (let i = 0; i < rows.length - 1; i++) {
                         const undi = rows[i].querySelector('.sasaran-undi-pdm');
                         const kk = rows[i].querySelector('.sasaran-kk-pdm');
-                        if (undi) sumUndi += parseInt((undi.textContent || '0').replace(/,/g, '')) || 0;
-                        if (kk) sumKK += parseInt((kk.textContent || '0').replace(/,/g, '')) || 0;
+                        const rawUndi = parseFloat(undi?.dataset?.rawSasaranUndi) || 0;
+                        const rawKK = parseFloat(kk?.dataset?.rawSasaranKk) || 0;
+                        rawSumUndi += rawUndi;
+                        rawSumKK += rawKK;
                     }
-                    if (lastCells[5]) lastCells[5].textContent = sumUndi.toLocaleString();
-                    if (lastCells[6]) lastCells[6].textContent = sumKK.toLocaleString();
+                    // Single Math.round() at the end for JUMLAH display
+                    if (lastCells[5]) lastCells[5].textContent = Math.round(rawSumUndi).toLocaleString();
+                    if (lastCells[6]) lastCells[6].textContent = Math.round(rawSumKK).toLocaleString();
                 });
 
                 // 🛡️ BOTTOM-UP: After PDM recalc, mirror PDM JUMLAH to Parlimen rows
@@ -1364,11 +1376,11 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
             ${dunCell}
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-medium">${p.dm || ''}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-semibold">${jumlah.toLocaleString()}</td>
-            <td class="border border-gray-300 px-1 py-1 text-center align-middle font-bold text-blue-700">${anggaran.toLocaleString()}</td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle font-bold text-blue-700" data-raw-anggaran="${rawAnggaran}">${anggaran.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="0" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5 editable-pru-pdm" data-dun="${dunKod}" data-pdm="${p.dm}"></td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="0" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5 editable-prn-pdm" data-dun="${dunKod}" data-pdm="${p.dm}"></td>
-            <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-undi-pdm">${sasaranUndi.toLocaleString()}</td>
-            <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-kk-pdm">${sasaranKK.toLocaleString()}</td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-undi-pdm" data-raw-sasaran-undi="${rawSasaranUndi}">${sasaranUndi.toLocaleString()}</td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-kk-pdm" data-raw-sasaran-kk="${rawSasaranKK}">${sasaranKK.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle">${kkTerkini.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle text-green-700 font-medium">${putih.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle text-yellow-700 font-medium">${atas.toLocaleString()}</td>
@@ -1391,11 +1403,11 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
     rows += `<tr class="bg-gray-100 font-semibold">
         <td colspan="2" class="border border-gray-300 px-2 py-1 font-bold text-gray-800">JUMLAH</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.berdaftar.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${Math.round(rawSums.anggaran).toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle" data-raw-anggaran="${rawSums.anggaran}">${Math.round(rawSums.anggaran).toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.pru15.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.prn2025.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-undi-pdm">${Math.round(rawSums.sasaran_undi).toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-kk-pdm">${Math.round(rawSums.sasaran_kk).toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-undi-pdm" data-raw-sasaran-undi="${rawSums.sasaran_undi}">${Math.round(rawSums.sasaran_undi).toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-kk-pdm" data-raw-sasaran-kk="${rawSums.sasaran_kk}">${Math.round(rawSums.sasaran_kk).toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.kk_terkini.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle text-green-700">${colSums.putih.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle text-yellow-700">${colSums.atas.toLocaleString()}</td>
@@ -1514,11 +1526,11 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
             ${parlimenCell}
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-medium">${agg.nama}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-semibold">${agg.jumlah.toLocaleString()}</td>
-            <td class="border border-gray-300 px-1 py-1 text-center align-middle font-bold text-blue-700">${perPdmAnggaran.toLocaleString()}</td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle font-bold text-blue-700" data-raw-anggaran="${rawAnggaran}">${perPdmAnggaran.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="0" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5 editable-pru-pdm" data-dun="${kod}" data-pdm="parlimen"></td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="0" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5 editable-prn-pdm" data-dun="${kod}" data-pdm="parlimen"></td>
-            <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-undi-pdm">${perPdmSasaranUndi.toLocaleString()}</td>
-            <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-kk-pdm">${perPdmSasaranKK.toLocaleString()}</td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-undi-pdm" data-raw-sasaran-undi="${rawSasaranUndi}">${perPdmSasaranUndi.toLocaleString()}</td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-kk-pdm" data-raw-sasaran-kk="${rawSasaranKK}">${perPdmSasaranKK.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle">${agg.jumlah_ketua_keluarga.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle text-green-700 font-medium">${agg.putih.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle text-yellow-700 font-medium">${agg.atas_pagar.toLocaleString()}</td>
@@ -1545,11 +1557,11 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
     rows += `<tr class="bg-gray-100 font-semibold">
         <td colspan="2" class="border border-gray-300 px-2 py-1 font-bold text-gray-800">JUMLAH</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.berdaftar.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${Math.round(rawParlimenSums.anggaran).toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle" data-raw-anggaran="${rawParlimenSums.anggaran}">${Math.round(rawParlimenSums.anggaran).toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.pru15.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.prn2025.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${Math.round(rawParlimenSums.sasaran_undi).toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-kk-pdm">${Math.round(rawParlimenSums.sasaran_kk).toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle" data-raw-sasaran-undi="${rawParlimenSums.sasaran_undi}">${Math.round(rawParlimenSums.sasaran_undi).toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-kk-pdm" data-raw-sasaran-kk="${rawParlimenSums.sasaran_kk}">${Math.round(rawParlimenSums.sasaran_kk).toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.kk_terkini.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle text-green-700">${colSums.putih.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle text-yellow-700">${colSums.atas.toLocaleString()}</td>
