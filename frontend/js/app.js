@@ -1017,9 +1017,13 @@ async function renderDashboard() {
                     const newAnggaran = Math.round(daftar * factor);
                     const newSasaranUndi = Math.round(newAnggaran * sasaranUndiMultiplier / 100);
                     undiCell.textContent = newSasaranUndi.toLocaleString();
+                    // 🛡️ UPDATE dataset.raw* attributes for JUMLAH high-precision accumulation
+                    undiCell.dataset.rawSasaranUndi = newAnggaran * sasaranUndiMultiplier / 100;
                     const kkCell = row.querySelector('.sasaran-kk-pdm');
                     if (kkCell) {
                         kkCell.textContent = Math.round(newSasaranUndi / kkRatioVal).toLocaleString();
+                        // 🛡️ UPDATE dataset.raw* attribute for KK JUMLAH high-precision accumulation
+                        kkCell.dataset.rawSasaranKk = (newAnggaran * sasaranUndiMultiplier / 100) / kkRatioVal;
                     }
                 });
                 // Recalculate PDM table JUMLAH footers — HIGH-PRECISION: accumulate from data-raw-*
@@ -1061,6 +1065,8 @@ async function renderDashboard() {
                     if (undiCell) {
                         const undi = parseInt((undiCell.textContent || '0').replace(/,/g, '')) || 0;
                         kkCell.textContent = Math.round(undi / ratio).toLocaleString();
+                        // 🛡️ UPDATE dataset.raw* attribute for KK JUMLAH high-precision accumulation
+                        kkCell.dataset.rawSasaranKk = undi / ratio;
                     }
                 });
                 // HIGH-PRECISION: accumulate KK from data-raw-sasaran-kk, single Math.round at JUMLAH
@@ -1106,10 +1112,16 @@ async function renderDashboard() {
                     const anggaranVal = Math.round(daftar * tFactor);
                     const newSasaranUndi = Math.round(anggaranVal * mFactor);
                     undiCell.textContent = newSasaranUndi.toLocaleString();
+                    // 🛡️ UPDATE dataset.raw* attributes for JUMLAH high-precision accumulation
+                    undiCell.dataset.rawSasaranUndi = anggaranVal * mFactor;
                     const turnoutIdx = hasDunRowspan ? 3 : 2;
                     if (cells[turnoutIdx]) cells[turnoutIdx].textContent = anggaranVal.toLocaleString();
                     const kkCell = row.querySelector('.sasaran-kk-pdm');
-                    if (kkCell) kkCell.textContent = Math.round(newSasaranUndi / kkRatioVal).toLocaleString();
+                    if (kkCell) {
+                        kkCell.textContent = Math.round(newSasaranUndi / kkRatioVal).toLocaleString();
+                        // 🛡️ UPDATE dataset.raw* attribute for KK JUMLAH high-precision accumulation
+                        kkCell.dataset.rawSasaranKk = (anggaranVal * mFactor) / kkRatioVal;
+                    }
                 });
 
                 // Recalculate PDM table JUMLAH footers — HIGH-PRECISION: accumulate from data-raw-*
