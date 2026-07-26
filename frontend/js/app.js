@@ -999,7 +999,15 @@ async function renderDashboard() {
                 if (parlJumlahTds[1]) parlJumlahTds[1].textContent = sumBerdaftar.toLocaleString();
                 if (parlJumlahTds[2]) parlJumlahTds[2].textContent = sumAnggaran.toLocaleString();
                 if (parlJumlahTds[5]) {
-                    const totalTurnout = parseInt((parlJumlahTds[2]?.textContent || '0').replace(/,/g, '')) || 0;
+                    // 🛡️ 9994 FIX: Read raw data-raw-anggaran from each per-DUN row for HIGH-PRECISION accumulation
+                    let rawSumTurnout = 0;
+                    document.querySelectorAll('#parlimenMirrorBody tr[data-dun-row]').forEach(tr => {
+                        const hasRs = tr.querySelector('td[rowspan]') !== null;
+                        const anggIdx = hasRs ? 3 : 2;
+                        const rawVal = parseFloat(tr.children[anggIdx]?.dataset?.rawAnggaran) || 0;
+                        if (rawVal > 0) rawSumTurnout += rawVal;
+                    });
+                    const totalTurnout = rawSumTurnout > 0 ? rawSumTurnout : (parseInt((parlJumlahTds[2]?.textContent || '0').replace(/,/g, '')) || 0);
                     const sasaranMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
                     parlJumlahTds[5].textContent = Math.round(totalTurnout * (sasaranMultiplier / 100)).toLocaleString();
                     parlJumlahTds[5].dataset.rawSasaranUndi = totalTurnout * (sasaranMultiplier / 100);
@@ -1008,6 +1016,44 @@ async function renderDashboard() {
                 const sasaranKKJumlah = parlJumlah.querySelector('.sasaran-kk-pdm');
                 if (sasaranKKJumlah) sasaranKKJumlah.textContent = Math.round(rawSumSasaranKK).toLocaleString();
                 if (parlJumlahTds[7]) parlJumlahTds[7].textContent = sumKKTerkini.toLocaleString();
+
+                // 🛡️ SURGICAL FIX: Recalculate per-DUN Sasaran Undi from data-raw-anggaran (exact float) NOT volatile textContent
+                //     This eliminates the 9994 bug where DOM corruption causes 19986 to be read as 19988.
+                //     renderParlimenMirrorTable() stores exact rawAnggaran in data-raw-anggaran at render time.
+                //     syncPdmJumlahToParlimen() overwrites textContent with PDM JUMLAH values (potentially rounded).
+                //     By reading data-raw-anggaran, we bypass textContent entirely and use the original exact integer.
+                const multiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
+                const kkRatio = parseFloat(document.getElementById('inputKKRatio')?.value) || 13;
+                const turnoutPct = parseFloat(document.getElementById('inputTurnoutPercentage')?.value) || 75;
+                document.querySelectorAll('#parlimenMirrorBody tr[data-dun-row]').forEach(tr => {
+                    const hasRs = tr.querySelector('td[rowspan]') !== null;
+                    const aggIdx = hasRs ? 3 : 2;
+                    const brfIdx = hasRs ? 2 : 1;
+                    
+                    // HARD-BIND: Read exact raw float from data-raw-anggaran
+                    const exactDunTurnout = parseFloat(tr.children[aggIdx]?.dataset?.rawAnggaran) || 0;
+                    // FALLBACK: Compute from berdaftar * turnout% if data attribute missing
+                    const berdaftar = parseInt((tr.children[brfIdx]?.textContent || '0').replace(/,/g, ''), 10) || 0;
+                    const finalTurnout = exactDunTurnout > 0 ? exactDunTurnout : (berdaftar * turnoutPct / 100);
+                    
+                    const sasaranUndi = Math.round(finalTurnout * (multiplier / 100));
+                    const rawSasaranUndi = finalTurnout * (multiplier / 100);
+                    const rawSasaranKK = rawSasaranUndi / kkRatio;
+                    const sasaranKK = Math.round(rawSasaranKK);
+                    
+                    console.log("DUN " + tr.dataset.dunRow + " TARGET:", finalTurnout, "*", multiplier, "% =", sasaranUndi);
+                    
+                    const undiCell = tr.querySelector('.sasaran-undi-pdm');
+                    const kkCell = tr.querySelector('.sasaran-kk-pdm');
+                    if (undiCell) {
+                        undiCell.textContent = sasaranUndi.toLocaleString();
+                        undiCell.dataset.rawSasaranUndi = rawSasaranUndi;
+                    }
+                    if (kkCell) {
+                        kkCell.textContent = sasaranKK.toLocaleString();
+                        kkCell.dataset.rawSasaranKk = rawSasaranKK;
+                    }
+                });
         }
 
         // Live turnout input binding (DOM now exists)
