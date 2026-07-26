@@ -913,6 +913,12 @@ async function renderDashboard() {
             <div id="pdm-tables" class="mt-6">${pdmTablesHtml}</div>
             `;
 
+        // 🛡️ FORCE INITIAL RECALC: After innerHTML is written, trigger a synchronous pass
+        //     so the table numbers reflect the ACTUAL input value (not stale 50% fallback).
+        requestAnimationFrame(() => {
+            syncPdmJumlahToParlimen();
+        });
+
         // ================================================================
         // 🛡️ BOTTOM-UP SYNC HELPER: After PDM recalculation, copy PDM JUMLAH
         // row values to Parlimen rows — guarantees 100% match between DUN
@@ -1403,7 +1409,7 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
     const kkRatio = parseFloat(document.getElementById('inputKKRatio')?.value || '13');
     const col1Label = document.getElementById('inputElectionCol1')?.value || 'PRU15 2022';
     const col2Label = document.getElementById('inputElectionCol2')?.value || 'PRN 2025';
-    const sasaranUndiMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 50;
+    const sasaranUndiMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
     
     let rows = '';
     let isFirstRow = true;
@@ -1544,7 +1550,7 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
     const kkRatio = parseFloat(document.getElementById('inputKKRatio')?.value || '13');
     const col1Label = document.getElementById('inputElectionCol1')?.value || 'PRU15 2022';
     const col2Label = document.getElementById('inputElectionCol2')?.value || 'PRN 2025';
-    const sasaranUndiMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 50;
+    const sasaranUndiMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
 
     const pdmCount = allDunCodes.length;
     let rows = '';
