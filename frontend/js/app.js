@@ -998,7 +998,12 @@ async function renderDashboard() {
                 // Single Math.round() at the end for JUMLAH display
                 if (parlJumlahTds[1]) parlJumlahTds[1].textContent = sumBerdaftar.toLocaleString();
                 if (parlJumlahTds[2]) parlJumlahTds[2].textContent = sumAnggaran.toLocaleString();
-                if (parlJumlahTds[5]) parlJumlahTds[5].textContent = Math.round(rawSumSasaranUndi).toLocaleString();
+                if (parlJumlahTds[5]) {
+                    const totalTurnout = parseInt((parlJumlahTds[2]?.textContent || '0').replace(/,/g, '')) || 0;
+                    const sasaranMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
+                    parlJumlahTds[5].textContent = Math.round(totalTurnout * (sasaranMultiplier / 100)).toLocaleString();
+                    parlJumlahTds[5].dataset.rawSasaranUndi = totalTurnout * (sasaranMultiplier / 100);
+                }
                 // 🛡️ SasaranKK: guna CSS class selector untuk ketepatan maksimum
                 const sasaranKKJumlah = parlJumlah.querySelector('.sasaran-kk-pdm');
                 if (sasaranKKJumlah) sasaranKKJumlah.textContent = Math.round(rawSumSasaranKK).toLocaleString();
@@ -1580,7 +1585,7 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
         <td class="border border-gray-300 px-1 py-1 text-center align-middle" data-raw-anggaran="${rawParlimenSums.anggaran}">${Math.round(rawParlimenSums.anggaran).toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.pru15.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.prn2025.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle" data-raw-sasaran-undi="${rawParlimenSums.sasaran_undi}">${Math.round(rawParlimenSums.sasaran_undi).toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle" data-raw-sasaran-undi="${colSums.turnout * sasaranUndiMultiplier / 100}">${Math.round(colSums.turnout * (sasaranUndiMultiplier / 100)).toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-kk-pdm" data-raw-sasaran-kk="${rawParlimenSums.sasaran_kk}">${Math.round(rawParlimenSums.sasaran_kk).toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.kk_terkini.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle text-green-700">${colSums.putih.toLocaleString()}</td>
