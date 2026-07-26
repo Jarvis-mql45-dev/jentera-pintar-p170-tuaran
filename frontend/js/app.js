@@ -1391,7 +1391,7 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
     rows += `<tr class="bg-gray-100 font-semibold">
         <td colspan="2" class="border border-gray-300 px-2 py-1 font-bold text-gray-800">JUMLAH</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.berdaftar.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.turnout.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${Math.round(rawSums.anggaran).toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.pru15.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.prn2025.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-undi-pdm">${Math.round(rawSums.sasaran_undi).toLocaleString()}</td>
@@ -1545,7 +1545,7 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
     rows += `<tr class="bg-gray-100 font-semibold">
         <td colspan="2" class="border border-gray-300 px-2 py-1 font-bold text-gray-800">JUMLAH</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.berdaftar.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.turnout.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${Math.round(rawParlimenSums.anggaran).toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.pru15.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.prn2025.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${Math.round(rawParlimenSums.sasaran_undi).toLocaleString()}</td>
