@@ -1034,7 +1034,7 @@ async function renderDashboard() {
                     const exactDunTurnout = parseFloat(tr.children[aggIdx]?.dataset?.rawAnggaran) || 0;
                     // FALLBACK: Compute from berdaftar * turnout% if data attribute missing
                     const berdaftar = parseInt((tr.children[brfIdx]?.textContent || '0').replace(/,/g, ''), 10) || 0;
-                    const finalTurnout = exactDunTurnout > 0 ? exactDunTurnout : (berdaftar * turnoutPct / 100);
+                    const finalTurnout = exactDunTurnout > 0 ? Math.round(exactDunTurnout) : (berdaftar * turnoutPct / 100);
                     
                     const sasaranUndi = Math.round(finalTurnout * (multiplier / 100));
                     const rawSasaranUndi = finalTurnout * (multiplier / 100);
