@@ -931,32 +931,67 @@ async function renderDashboard() {
                 if (!pdmJumlah || !pdmJumlah.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
                 const pdmTds = pdmJumlah.querySelectorAll('td');
                 const parlTds = parlRow.children;
+                // 🛡️ POKA-YOKE: CSS class selectors untuk SasaranUndi & SasaranKK tidak terjejas
+                //     oleh perbezaan indeks akibat rowspan. Gunakan .sasaran-undi-pdm dan .sasaran-kk-pdm.
                 // PDM JUMLAH: td[0]=colspan2, td[1]=Berdaftar, td[2]=Anggaran, td[3]=PRU, td[4]=PRN, td[5]=SasaranUndi, td[6]=SasaranKK, td[7]=KKTerkini
-                // Parlimen: td[0]=PARLIMEN(rowspan), td[1]=DUN, td[2]=Berdaftar, td[3]=Anggaran, td[4]=PRU, td[5]=PRN, td[6]=SasaranUndi, td[7]=SasaranKK, td[8]=KKTerkini
-                if (pdmTds[1] && parlTds[2]) parlTds[2].textContent = pdmTds[1].textContent;
-                if (pdmTds[2] && parlTds[3]) parlTds[3].textContent = pdmTds[2].textContent;
-                if (pdmTds[5] && parlTds[6]) parlTds[6].textContent = pdmTds[5].textContent;
-                if (pdmTds[6] && parlTds[7]) parlTds[7].textContent = pdmTds[6].textContent;
-                if (pdmTds[7] && parlTds[8]) parlTds[8].textContent = pdmTds[7].textContent;
+                // Parlimen (ada rowspan N12): td[0]=PARLIMEN(rowspan), td[1]=DUN, td[2]=Berdaftar, td[3]=Anggaran, td[4]=PRU, td[5]=PRN, td[6]=SasaranUndi, td[7]=SasaranKK, td[8]=KKTerkini
+                // Parlimen (tiada rowspan N13-N15): td[0]=DUN, td[1]=Berdaftar, td[2]=Anggaran, td[3]=PRU, td[4]=PRN, td[5]=SasaranUndi, td[6]=SasaranKK, td[7]=KKTerkini
+                const pdmBerdaftar = pdmTds[1]?.textContent || '0';
+                const pdmAnggaran = pdmTds[2]?.textContent || '0';
+                const pdmKKTerkini = pdmTds[7]?.textContent || '0';
+                // Berdaftar & Anggaran: detect offset akibat rowspan
+                const hasRowspan = parlRow.querySelector('td[rowspan]') !== null;
+                const berdaftarIdx = hasRowspan ? 2 : 1;
+                const anggaranIdx = hasRowspan ? 3 : 2;
+                const kkTerkiniIdx = hasRowspan ? 8 : 7;
+                if (parlTds[berdaftarIdx]) parlTds[berdaftarIdx].textContent = pdmBerdaftar;
+                if (parlTds[anggaranIdx]) parlTds[anggaranIdx].textContent = pdmAnggaran;
+                if (parlTds[kkTerkiniIdx]) parlTds[kkTerkiniIdx].textContent = pdmKKTerkini;
+                // 🛡️ SasaranUndi & SasaranKK: guna CSS class selector (tidak terjejas rowspan offset)
+                const parlSasaranUndi = parlRow.querySelector('.sasaran-undi-pdm');
+                const pdmSasaranUndi = pdmJumlah.querySelector('.sasaran-undi-pdm');
+                if (parlSasaranUndi && pdmSasaranUndi) parlSasaranUndi.textContent = pdmSasaranUndi.textContent;
+                const parlSasaranKK = parlRow.querySelector('.sasaran-kk-pdm');
+                const pdmSasaranKK = pdmJumlah.querySelector('.sasaran-kk-pdm');
+                if (parlSasaranKK && pdmSasaranKK) parlSasaranKK.textContent = pdmSasaranKK.textContent;
             });
-            // Recalculate Parlimen JUMLAH row by summing per-DUN rows
-            const parlJumlah = document.querySelector('#parlimenMirrorBody tr:last-child');
-            if (!parlJumlah || !parlJumlah.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
-            const parlJumlahTds = parlJumlah.querySelectorAll('td');
-            let sumBerdaftar = 0, sumAnggaran = 0, sumSasaranUndi = 0, sumSasaranKK = 0, sumKKTerkini = 0;
-            document.querySelectorAll('#parlimenMirrorBody tr:not(:last-child)').forEach(tr => {
-                const cells = tr.children;
-                sumBerdaftar += parseInt((cells[2]?.textContent || '0').replace(/,/g, '')) || 0;
-                sumAnggaran += parseInt((cells[3]?.textContent || '0').replace(/,/g, '')) || 0;
-                sumSasaranUndi += parseInt((cells[6]?.textContent || '0').replace(/,/g, '')) || 0;
-                sumSasaranKK += parseInt((cells[7]?.textContent || '0').replace(/,/g, '')) || 0;
-                sumKKTerkini += parseInt((cells[8]?.textContent || '0').replace(/,/g, '')) || 0;
-            });
-            if (parlJumlahTds[2]) parlJumlahTds[2].textContent = sumBerdaftar.toLocaleString();
-            if (parlJumlahTds[3]) parlJumlahTds[3].textContent = sumAnggaran.toLocaleString();
-            if (parlJumlahTds[6]) parlJumlahTds[6].textContent = sumSasaranUndi.toLocaleString();
-            if (parlJumlahTds[7]) parlJumlahTds[7].textContent = sumSasaranKK.toLocaleString();
-            if (parlJumlahTds[8]) parlJumlahTds[8].textContent = sumKKTerkini.toLocaleString();
+                // 🛡️ Recalculate Parlimen JUMLAH row by summing per-DUN rows
+                // 🛡️ POKA-YOKE: CSS class selectors (.sasaran-undi-pdm, .sasaran-kk-pdm) digunakan
+                //     supaya tidak terjejas oleh perbezaan indeks akibat rowspan pada baris pertama.
+                //     Baris N12 ada td[rowspan] untuk "P170 TUARAN", baris N13-N15 tiada — jadi
+                //     indeks hardcoded akan off-by-one. CSS class menjamin 100% ketepatan.
+                // 🛡️ JUMLAH row: colspan="2" pada td[0] (JUMLAH), jadi indeks sebenar:
+                //     [1]=Berdaftar, [2]=Anggaran, [5]=SasaranUndi, [6]=SasaranKK, [7]=KKTerkini
+                const parlJumlah = document.querySelector('#parlimenMirrorBody tr:last-child');
+                if (!parlJumlah || !parlJumlah.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
+                const parlJumlahTds = parlJumlah.querySelectorAll('td');
+                let sumBerdaftar = 0, sumAnggaran = 0, sumSasaranUndi = 0, sumSasaranKK = 0, sumKKTerkini = 0;
+                document.querySelectorAll('#parlimenMirrorBody tr:not(:last-child)').forEach(tr => {
+                    const cells = tr.children;
+                    // 🛡️ Detect if row has td[rowspan] (baris pertama N12) untuk offset berdaftar/anggaran
+                    const hasRowspan = tr.querySelector('td[rowspan]') !== null;
+                    const berdaftarIdx = hasRowspan ? 2 : 1;
+                    const anggaranIdx = hasRowspan ? 3 : 2;
+                    const kkTerkiniIdx = hasRowspan ? 8 : 7;
+                    // 🛡️ Gunakan CSS class selector untuk kolum 7 & 8 (bukan indeks hardcoded)
+                    const sasaranUndiCell = tr.querySelector('.sasaran-undi-pdm');
+                    const sasaranKKCell = tr.querySelector('.sasaran-kk-pdm');
+                    
+                    sumBerdaftar += parseInt((cells[berdaftarIdx]?.textContent || '0').replace(/,/g, '')) || 0;
+                    sumAnggaran += parseInt((cells[anggaranIdx]?.textContent || '0').replace(/,/g, '')) || 0;
+                    sumSasaranUndi += parseInt((sasaranUndiCell?.textContent || '0').replace(/,/g, '')) || 0;
+                    sumSasaranKK += parseInt((sasaranKKCell?.textContent || '0').replace(/,/g, '')) || 0;
+                    sumKKTerkini += parseInt((cells[kkTerkiniIdx]?.textContent || '0').replace(/,/g, '')) || 0;
+                });
+                // 🛡️ JUMLAH row indices: [0]=colspan2(JUMLAH), [1]=Berdaftar, [2]=Anggaran,
+                //     [3]=PRU, [4]=PRN, [5]=SasaranUndi, [6]=SasaranKK, [7]=KKTerkini
+                if (parlJumlahTds[1]) parlJumlahTds[1].textContent = sumBerdaftar.toLocaleString();
+                if (parlJumlahTds[2]) parlJumlahTds[2].textContent = sumAnggaran.toLocaleString();
+                if (parlJumlahTds[5]) parlJumlahTds[5].textContent = sumSasaranUndi.toLocaleString();
+                // 🛡️ SasaranKK: guna CSS class selector untuk ketepatan maksimum
+                const sasaranKKJumlah = parlJumlah.querySelector('.sasaran-kk-pdm');
+                if (sasaranKKJumlah) sasaranKKJumlah.textContent = sumSasaranKK.toLocaleString();
+                if (parlJumlahTds[7]) parlJumlahTds[7].textContent = sumKKTerkini.toLocaleString();
         }
 
         // Live turnout input binding (DOM now exists)
