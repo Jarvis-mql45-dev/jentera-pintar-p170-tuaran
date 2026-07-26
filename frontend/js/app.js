@@ -950,10 +950,18 @@ async function renderDashboard() {
                 // 🛡️ SasaranUndi & SasaranKK: guna CSS class selector (tidak terjejas rowspan offset)
                 const parlSasaranUndi = parlRow.querySelector('.sasaran-undi-pdm');
                 const pdmSasaranUndi = pdmJumlah.querySelector('.sasaran-undi-pdm');
-                if (parlSasaranUndi && pdmSasaranUndi) parlSasaranUndi.textContent = pdmSasaranUndi.textContent;
+                if (parlSasaranUndi && pdmSasaranUndi) {
+                    parlSasaranUndi.textContent = pdmSasaranUndi.textContent;
+                    // 🛡️ CRITICAL: Copy dataset.raw* so Parlimen JUMLAH recalc reads LIVE values (not stale initial render)
+                    parlSasaranUndi.dataset.rawSasaranUndi = pdmSasaranUndi.dataset.rawSasaranUndi;
+                }
                 const parlSasaranKK = parlRow.querySelector('.sasaran-kk-pdm');
                 const pdmSasaranKK = pdmJumlah.querySelector('.sasaran-kk-pdm');
-                if (parlSasaranKK && pdmSasaranKK) parlSasaranKK.textContent = pdmSasaranKK.textContent;
+                if (parlSasaranKK && pdmSasaranKK) {
+                    parlSasaranKK.textContent = pdmSasaranKK.textContent;
+                    // 🛡️ CRITICAL: Copy dataset.raw* so Parlimen JUMLAH recalc reads LIVE values (not stale initial render)
+                    parlSasaranKK.dataset.rawSasaranKk = pdmSasaranKK.dataset.rawSasaranKk;
+                }
             });
                 // 🛡️ Recalculate Parlimen JUMLAH row by summing per-DUN rows — HIGH-PRECISION using data-raw-*
                 // 🛡️ POKA-YOKE: CSS class selectors (.sasaran-undi-pdm, .sasaran-kk-pdm) digunakan
