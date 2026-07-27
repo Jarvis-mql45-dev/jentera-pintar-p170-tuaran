@@ -35,3 +35,23 @@
 * **JANGAN** padam objek pemetaan lama, fungsi utiliti, atau kamus fallback (seperti `PDM_DUN_MAP` di dalam `app.js`) secara global, kerana modul-modul lain yang tidak kita jejaki mungkin masih bergantung kepada kod tersebut.
 * Apabila memigrasikan sesuatu ciri untuk menggunakan query pangkalan data sepenuhnya, hanya putuskan kebergantungan (decouple) untuk ciri/jadual spesifik yang sedang diusahakan sahaja. Biarkan pemetaan sejarah yang lain tanpa diusik kecuali diarahkan secara nyata.
 * Sentiasa amalkan pengaturcaraan defensif (defensive programming): jika kolum pangkalan data memulangkan nilai `NULL` atau tiada, sediakan fallback UI yang selamat daripada membiarkan aplikasi tergendala (crash).
+
+# =====================================================================
+# CRITICAL PROJECT RULES FOR MOBILE FRIENDLY UPGRADING STAGE
+# =====================================================================
+
+## 1. ABSOLUTE ZERO-TOUCH ON CALCULATIONS (LAJUR 7 & LAJUR 8)
+- DO NOT edit, refactor, or optimize the calculation logic in `recalcParlimenSasaran()` or `renderParlimenMirrorTable()` inside `frontend/js/app.js`.
+- The exact integer dataset and direct calculations for Lajur 7 (% Sasaran UNDI) and Lajur 8 (Sasaran K.K) MUST REMAIN 100% UNTOUCHED.
+
+## 2. STAGE-BY-STAGE EXECUTION POLICY
+- NEVER execute multiple complex architectural phases in a single turn.
+- Execute ONLY ONE PHASE at a time as instructed by the user, then stop for review and verification before moving to the next.
+
+## 3. MOBILE UI & CSS CONSTRAINTS
+- Apply `sticky-col` ONLY via CSS `@media (min-width: 640px)` for tablet/desktop viewports.
+- On small mobile screens (< 640px), DO NOT stick wide label columns (PARLIMEN/DUN) as they consume 50% of screen width. Rely strictly on `.table-responsive` with smooth `-webkit-overflow-scrolling: touch;`.
+- Ensure touch target elements (buttons, inputs, sidebar links) maintain a minimum height of 44px.
+
+## 4. PREVENT CODE DUPLICATION & STATE CORRUPTION
+- When modifying `frontend/index.html` and `frontend/js/app.js`, ensure no global event listeners, render loops, or state initializations are duplicated.
