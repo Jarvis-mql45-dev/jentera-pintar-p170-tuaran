@@ -1917,11 +1917,11 @@ async function renderPengundi() {
                     </div>
                 </div>
                 ${pengundi.length === 0 ? `<div class="text-center py-10 text-gray-400">${state.pengundiSearch ? `"${state.pengundiSearch}" tiada dalam sistem.` : 'Tiada pengundi dijumpai.'}</div>` : `
-                <div class="overflow-x-auto" style="scrollbar-width: thin;">
+                <div class="table-responsive" style="scrollbar-width: thin;">
                     <div class="text-xs text-gray-400 mb-1 italic">Gulir ke kanan → untuk lihat kolum K. Keluarga & Peg. Penyelaras</div>
                     <table style="min-width:1100px; table-layout:fixed;">
                         <thead><tr>
-                            <th style="width:120px" onclick="sortPengundi('no_kp')">No KP (${(column_counts.no_kp || 0).toLocaleString()})</th>
+                            <th class="sticky-col" style="width:120px" onclick="sortPengundi('no_kp')">No KP (${(column_counts.no_kp || 0).toLocaleString()})</th>
                             <th style="width:160px" onclick="sortPengundi('nama_penuh')">Nama Penuh (${(column_counts.nama_penuh || 0).toLocaleString()})</th>
                             <th style="width:60px" onclick="sortPengundi('jantina')">Jantina (${(column_counts.jantina || 0).toLocaleString()})</th>
                             <th style="width:60px" onclick="sortPengundi('umur')">Umur (${(column_counts.tahun_lahir || 0).toLocaleString()})</th>
@@ -1933,7 +1933,7 @@ async function renderPengundi() {
                             <th style="width:100px">Tindakan</th>
                         </tr></thead>
                         <tbody>${pengundi.map(p => `<tr>
-                            <td class="text-xs font-mono">${p.no_kp || '-'}</td>
+                            <td class="sticky-col text-xs font-mono">${p.no_kp || '-'}</td>
                             <td class="font-medium whitespace-nowrap text-sm">${p.nama_penuh || '-'}</td>
                             <td class="text-xs">${p.jantina || '-'}</td>
                             <td class="text-xs">${p.tahun_lahir ? (2026 - p.tahun_lahir) : '-'}</td>
