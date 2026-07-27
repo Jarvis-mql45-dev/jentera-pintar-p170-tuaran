@@ -4118,12 +4118,15 @@ function renderApp() {
 
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
     sidebar.classList.toggle('closed'); sidebar.classList.toggle('open');
     if (window.innerWidth < 768) {
         if (sidebar.classList.contains('open')) {
             document.body.classList.add('no-scroll');
+            if (overlay) overlay.classList.add('active');
         } else {
             document.body.classList.remove('no-scroll');
+            if (overlay) overlay.classList.remove('active');
         }
     }
 }
@@ -4150,9 +4153,16 @@ try {
 setInterval(() => { if (state.token && state.user?.peranan?.startsWith('Admin')) updateApprovalBadge(); }, 30000);
 document.addEventListener('click', (e) => {
     const sidebar = document.getElementById('sidebar');
-    if (window.innerWidth < 768 && !sidebar.contains(e.target) && !e.target.closest('#menuToggle')) {
-        sidebar.classList.remove('open'); sidebar.classList.add('closed');
-        document.body.classList.remove('no-scroll');
+    const overlay = document.getElementById('sidebarOverlay');
+    if (window.innerWidth < 768) {
+        // Close when clicking overlay
+        if (e.target === overlay) { toggleSidebar(); return; }
+        // Close when clicking outside sidebar & menuToggle
+        if (!sidebar.contains(e.target) && !e.target.closest('#menuToggle')) {
+            sidebar.classList.remove('open'); sidebar.classList.add('closed');
+            if (overlay) overlay.classList.remove('active');
+            document.body.classList.remove('no-scroll');
+        }
     }
 });
 
@@ -4209,8 +4219,10 @@ document.addEventListener('click', (e) => {
             page==='kpi'?'Petunjuk Prestasi Utama (PPU)':
             'Papan Pemuka';
         document.getElementById('sidebar').classList.remove('open');
+        const overlay = document.getElementById('sidebarOverlay');
         if (window.innerWidth < 768) {
             document.getElementById('sidebar').classList.add('closed');
+            if (overlay) overlay.classList.remove('active');
             document.body.classList.remove('no-scroll');
         } else {
             document.getElementById('sidebar').classList.remove('closed');
