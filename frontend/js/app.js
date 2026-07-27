@@ -1894,7 +1894,7 @@ async function renderPengundi() {
         const pdmList = state.pdmList || [];
 
         content.innerHTML = `
-            <div class="card">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 sm:p-6 w-full max-w-full overflow-hidden">
                 <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
                     <h3 class="font-semibold text-gray-800">Senarai Pengundi</h3>
                     <div class="flex items-center gap-2">
@@ -1917,9 +1917,9 @@ async function renderPengundi() {
                     </div>
                 </div>
                 ${pengundi.length === 0 ? `<div class="text-center py-10 text-gray-400">${state.pengundiSearch ? `"${state.pengundiSearch}" tiada dalam sistem.` : 'Tiada pengundi dijumpai.'}</div>` : `
-                <div class="table-responsive" style="scrollbar-width: thin;">
+                <div class="table-responsive w-full overflow-x-auto block">
                     <div class="text-xs text-gray-400 mb-1 italic">Gulir ke kanan → untuk lihat kolum K. Keluarga & Peg. Penyelaras</div>
-                    <table style="min-width:1100px; table-layout:fixed;">
+                    <table class="w-full text-left border-collapse" style="min-width:650px;">
                         <thead><tr>
                             <th class="sticky-col" style="width:120px" onclick="sortPengundi('no_kp')">No KP (${(column_counts.no_kp || 0).toLocaleString()})</th>
                             <th style="width:160px" onclick="sortPengundi('nama_penuh')">Nama Penuh (${(column_counts.nama_penuh || 0).toLocaleString()})</th>
