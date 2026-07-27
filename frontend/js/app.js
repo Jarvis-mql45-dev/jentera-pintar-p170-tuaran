@@ -1060,6 +1060,31 @@ async function renderDashboard() {
                         kkCell.dataset.rawSasaranKk = rawSasaranKK;
                     }
                 });
+                // 🛡️ POST-FIX: Re-accumulate JUMLAH row Column 7 & Column 8 from freshly-updated per-DUN dataset.*
+                //     Without this block, Column 8 (Sasaran K.K) JUMLAH stays stale because the earlier accumulation
+                //     (rawSumSasaranKK at line 998-999) used pre-fix dataset values, then the SURGICAL FIX above
+                //     overwrites per-DUN dataset.rawSasaranKk — but the JUMLAH row was never refreshed.
+                const updatedKkRatio = parseFloat(document.getElementById('inputKKRatio')?.value) || 13;
+                let reaccumUndi = 0, reaccumKK = 0;
+                document.querySelectorAll('#parlimenMirrorBody tr[data-dun-row]').forEach(tr => {
+                    const undiCell = tr.querySelector('.sasaran-undi-pdm');
+                    const kkCell = tr.querySelector('.sasaran-kk-pdm');
+                    reaccumUndi += parseFloat(undiCell?.dataset?.rawSasaranUndi) || 0;
+                    reaccumKK += parseFloat(kkCell?.dataset?.rawSasaranKk) || 0;
+                });
+                // 🛡️ Update JUMLAH row Column 7 (Sasaran UNDI) — td[5] after colspan=2
+                if (parlJumlahTds[5]) {
+                    parlJumlahTds[5].textContent = Math.round(reaccumUndi).toLocaleString();
+                    parlJumlahTds[5].dataset.rawSasaranUndi = reaccumUndi;
+                }
+                // 🛡️ Update JUMLAH row Column 8 (Sasaran K.K) — CSS class selector (robust vs rowspan)
+                const sasaranKKJumlahUpdated = parlJumlah.querySelector('.sasaran-kk-pdm');
+                if (sasaranKKJumlahUpdated) {
+                    // Use raw reaccumKK (high-precision float sum) for display, single Math.round()
+                    const totalKkDisplay = Math.round(reaccumKK);
+                    sasaranKKJumlahUpdated.textContent = totalKkDisplay.toLocaleString();
+                    sasaranKKJumlahUpdated.dataset.rawSasaranKk = reaccumKK;
+                }
         }
 
         // Live turnout input binding (DOM now exists)
