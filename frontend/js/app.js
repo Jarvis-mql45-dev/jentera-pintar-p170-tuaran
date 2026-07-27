@@ -1917,9 +1917,7 @@ async function renderPengundi() {
                     </div>
                 </div>
                 ${pengundi.length === 0 ? `<div class="text-center py-10 text-gray-400">${state.pengundiSearch ? `"${state.pengundiSearch}" tiada dalam sistem.` : 'Tiada pengundi dijumpai.'}</div>` : `
-                <div class="overflow-x-auto" style="scrollbar-width: thin;">
-                    <div class="text-xs text-gray-400 mb-1 italic">Gulir ke kanan → untuk lihat kolum K. Keluarga & Peg. Penyelaras</div>
-                    <table style="min-width:1100px; table-layout:fixed;">
+                    <table>
                         <thead><tr>
                             <th style="width:120px" onclick="sortPengundi('no_kp')">No KP (${(column_counts.no_kp || 0).toLocaleString()})</th>
                             <th style="width:160px" onclick="sortPengundi('nama_penuh')">Nama Penuh (${(column_counts.nama_penuh || 0).toLocaleString()})</th>
@@ -1954,7 +1952,6 @@ async function renderPengundi() {
                             <td class="text-xs">${checkPemerhati() ? '<button disabled class="bg-gray-300 text-gray-500 opacity-60 cursor-not-allowed rounded px-1.5 py-1 text-xs border-0 mr-1">Edit</button> <button disabled class="bg-gray-300 text-gray-500 opacity-60 cursor-not-allowed rounded px-1.5 py-1 text-xs border-0">Padam</button>' : '<button onclick="editPengundi(\'' + p.id + '\')" class="btn btn-primary text-xs py-1 px-1.5">Edit</button> <button onclick="padamPengundi(\'' + p.id + '\')" class="btn btn-outline text-xs py-1 px-1.5 border-red-300 text-red-600 hover:bg-red-50">Padam</button>'}</td>
                         </tr>`).join('')}</tbody>
                     </table>
-                </div>
                 <div class="pagination">${renderSmartPagination(state.pengundiPage, totalPages, 'state.pengundiPage', 'renderPengundi')}
                     <span class="text-sm text-gray-500 ml-2">Halaman ${state.pengundiPage}/${totalPages}</span>
                 </div>`}
