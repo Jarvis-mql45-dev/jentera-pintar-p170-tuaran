@@ -594,37 +594,35 @@ function renderApp() {
     navigate(state.currentPage);
     if (state.user?.peranan==='Admin') updateApprovalBadge();
 }
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebarOverlay');
-    sidebar.classList.toggle('closed');
-    sidebar.classList.toggle('open');
-    if (window.innerWidth < 768) {
-        if (sidebar.classList.contains('open')) {
-            document.body.classList.add('no-scroll');
-            overlay.classList.add('active');
-        } else {
-            document.body.classList.remove('no-scroll');
-            overlay.classList.remove('active');
-        }
-    }
-}
-document.getElementById('menuToggle')?.addEventListener('click', toggleSidebar);
 try { renderApp(); } catch(e) { console.error('[CRITICAL] renderApp() crashed:', e); document.getElementById('sidebar')?.classList.add('hidden'); document.getElementById('pageTitle').textContent = 'Log Masuk'; document.getElementById('userInfo').innerHTML = ''; document.getElementById('contentArea').innerHTML = '<div class="flex items-center justify-center min-h-[70vh]"><div class="card w-full max-w-md p-8 text-center"><div class="w-16 h-16 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4"><svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg></div><h2 class="text-lg font-bold text-gray-800 mb-2">Ralat Aplikasi</h2><p class="text-sm text-gray-500 mb-4">Aplikasi mengalami masalah teknikal. Sila muat semula halaman.</p><button onclick="location.reload()" class="btn btn-primary">Muat Semula</button></div></div>'; }
 setInterval(() => { if (state.user?.peranan==='Admin' && state.token) updateApprovalBadge(); }, 30000);
-// Click outside to close sidebar (mobile) — with overlay support
-document.addEventListener('click', (e) => {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebarOverlay');
-    if (window.innerWidth < 768) {
-        // Close when clicking overlay
-        if (e.target === overlay) { toggleSidebar(); }
-        // Close when clicking a sidebar link (navigate handles this too, but this is belt-and-suspenders)
-        if (sidebar.contains(e.target) && e.target.closest('.sidebar-item')) {
-            // navigate() already closes sidebar, but ensure overlay is off
-            overlay.classList.remove('active');
-        }
+// GLOBAL EVENT DELEGATION - BULLETPROOF TOGGLE
+document.addEventListener('click', function(e) {
+  const menuBtn = e.target.closest('#menuToggle');
+  const overlay = e.target.closest('#sidebarOverlay');
+  const sidebar = document.getElementById('sidebar');
+  const targetOverlay = document.getElementById('sidebarOverlay');
+
+  if (menuBtn && sidebar) {
+    e.preventDefault();
+    e.stopPropagation();
+    const isHidden = !sidebar.style.transform || sidebar.style.transform.includes('-100%');
+    if (isHidden) {
+      sidebar.style.setProperty('transform', 'translateX(0)', 'important');
+      if (targetOverlay) targetOverlay.style.setProperty('display', 'block', 'important');
+      document.body.style.overflow = 'hidden';
+    } else {
+      sidebar.style.setProperty('transform', 'translateX(-100%)', 'important');
+      if (targetOverlay) targetOverlay.style.setProperty('display', 'none', 'important');
+      document.body.style.overflow = 'auto';
     }
+    return;
+  }
+if (overlay && sidebar) {
+sidebar.style.setProperty('transform', 'translateX(-100%)', 'important');
+if (targetOverlay) targetOverlay.style.setProperty('display', 'none', 'important');
+document.body.style.overflow = 'auto';
+}
 });
 </script>
 <script src="js/kpi.js?v=9"></script>
