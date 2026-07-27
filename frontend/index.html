@@ -89,6 +89,19 @@
         .layout-toggle-btn:hover { transform: scale(1.05); }
         .smooth-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.85); z-index: 40; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s ease; pointer-events: none; }
         .smooth-overlay.active { opacity: 1; pointer-events: auto; }
+        /* ===== MOBILE RESPONSIVENESS: FASA 1 - SIDEBAR OVERLAY & GLOBAL TABLES ===== */
+        #sidebarOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 45; display: none; }
+        #sidebarOverlay.active { display: block; }
+        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+        .sidebar-item, .sidebar button, .btn, .pagination button, .badge { min-height: 44px; }
+        .sidebar-item { display: flex; align-items: center; }
+        @media (max-width: 768px) { .sidebar-item, .sidebar button, .btn { min-height: 44px; } }
+        @media (min-width: 640px) {
+            .sticky-col { position: sticky; left: 0; background: inherit; z-index: 2; }
+            .sticky-col::after { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(to left, rgba(0,0,0,0.08), transparent); pointer-events: none; }
+            .sticky-col-header { position: sticky; left: 0; background: #f8fafc; z-index: 3; }
+            th.sticky-col-header, td.sticky-col { background-clip: padding-box; }
+        }
         @media print {
             html, body, main, #app, .content-wrapper, .card, .card-body,
             .overflow-x-auto, .overflow-y-auto, .overflow-auto,
@@ -117,7 +130,7 @@
             #contentArea .btn, #contentArea select, #contentArea button,
             #contentArea .flex.items-center.gap-2.flex-wrap { display: none !important; }
             #contentArea h2 { display: block !important; visibility: visible !important; }
-            #sidebar, #userInfo, #pageTitle, #menuToggle, #toast, #smoothOverlay { display: none !important; }
+            #sidebar, #userInfo, #pageTitle, #menuToggle, #toast, #smoothOverlay, #sidebarOverlay { display: none !important; }
             #contentArea table {
                 width: 100% !important;
                 max-width: 100% !important;
@@ -208,6 +221,7 @@
         <div id="contentArea"></div>
     </div>
 </div>
+<div id="sidebarOverlay"></div>
 <div id="toast" class="toast hidden"></div>
 <div id="smoothOverlay" class="smooth-overlay">
     <div class="flex items-center gap-3 bg-white px-6 py-4 rounded-xl shadow-lg">
@@ -316,6 +330,7 @@ function checkAdmin() { return state.user?.peranan === 'Admin'; }
 function renderLoginPage() {
     document.getElementById('pageTitle').textContent = 'Log Masuk';
     document.getElementById('sidebar').classList.add('hidden');
+    document.getElementById('sidebarOverlay').classList.remove('active');
     document.getElementById('userInfo').innerHTML = '';
     document.getElementById('contentArea').innerHTML = `
         <div class="flex items-center justify-center min-h-[70vh]">
@@ -397,9 +412,13 @@ function navigate(page) {
     localStorage.setItem('currentPage', page);
     renderSidebar();
     document.getElementById('pageTitle').textContent = page==='dashboard'?'Papan Pemuka':page==='pengundi'?'Senarai Pengundi':page==='approval'?'Kelulusan Data':page==='audit'?'Log Aktiviti':page==='users'?'Pengurusan Pengguna':page==='import'?'Import Data Excel':page==='survey'?'Senarai Soal Selidik':page==='survey-create'?'Cipta Soal Selidik':page==='survey-view'?'Borang Soal Selidik':page==='ketua-keluarga'?'Pengurusan Ketua Keluarga':'Papan Pemuka';
-    document.getElementById('sidebar').classList.remove('open');
-    if (window.innerWidth < 768) { document.getElementById('sidebar').classList.add('closed'); document.body.classList.remove('no-scroll'); }
-    else { document.getElementById('sidebar').classList.remove('closed'); }
+    // Close sidebar + overlay
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sidebar.classList.remove('open');
+    sidebar.classList.add('closed');
+    overlay.classList.remove('active');
+    document.body.classList.remove('no-scroll');
     if (page==='dashboard') renderDashboard();
     else if (page==='pengundi') { if (typeof renderPengundi === 'function') renderPengundi(); }
     else if (page==='approval') renderApprovalQueue();
@@ -557,15 +576,43 @@ function renderApp() {
     renderSidebar();
     if (window.innerWidth < 768) document.getElementById('sidebar').classList.add('closed');
     else document.getElementById('sidebar').classList.remove('closed');
+    document.getElementById('sidebarOverlay').classList.remove('active');
     document.getElementById('userInfo').innerHTML = `<span class="hidden md:block text-sm text-gray-600">${state.user?.nama_penuh}</span><span class="badge ${state.user?.peranan==='Admin'?'badge-putih':state.user?.peranan==='Petugas Padang'?'badge-atas':'badge-tiada'}">${state.user?.peranan}</span><button onclick="handleLogout()" class="btn btn-danger text-sm flex items-center gap-1.5 px-3 py-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg> Log Keluar</button>`;
     navigate(state.currentPage);
     if (state.user?.peranan==='Admin') updateApprovalBadge();
 }
-function toggleSidebar() { const sidebar = document.getElementById('sidebar'); sidebar.classList.toggle('closed'); sidebar.classList.toggle('open'); if (window.innerWidth < 768) { if (sidebar.classList.contains('open')) document.body.classList.add('no-scroll'); else document.body.classList.remove('no-scroll'); } }
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sidebar.classList.toggle('closed');
+    sidebar.classList.toggle('open');
+    if (window.innerWidth < 768) {
+        if (sidebar.classList.contains('open')) {
+            document.body.classList.add('no-scroll');
+            overlay.classList.add('active');
+        } else {
+            document.body.classList.remove('no-scroll');
+            overlay.classList.remove('active');
+        }
+    }
+}
 document.getElementById('menuToggle')?.addEventListener('click', toggleSidebar);
 try { renderApp(); } catch(e) { console.error('[CRITICAL] renderApp() crashed:', e); document.getElementById('sidebar')?.classList.add('hidden'); document.getElementById('pageTitle').textContent = 'Log Masuk'; document.getElementById('userInfo').innerHTML = ''; document.getElementById('contentArea').innerHTML = '<div class="flex items-center justify-center min-h-[70vh]"><div class="card w-full max-w-md p-8 text-center"><div class="w-16 h-16 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4"><svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg></div><h2 class="text-lg font-bold text-gray-800 mb-2">Ralat Aplikasi</h2><p class="text-sm text-gray-500 mb-4">Aplikasi mengalami masalah teknikal. Sila muat semula halaman.</p><button onclick="location.reload()" class="btn btn-primary">Muat Semula</button></div></div>'; }
 setInterval(() => { if (state.user?.peranan==='Admin' && state.token) updateApprovalBadge(); }, 30000);
-document.addEventListener('click', (e) => { const sidebar = document.getElementById('sidebar'); if (window.innerWidth < 768 && !sidebar.contains(e.target) && !e.target.closest('#menuToggle')) { sidebar.classList.remove('open'); sidebar.classList.add('closed'); document.body.classList.remove('no-scroll'); } });
+// Click outside to close sidebar (mobile) — with overlay support
+document.addEventListener('click', (e) => {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    if (window.innerWidth < 768) {
+        // Close when clicking overlay
+        if (e.target === overlay) { toggleSidebar(); }
+        // Close when clicking a sidebar link (navigate handles this too, but this is belt-and-suspenders)
+        if (sidebar.contains(e.target) && e.target.closest('.sidebar-item')) {
+            // navigate() already closes sidebar, but ensure overlay is off
+            overlay.classList.remove('active');
+        }
+    }
+});
 </script>
 <script src="js/kpi.js?v=9"></script>
 <script src="js/app.js?v=3"></script>
