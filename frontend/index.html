@@ -92,15 +92,28 @@
         /* ===== MOBILE RESPONSIVENESS: FASA 1 - SIDEBAR OVERLAY & GLOBAL TABLES ===== */
         #sidebarOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 45; display: none; }
         #sidebarOverlay.active { display: block; }
-        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
-        .sidebar-item, .sidebar button, .btn, .pagination button, .badge { min-height: 44px; }
-        .sidebar-item { display: flex; align-items: center; }
-        @media (max-width: 768px) { .sidebar-item, .sidebar button, .btn { min-height: 44px; } }
-        @media (min-width: 640px) {
-            .sticky-col { position: sticky; left: 0; background: inherit; z-index: 2; }
-            .sticky-col::after { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(to left, rgba(0,0,0,0.08), transparent); pointer-events: none; }
-            .sticky-col-header { position: sticky; left: 0; background: #f8fafc; z-index: 3; }
-            th.sticky-col-header, td.sticky-col { background-clip: padding-box; }
+
+        /* Global table wrapper for smooth mobile scrolling */
+        .table-responsive {
+          overflow-x: auto !important;
+          -webkit-overflow-scrolling: touch !important;
+          max-width: 100% !important;
+          display: block !important;
+        }
+
+        /* Sticky first column (e.g. Parlimen/DUN/Name) during horizontal scroll */
+        .sticky-col {
+          position: sticky !important;
+          left: 0 !important;
+          background-color: #ffffff !important;
+          z-index: 10 !important;
+        }
+
+        /* Minimum touch target height for buttons & menu items */
+        .touch-target, .sidebar-item {
+          min-height: 44px !important;
+          display: flex;
+          align-items: center;
         }
         @media print {
             html, body, main, #app, .content-wrapper, .card, .card-body,
