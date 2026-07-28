@@ -52,8 +52,12 @@ function renderGroupedPdmOptions(pdmList, selectedValue, selectedDun) {
 // ============================================================
 
 async function api(path, options = {}) {
+    // 🛡️ POKA-YOKE: Early return jika tiada token — elak 403/401 yang tidak perlu
+    if (!state.token) {
+        return null;
+    }
     const headers = { 'Content-Type': 'application/json' };
-    if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
+    headers['Authorization'] = `Bearer ${state.token}`;
     try {
         const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
         const data = await res.json();

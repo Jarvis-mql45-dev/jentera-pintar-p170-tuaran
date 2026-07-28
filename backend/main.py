@@ -2665,7 +2665,7 @@ def get_ketua_keluarga_list(
     per_page: int = 50,
     user=Depends(get_current_user)
 ):
-    check_peranan(user, ["Admin", "Pemerhati"])
+    check_peranan(user, ["Admin", "Pemerhati", "Petugas 1 (System Preset)", "Petugas 1 (Pegawai Penyelaras)", "Petugas Padang"])
     # 🛡️ POKA-YOKE: Ensure table exists before querying (Vercel serverless cold start fix)
     ensure_table_exists("ketua_keluarga")
     try:
@@ -2726,7 +2726,7 @@ LEFT JOIN dun d ON d.kod = kk.dun
 # KPI Stats untuk Pengurusan Ketua Keluarga
 @app.get("/api/ketua-keluarga/stats")
 def get_ketua_keluarga_stats(user=Depends(get_current_user)):
-    check_peranan(user, ["Admin", "Pemerhati"])
+    check_peranan(user, ["Admin", "Pemerhati", "Petugas 1 (System Preset)", "Petugas 1 (Pegawai Penyelaras)", "Petugas Padang"])
     # 🛡️ POKA-YOKE: Ensure table exists before querying
     ensure_table_exists("ketua_keluarga")
     try:
@@ -2796,7 +2796,7 @@ def get_ketua_keluarga_stats(user=Depends(get_current_user)):
 # Dapatkan Ketua Keluarga by ID
 @app.get("/api/ketua-keluarga/{ketua_id}")
 def get_ketua_keluarga_by_id(ketua_id: int, user=Depends(get_current_user)):
-    check_peranan(user, ["Admin", "Pemerhati"])
+    check_peranan(user, ["Admin", "Pemerhati", "Petugas 1 (System Preset)", "Petugas 1 (Pegawai Penyelaras)", "Petugas Padang"])
     db = get_db()
     cursor = db.cursor()
     cursor.execute("""
