@@ -170,7 +170,9 @@ function checkAdminOrDeveloper() { return checkAdmin() || checkDeveloper(); }
 // ============================================================
 
 function renderLoginPage() {
-    document.getElementById('pageTitle').textContent = 'Log Masuk';
+    // Sembunyikan header bar (tajuk + butang menu) semasa login
+    const headerBar = document.getElementById('pageTitle')?.closest('.flex.items-center.justify-between');
+    if (headerBar) headerBar.style.display = 'none';
     document.getElementById('sidebar').classList.add('hidden');
     const userInfoEl = document.getElementById('userInfo');
     if (userInfoEl) {
@@ -184,7 +186,7 @@ function renderLoginPage() {
         return;
     }
     contentArea.innerHTML = `
-        <div class="flex items-center justify-center min-h-70vh">
+        <div class="flex items-center justify-center min-h-screen">
             <div class="card w-full max-w-md p-8">
                 <div class="text-center mb-6">
                     <img src="logo.png" alt="JenteraPintar Logo" class="w-32 h-32 mx-auto mb-4" onerror="this.style.display='none';">
@@ -207,6 +209,9 @@ function renderLoginPage() {
 }
 
 function renderSidebar() {
+    // Pulihkan header bar selepas login
+    const headerBar = document.getElementById('pageTitle')?.closest('.flex.items-center.justify-between');
+    if (headerBar) headerBar.style.display = '';
     const sidebar = document.getElementById('sidebar');
     const peranan = state.user?.peranan || '';
     sidebar.classList.remove('hidden');
