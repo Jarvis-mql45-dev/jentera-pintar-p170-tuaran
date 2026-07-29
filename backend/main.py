@@ -846,6 +846,11 @@ def get_dashboard(request: Request, dun: Optional[str] = None, user=Depends(get_
                         item["jumlah_ketua_keluarga"] = kk_count
                         break
 
+        # 🛡️ POKA-YOKE: Ensure ALL 4 DUN keys exist even if no pengundi data
+        for kod in ['N12', 'N13', 'N14', 'N15']:
+            if kod not in dun_pdm_raw:
+                dun_pdm_raw[kod] = []
+
         # ================================================================
         # PARLIMEN-LEVEL aggregation (existing queries)
         # ================================================================

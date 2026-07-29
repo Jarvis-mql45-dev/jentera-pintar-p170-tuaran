@@ -923,29 +923,13 @@ async function renderDashboard() {
         // 🚀 Extract DUN PDM data from the consolidated payload
         let dunPdmData = data.dun_pdm || {};
         
-        // 🛡️ POKA-YOKE FALLBACK: If consolidated response has no PDM data for any DUN,
-        // fall back to individual per-DUN PDM calls (backward compat).
-        const hasConsolidatedData = DUN_PDM_CODES.some(kod => {
-            const arr = dunPdmData[kod];
-            return Array.isArray(arr) && arr.length > 0;
-        });
-        
-        let pdmResults;
-        if (hasConsolidatedData) {
-            // 🚀 Use consolidated data — single payload
-            pdmResults = DUN_PDM_CODES.map(kod => ({
-                data: dunPdmData[kod] || []
-            }));
-            console.log("[Dashboard] Using consolidated PDM data from single payload");
-        } else {
-            // 🛡️ FALLBACK: Load per-DUN PDM data individually (old method)
-            console.log("[Dashboard] Consolidated data empty — falling back to per-DUN calls");
-            pdmResults = await Promise.all(
-                DUN_PDM_CODES.map(kod => 
-                    api(`/api/dashboard/pdm/${kod}`).catch(() => ({ data: [] }))
-                )
-            );
-        }
+        // 🚀 SINGLE PAYLOAD ONLY: Use consolidated dun_pdm data directly.
+        // 🛡️ POKA-YOKE: If any DUN key is missing/invalid, fallback to empty array
+        // in-memory — NO additional HTTP API calls.
+        const pdmResults = DUN_PDM_CODES.map(kod => ({
+            data: Array.isArray(dunPdmData[kod]) ? dunPdmData[kod] : []
+        }));
+        console.log("[Dashboard] Using consolidated PDM data from single payload");
         
         // ═══ INNER TRY: SAFE RENDER BLOCK WITH FULL-SCREEN ERROR OVERLAY ═══
         try {
