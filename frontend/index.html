@@ -336,9 +336,9 @@ function renderLoginPage() {
         appEl.style.setProperty('justifyContent', 'center', 'important');
         appEl.style.setProperty('alignItems', 'center', 'important');
         appEl.style.setProperty('minHeight', '100vh', 'important');
-        appEl.style.setProperty('width', '100vw', 'important');
+        appEl.style.setProperty('width', '100%', 'important');
         appEl.style.setProperty('maxWidth', '100%', 'important');
-        appEl.style.setProperty('margin', '0', 'important');
+        appEl.style.setProperty('margin', '0 auto', 'important');
         appEl.style.setProperty('padding', '0', 'important');
         appEl.style.setProperty('boxSizing', 'border-box', 'important');
     }
@@ -350,7 +350,7 @@ function renderLoginPage() {
         innerWrapper.style.setProperty('justifyContent', 'center', 'important');
         innerWrapper.style.setProperty('alignItems', 'center', 'important');
         innerWrapper.style.setProperty('width', '100%', 'important');
-        innerWrapper.style.setProperty('margin', '0', 'important');
+        innerWrapper.style.setProperty('margin', '0 auto', 'important');
         innerWrapper.style.setProperty('marginLeft', '0', 'important');
         innerWrapper.style.setProperty('maxWidth', '100%', 'important');
     }
@@ -364,7 +364,7 @@ function renderLoginPage() {
     document.getElementById('userInfo').innerHTML = '';
     document.getElementById('contentArea').innerHTML = `
         <div class="flex items-center justify-center" style="min-height:100vh;width:100%;">
-            <div class="card w-full max-w-[440px] p-10 md:p-12" style="margin:0 auto;">
+            <div class="card w-full max-w-[440px] p-10 md:p-12" style="margin:0 auto !important;">
                 <div class="text-center mb-8">
                     <img src="/logo.png" alt="JenteraPintar Logo" class="w-40 h-40 mx-auto mb-4" loading="lazy">
                     <h2 class="text-2xl font-bold text-gray-800">JenteraPintar</h2>
