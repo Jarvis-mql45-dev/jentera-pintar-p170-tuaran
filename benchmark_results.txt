@@ -1,0 +1,20 @@
+JENTERA PINTAR P170 TUARAN — PAGE LOAD BENCHMARK
+Date: 2026-07-30 06:01:42
+Production: https://jentera-pintar-p170-tuaran.vercel.app
+Iterations: 3
+
+#   Halaman                        Purata (ms)  Min (ms)     Maks (ms)   
+--- ------------------------------ ------------ ------------ ------------
+1   Papan Pemuka                   35252        35246        35258       
+2   Senarai Pengundi               5689         5237         6586        
+3   Kelulusan Data                 35245        35242        35249       
+4   Log Aktiviti                   5238         5237         5239        
+5   Pengurusan Pengguna            5238         5235         5241        
+6   Import Data                    5244         5230         5256        
+7   Pegawai Penyelaras             5241         5237         5243        
+8   Ketua Keluarga                 5240         5229         5250        
+9   PPU (KPI)                      5257         5239         5285        
+
+Overall Average: 11960 ms
+Fastest: Ketua Keluarga (5229 ms)
+Slowest: Papan Pemuka (35258 ms)

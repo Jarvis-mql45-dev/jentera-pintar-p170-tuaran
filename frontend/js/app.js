@@ -949,20 +949,34 @@ async function renderDashboard() {
             pdmTablesHtml += renderPdmTable(kod, pdmDunNames[kod], pdmData);
         });
 
-        // 🛡️ Build Parlimen Mirror Table (aggregated from 4 DUN PDM data)
-        const parlimenMirrorHtml = renderParlimenMirrorTable(pdmResults, DUN_PDM_CODES, DUN_PDM_NAMES);
-
-        // 🛡️ Single innerHTML assignment — render both Parlimen Mirror and PDM tables at once
-        content.innerHTML = `
-            ${parlimenMirrorHtml}
-
-            <div id="pdm-tables" class="mt-6">${pdmTablesHtml}</div>
-            `;
-
-        // 🛡️ FORCE INITIAL RECALC: After innerHTML is written, trigger a synchronous pass
-        //     so the table numbers reflect the ACTUAL input value (not stale 50% fallback).
+        // 🚀 PHASE 3 PERF: DocumentFragment chunked rendering — browser paints between chunks
+        const parlimenFragment = document.createDocumentFragment();
+        const parlimenContainer = document.createElement('div');
+        parlimenContainer.innerHTML = renderParlimenMirrorTable(pdmResults, DUN_PDM_CODES, DUN_PDM_NAMES);
+        parlimenFragment.appendChild(parlimenContainer);
+        
+        // Clear the loading spinner and inject Parlimen Mirror first
+        content.innerHTML = '';
         requestAnimationFrame(() => {
-            syncPdmJumlahToParlimen();
+            content.appendChild(parlimenFragment);
+            
+            // 🚀 PHASE 3 PERF: Then schedule PDM tables in a separate rAF tick
+            requestAnimationFrame(() => {
+                const pdmContainer = document.createElement('div');
+                pdmContainer.id = 'pdm-tables';
+                pdmContainer.className = 'mt-6';
+                pdmContainer.innerHTML = pdmTablesHtml;
+                content.appendChild(pdmContainer);
+                
+                // 🛡️ FORCE INITIAL RECALC: After innerHTML is written, trigger a synchronous pass
+                requestAnimationFrame(() => {
+                    syncPdmJumlahToParlimen();
+                    
+                    // 🚀 PHASE 3 PERF: Save to cache after rendering completes
+                    state.pageCache['dashboard'] = content.innerHTML;
+                    state.pageCacheValid['dashboard'] = true;
+                });
+            });
         });
 
         // ================================================================
@@ -4209,9 +4223,8 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// 🛡️ OVERRIDE: app.js telah selesai dimuat — override navigate() dengan RBAC guards lengkap
+// 🛡️ OVERRIDE: app.js telah selesai dimuat — override navigate() dengan RBAC guards + PHASE 3 cache
 (function() {
-    const savedNavigate = window.navigate;
     window.navigate = function(page) {
         if (!requiresAuth()) { renderLoginPage(); return; }
         
@@ -4248,9 +4261,20 @@ document.addEventListener('click', (e) => {
             }
         }
         
+        const prevPage = state.currentPage;
         state.currentPage = page;
         localStorage.setItem('currentPage', page);
-        renderSidebar();
+        
+        // 🚀 PHASE 3 PERF: Only rebuild sidebar if role changed or first time
+        const currentRole = state.user?.peranan || '';
+        if (state.lastRenderedRole !== currentRole || !document.querySelector('.sidebar-item')) {
+            renderSidebar();
+            state.lastRenderedRole = currentRole;
+        } else {
+            updateSidebarActive(page);
+            document.getElementById('sidebar').classList.remove('hidden');
+        }
+        
         document.getElementById('pageTitle').textContent = 
             page==='dashboard'?'Papan Pemuka':page==='pengundi'?'Senarai Pengundi':
             page==='approval'?'Kelulusan Data':page==='audit'?'Log Aktiviti':
@@ -4270,6 +4294,13 @@ document.addEventListener('click', (e) => {
         } else {
             document.getElementById('sidebar').classList.remove('closed');
         }
+        
+        // 🚀 PHASE 3 PERF: Restore from cache if valid (skip for dashboard which re-fetches)
+        if (state.pageCacheValid[page] && state.pageCache[page]) {
+            document.getElementById('contentArea').innerHTML = state.pageCache[page];
+            return;
+        }
+        
         if (page==='dashboard') renderDashboard();
         else if (page==='pengundi') renderPengundi();
         else if (page==='approval') { if (!checkAdmin()) { navigate('dashboard'); return; } renderApprovalQueue(); }

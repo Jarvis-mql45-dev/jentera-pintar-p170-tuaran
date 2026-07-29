@@ -1,0 +1,81 @@
+{
+  "overall_avg_ms": 11960.5,
+  "fastest_page": "Ketua Keluarga",
+  "fastest_ms": 5228.6,
+  "slowest_page": "Papan Pemuka",
+  "slowest_ms": 35258.0,
+  "results": {
+    "Papan Pemuka": {
+      "latencies_ms": [
+        35258.0,
+        35245.6,
+        35253.4
+      ],
+      "avg_ms": 35252.3
+    },
+    "Senarai Pengundi": {
+      "latencies_ms": [
+        6585.8,
+        5236.6,
+        5244.9
+      ],
+      "avg_ms": 5689.1
+    },
+    "Kelulusan Data": {
+      "latencies_ms": [
+        35242.4,
+        35244.5,
+        35249.3
+      ],
+      "avg_ms": 35245.4
+    },
+    "Log Aktiviti": {
+      "latencies_ms": [
+        5237.2,
+        5236.7,
+        5239.1
+      ],
+      "avg_ms": 5237.7
+    },
+    "Pengurusan Pengguna": {
+      "latencies_ms": [
+        5235.4,
+        5241.1,
+        5238.5
+      ],
+      "avg_ms": 5238.3
+    },
+    "Import Data": {
+      "latencies_ms": [
+        5255.6,
+        5230.2,
+        5245.6
+      ],
+      "avg_ms": 5243.8
+    },
+    "Pegawai Penyelaras": {
+      "latencies_ms": [
+        5243.5,
+        5242.9,
+        5237.5
+      ],
+      "avg_ms": 5241.3
+    },
+    "Ketua Keluarga": {
+      "latencies_ms": [
+        5249.6,
+        5240.9,
+        5228.6
+      ],
+      "avg_ms": 5239.7
+    },
+    "PPU (KPI)": {
+      "latencies_ms": [
+        5284.9,
+        5247.3,
+        5239.0
+      ],
+      "avg_ms": 5257.1
+    }
+  }
+}
