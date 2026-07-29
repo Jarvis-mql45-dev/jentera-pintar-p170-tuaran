@@ -192,8 +192,8 @@ function renderLoginPage() {
                     <p class="text-sm text-gray-500 mt-1">P170 Tuaran</p>
                 </div>
                 <div class="space-y-4">
-                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Nama Pengguna</label><input type="text" id="loginUsername" placeholder="Masukkan nama pengguna" value="admin"></div>
-                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Kata Laluan</label><input type="password" id="loginPassword" placeholder="Masukkan kata laluan" value="admin123"></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Nama Pengguna</label><input type="text" id="loginUsername" placeholder="Masukkan nama pengguna" value="" autocomplete="username"></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Kata Laluan</label><input type="password" id="loginPassword" placeholder="Masukkan kata laluan" value="" autocomplete="current-password"></div>
                     <button onclick="handleLogin(document.getElementById('loginUsername').value, document.getElementById('loginPassword').value)" class="btn btn-primary w-full py-3 text-lg">Log Masuk</button>
                 </div>
                 <div class="mt-6 text-center">
