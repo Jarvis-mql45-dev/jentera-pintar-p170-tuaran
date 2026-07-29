@@ -882,6 +882,8 @@ def get_pengundi(
     pegawai_penyelaras: Optional[str] = Query(None, alias="pegawai_penyelaras[]"),
     user=Depends(get_current_user)
 ):
+    # 🛡️ POKA-YOKE: Cap max per_page to 200 to prevent payload exploit
+    per_page = min(per_page, 200)
     db = get_db()
     cursor = db.cursor()
 
@@ -1090,17 +1092,17 @@ def get_filter_options(
 
     where_str = " AND ".join(where_clauses)
 
-    # Gunakan subquery untuk setiap filter supaya relevan dengan filter aktif
-    cursor.execute(f"SELECT DISTINCT p.dm FROM pengundi p WHERE {where_str} AND p.dm IS NOT NULL AND p.dm != '' ORDER BY p.dm", params)
+    # 🛡️ OPTIMASI: Add LIMIT 500 to prevent full table scan on DISTINCT queries
+    cursor.execute(f"SELECT DISTINCT p.dm FROM pengundi p WHERE {where_str} AND p.dm IS NOT NULL AND p.dm != '' ORDER BY p.dm LIMIT 500", params)
     pdm_list = [r[0] for r in cursor.fetchall()]
 
-    cursor.execute(f"SELECT DISTINCT p.lokaliti FROM pengundi p WHERE {where_str} AND p.lokaliti IS NOT NULL AND p.lokaliti != '' ORDER BY p.lokaliti", params)
+    cursor.execute(f"SELECT DISTINCT p.lokaliti FROM pengundi p WHERE {where_str} AND p.lokaliti IS NOT NULL AND p.lokaliti != '' ORDER BY p.lokaliti LIMIT 500", params)
     lokaliti_list = [r[0] for r in cursor.fetchall()]
 
     # Sokongan filter options: include "Tiada" if there are records with NULL/empty status_sokongan
     cursor.execute(f"SELECT COUNT(*) FROM pengundi p WHERE {where_str} AND (p.status_sokongan IS NULL OR p.status_sokongan = '')", params)
     ada_tiada = cursor.fetchone()[0] > 0
-    cursor.execute(f"SELECT DISTINCT p.status_sokongan FROM pengundi p WHERE {where_str} AND p.status_sokongan IS NOT NULL AND p.status_sokongan != '' ORDER BY p.status_sokongan", params)
+    cursor.execute(f"SELECT DISTINCT p.status_sokongan FROM pengundi p WHERE {where_str} AND p.status_sokongan IS NOT NULL AND p.status_sokongan != '' ORDER BY p.status_sokongan LIMIT 500", params)
     sokongan_list = [r[0] for r in cursor.fetchall()]
     if ada_tiada:
         sokongan_list.append("Tiada Data")
@@ -1113,13 +1115,16 @@ def get_filter_options(
     pegawai_penyelaras_list = [{"id": r[0], "nama": r[1]} for r in cursor.fetchall()]
 
     db.close()
-    return {
+    # 🛡️ CACHE: Cache selama 5 minit (300 saat) untuk kurangkan panggilan berulang
+    response = JSONResponse(content={
         "pdm": pdm_list,
         "lokaliti": lokaliti_list,
         "sokongan": sokongan_list,
         "ketua_keluarga": ketua_keluarga_list,
         "pegawai_penyelaras": pegawai_penyelaras_list
-    }
+    })
+    response.headers["Cache-Control"] = "max-age=300"
+    return response
 
 
 # Endpoint carian pengundi untuk searchable dropdown (Ketua Keluarga/Pegawai Penyelaras)
