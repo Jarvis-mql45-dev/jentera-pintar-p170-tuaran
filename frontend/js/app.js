@@ -170,32 +170,11 @@ function checkAdminOrDeveloper() { return checkAdmin() || checkDeveloper(); }
 // ============================================================
 
 function renderLoginPage() {
-    // 🛡️ LOCK BODY: force perfect centering, kill scrollbars
+    // 🛡️ LOCK BODY: kill scrollbars, apply CSS class to force full-viewport centering
     document.body.style.overflow = 'hidden';
     const appEl = document.getElementById('app');
-    if (appEl) {
-        appEl.style.setProperty('display', 'flex', 'important');
-        appEl.style.setProperty('justifyContent', 'center', 'important');
-        appEl.style.setProperty('alignItems', 'center', 'important');
-        appEl.style.setProperty('minHeight', '100vh', 'important');
-        appEl.style.setProperty('width', '100%', 'important');
-        appEl.style.setProperty('maxWidth', '100%', 'important');
-        appEl.style.setProperty('margin', '0 auto', 'important');
-        appEl.style.setProperty('padding', '0', 'important');
-        appEl.style.setProperty('boxSizing', 'border-box', 'important');
-    }
-    // Reset inner wrapper offset — kill hidden sidebar margin-left: 260px
+    if (appEl) appEl.classList.add('login-active');
     const innerWrapper = appEl?.querySelector('.flex-1');
-    if (innerWrapper) {
-        innerWrapper.style.setProperty('padding', '0', 'important');
-        innerWrapper.style.setProperty('display', 'flex', 'important');
-        innerWrapper.style.setProperty('justifyContent', 'center', 'important');
-        innerWrapper.style.setProperty('alignItems', 'center', 'important');
-        innerWrapper.style.setProperty('width', '100%', 'important');
-        innerWrapper.style.setProperty('margin', '0 auto', 'important');
-        innerWrapper.style.setProperty('marginLeft', '0', 'important');
-        innerWrapper.style.setProperty('maxWidth', '100%', 'important');
-    }
     // Clear remnant heading text + hide header bar
     const pageTitle = document.getElementById('pageTitle');
     if (pageTitle) pageTitle.textContent = '';
@@ -237,10 +216,11 @@ function renderLoginPage() {
 }
 
 function renderSidebar() {
-    // Pulihkan body & app container selepas login
+    // Pulihkan body & app container selepas login — remove login centering class
     document.body.style.overflow = '';
     const appEl = document.getElementById('app');
     if (appEl) {
+        appEl.classList.remove('login-active');
         appEl.style.display = '';
         appEl.style.justifyContent = '';
         appEl.style.alignItems = '';

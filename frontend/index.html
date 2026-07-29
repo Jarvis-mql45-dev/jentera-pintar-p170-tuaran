@@ -35,6 +35,9 @@
             .sidebar { position: fixed !important; left: 0; top: 0; height: 100vh !important; transform: none !important; overflow-y: auto; z-index: 30; }
             #app > .flex-1 { margin-left: 260px; }
         }
+        /* LOGIN CENTERING FIX: overrides sidebar margin-left when login-active class is toggled */
+        #app.login-active { display: flex !important; justify-content: center !important; align-items: center !important; width: 100% !important; min-height: 100vh !important; }
+        #app.login-active > .flex-1 { margin-left: 0 !important; width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 0 !important; }
         @media (max-width: 768px) {
             .sidebar { position: fixed; z-index: 50; height: 100vh; }
             .sidebar.closed { transform: translateX(-260px); }
@@ -327,60 +330,7 @@ function handleLogout() {
 function requiresAuth() { return !!(state.token && state.user); }
 function checkAdmin() { return state.user?.peranan === 'Admin'; }
 
-function renderLoginPage() {
-    // 🛡️ LOCK BODY: force perfect centering, kill scrollbars
-    document.body.style.overflow = 'hidden';
-    const appEl = document.getElementById('app');
-    if (appEl) {
-        appEl.style.setProperty('display', 'flex', 'important');
-        appEl.style.setProperty('justifyContent', 'center', 'important');
-        appEl.style.setProperty('alignItems', 'center', 'important');
-        appEl.style.setProperty('minHeight', '100vh', 'important');
-        appEl.style.setProperty('width', '100%', 'important');
-        appEl.style.setProperty('maxWidth', '100%', 'important');
-        appEl.style.setProperty('margin', '0 auto', 'important');
-        appEl.style.setProperty('padding', '0', 'important');
-        appEl.style.setProperty('boxSizing', 'border-box', 'important');
-    }
-    // Reset inner wrapper offset — kill hidden sidebar margin-left: 260px
-    const innerWrapper = appEl?.querySelector('.flex-1');
-    if (innerWrapper) {
-        innerWrapper.style.setProperty('padding', '0', 'important');
-        innerWrapper.style.setProperty('display', 'flex', 'important');
-        innerWrapper.style.setProperty('justifyContent', 'center', 'important');
-        innerWrapper.style.setProperty('alignItems', 'center', 'important');
-        innerWrapper.style.setProperty('width', '100%', 'important');
-        innerWrapper.style.setProperty('margin', '0 auto', 'important');
-        innerWrapper.style.setProperty('marginLeft', '0', 'important');
-        innerWrapper.style.setProperty('maxWidth', '100%', 'important');
-    }
-    // Clear remnant heading text + hide header bar
-    const pageTitle = document.getElementById('pageTitle');
-    if (pageTitle) pageTitle.textContent = '';
-    const headerBar = document.getElementById('pageTitle')?.closest('.flex.items-center.justify-between');
-    if (headerBar) headerBar.style.display = 'none';
-    document.getElementById('sidebar').classList.add('hidden');
-    document.getElementById('sidebarOverlay').classList.remove('active');
-    document.getElementById('userInfo').innerHTML = '';
-    document.getElementById('contentArea').innerHTML = `
-        <div class="flex items-center justify-center" style="min-height:100vh;width:100%;">
-            <div class="card w-full max-w-[440px] p-10 md:p-12" style="margin:0 auto !important;">
-                <div class="text-center mb-8">
-                    <img src="/logo.png" alt="JenteraPintar Logo" class="w-40 h-40 mx-auto mb-4" loading="lazy">
-                    <h2 class="text-2xl font-bold text-gray-800">JenteraPintar</h2>
-                    <p class="mt-1" style="font-size:0.95rem;color:#6b7280;">P170 Tuaran</p>
-                </div>
-                <div class="space-y-5">
-                    <div><label class="block mb-1" style="font-size:0.95rem;font-weight:600;color:#374151;">Nama Pengguna</label><input type="text" id="loginUsername" placeholder="Masukkan nama pengguna" value="" autocomplete="off" style="width:100%;padding:12px 16px;font-size:1rem;border:1px solid #d1d5db;border-radius:8px;outline:none;"></div>
-                    <div><label class="block mb-1" style="font-size:0.95rem;font-weight:600;color:#374151;">Kata Laluan</label><input type="password" id="loginPassword" placeholder="Masukkan kata laluan" value="" autocomplete="new-password" style="width:100%;padding:12px 16px;font-size:1rem;border:1px solid #d1d5db;border-radius:8px;outline:none;"></div>
-                    <button onclick="handleLogin(document.getElementById('loginUsername').value, document.getElementById('loginPassword').value)" class="btn btn-primary w-full" style="height:48px;font-size:1.05rem;font-weight:bold;">Log Masuk</button>
-                </div>
-                <div class="mt-6 text-center">
-                    <p style="font-size:0.85rem;color:#64748b;line-height:1.625;">&copy; 2026 P170 Tuaran. Hak Cipta Terpelihara.<br>Powered by Jarvis_KM | contact: jarvis_mql45dev@proton.me | Telegram: <a href="https://t.me/Jarvis_KM" target="_blank" style="font-size:0.85rem;color:#64748b;" class="hover:text-blue-500 transition">@Jarvis_KM</a></p>
-                </div>
-            </div>
-        </div>`;
-}
+// renderLoginPage is DELEGATED to app.js — DO NOT duplicate here
 function renderSidebar() {
     // Pulihkan body & app container selepas login
     document.body.style.overflow = '';
