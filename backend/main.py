@@ -818,7 +818,7 @@ def get_dashboard(request: Request, dun: Optional[str] = None, user=Depends(get_
         # Gunakan ROW_NUMBER untuk elak double-counting KK merentas PDM.
         # ================================================================
         cursor.execute(f"""
-            SELECT COALESCE(d2.kod, 'TIDAK_DITETAPKAN') AS dun_kod, sub.dm, COUNT(*) AS kk_count
+            SELECT COALESCE(sub.kod, 'TIDAK_DITETAPKAN') AS dun_kod, sub.dm, COUNT(*) AS kk_count
             FROM (
                 SELECT p2.ketua_keluarga_id AS kk_id,
                        p2.dm,
