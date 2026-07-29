@@ -637,6 +637,11 @@ def init_db():
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_pengundi_dun_id ON pengundi(dun_id)
         """)
+        # 🚀 COMPOSITE INDEX: Dashboard aggregation — GROUP BY dun_id, dm WHERE status_fizikal='Hidup' AND status_rekod='Sah'
+        # Mempercepatkan single-pass GROUP BY query untuk consolidated dashboard endpoint.
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pengundi_dashboard_agg ON pengundi(dun_id, status_fizikal, status_rekod, dm)
+        """)
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_audit_logs_username ON audit_logs(username)
         """)

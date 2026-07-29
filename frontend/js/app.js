@@ -912,15 +912,19 @@ async function renderDashboard() {
     try {
         const selectedDun = state.dashboardDm || '';
         
-        // 🛡️ ELIMINATION TECHNIQUE: Load ALL data in parallel before building any HTML
+        // 🚀 CONSOLIDATED SINGLE FETCH: Satu panggilan API untuk SEMUA data dashboard
+        // (Parlimen summary + ALL DUN PDM data) — menggantikan 5 panggilan berasingan.
         const DUN_PDM_CODES = ['N12', 'N13', 'N14', 'N15'];
         const DUN_PDM_NAMES = { 'N12': 'DUN N12 SULAMAN', 'N13': 'DUN N13 PANTAI DALIT', 'N14': 'DUN N14 TAMPARULI', 'N15': 'DUN N15 KIULU' };
-        const [data, ...pdmResults] = await Promise.all([
-            api(`/api/dashboard${selectedDun ? `?dun=${selectedDun}` : ''}`).catch(() => ({})),
-            ...DUN_PDM_CODES.map(kod => api(`/api/dashboard/pdm/${kod}`).catch(() => ({ data: [] })))
-        ]);
-        console.log("[Dashboard Data Fetched]", data);
+        const data = await api(`/api/dashboard${selectedDun ? `?dun=${selectedDun}` : ''}`).catch(() => ({}));
+        console.log("[Dashboard Single Payload]", data);
         state.dashboardData = data;
+        
+        // 🚀 Extract DUN PDM data from the consolidated payload — backward compat shape
+        const dunPdmData = data.dun_pdm || {};
+        const pdmResults = DUN_PDM_CODES.map(kod => ({
+            data: dunPdmData[kod] || []
+        }));
         
         // ═══ INNER TRY: SAFE RENDER BLOCK WITH FULL-SCREEN ERROR OVERLAY ═══
         try {

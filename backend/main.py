@@ -704,6 +704,7 @@ def get_dashboard_pdm(dun_kod: str, user=Depends(get_current_user)):
 # Dashboard stats untuk DUN tertentu (filter ikut PDM dalam DUN)
 @app.get("/api/dashboard/dun/{dun_kod}")
 def get_dashboard_dun(request: Request, dun_kod: str, dm: Optional[str] = None, user=Depends(get_current_user)):
+    """Backward compat: dashboard per-DUN. Masih boleh guna untuk detail DUN individu."""
     try:
         db = get_db()
         cursor = db.cursor()
@@ -750,6 +751,11 @@ def get_dashboard_dun(request: Request, dun_kod: str, dm: Optional[str] = None, 
 # Dashboard stats - guna parameter dun (filter ikut DUN)
 @app.get("/api/dashboard")
 def get_dashboard(request: Request, dun: Optional[str] = None, user=Depends(get_current_user)):
+    """
+    🚀 CONSOLIDATED DASHBOARD ENDPOINT — mengembalikan SEMUA data dashboard
+    (Parlimen summary + ALL DUN PDM data) dalam SATU panggilan API dan
+    SATU SQL GROUP BY pass untuk pengiraan agregat.
+    """
     try:
         db = get_db()
         cursor = db.cursor()
@@ -761,6 +767,88 @@ def get_dashboard(request: Request, dun: Optional[str] = None, user=Depends(get_
             params.append(dun)
         
         THN_SEMASA = 2026
+
+        # ================================================================
+        # 🚀 SINGLE-PASS AGGREGATION: GROUP BY d.kod, p.dm
+        # Satu pusingan pangkalan data untuk SEMUA DUN + SEMUA PDM.
+        # ================================================================
+        cursor.execute(f"""
+            SELECT
+                d.kod AS dun_kod,
+                p.dm,
+                COUNT(p.id) AS jumlah,
+                SUM(CASE WHEN p.status_sokongan = 'Putih' THEN 1 ELSE 0 END) AS putih,
+                SUM(CASE WHEN p.status_sokongan = 'Atas Pagar' THEN 1 ELSE 0 END) AS atas_pagar,
+                SUM(CASE WHEN p.status_sokongan = 'Hitam' THEN 1 ELSE 0 END) AS hitam,
+                SUM(CASE WHEN p.status_sokongan IS NULL OR p.status_sokongan NOT IN ('Putih', 'Atas Pagar', 'Hitam') THEN 1 ELSE 0 END) AS tidak_dikenali,
+                SUM(CASE WHEN p.status_fizikal = 'Meninggal Dunia' THEN 1 ELSE 0 END) AS meninggal,
+                SUM(CASE WHEN p.tahun_lahir IS NOT NULL AND (? - p.tahun_lahir) BETWEEN 18 AND 30 THEN 1 ELSE 0 END) AS usia_18_30,
+                SUM(CASE WHEN p.tahun_lahir IS NOT NULL AND (? - p.tahun_lahir) BETWEEN 31 AND 59 THEN 1 ELSE 0 END) AS usia_31_59,
+                SUM(CASE WHEN p.tahun_lahir IS NOT NULL AND (? - p.tahun_lahir) >= 60 THEN 1 ELSE 0 END) AS usia_60plus
+            FROM pengundi p
+            JOIN dun d ON d.id = p.dun_id
+            {where}
+              AND p.dm IS NOT NULL AND p.dm != ''
+            GROUP BY d.kod, p.dm
+            ORDER BY d.kod, p.dm
+        """, params + [THN_SEMASA, THN_SEMASA, THN_SEMASA])
+
+        # Build nested dict: dun_kod -> [{dm, jumlah, putih, ...}, ...]
+        dun_pdm_raw = {}
+        for row in cursor.fetchall():
+            dk = row["dun_kod"]
+            if dk not in dun_pdm_raw:
+                dun_pdm_raw[dk] = []
+            dun_pdm_raw[dk].append({
+                "dm": row["dm"],
+                "jumlah": row["jumlah"],
+                "putih": row["putih"],
+                "atas_pagar": row["atas_pagar"],
+                "hitam": row["hitam"],
+                "tidak_dikenali": row["tidak_dikenali"],
+                "meninggal": row["meninggal"],
+                "usia_18_30": row["usia_18_30"],
+                "usia_31_59": row["usia_31_59"],
+                "usia_60plus": row["usia_60plus"],
+                "jumlah_ketua_keluarga": 0  # akan dikira dalam pass kk berasingan
+            })
+
+        # ================================================================
+        # 🚀 SINGLE-PASS KK COUNT (per-DUN per-PDM)
+        # Gunakan ROW_NUMBER untuk elak double-counting KK merentas PDM.
+        # ================================================================
+        cursor.execute(f"""
+            SELECT d.kod AS dun_kod, sub.dm, COUNT(*) AS kk_count
+            FROM (
+                SELECT p2.ketua_keluarga_id AS kk_id,
+                       p2.dm,
+                       d2.kod,
+                       ROW_NUMBER() OVER (PARTITION BY p2.ketua_keluarga_id ORDER BY COUNT(*) DESC) AS rn
+                FROM pengundi p2
+                JOIN dun d2 ON d2.id = p2.dun_id
+                WHERE p2.ketua_keluarga_id IS NOT NULL
+                  AND p2.status_fizikal = 'Hidup'
+                  AND p2.status_rekod = 'Sah'
+                  AND p2.dm IS NOT NULL AND p2.dm != ''
+                GROUP BY p2.ketua_keluarga_id, p2.dm, d2.kod
+            ) sub
+            WHERE sub.rn = 1
+            GROUP BY sub.kod, sub.dm
+        """)
+
+        for row in cursor.fetchall():
+            dk = row["dun_kod"]
+            dm = row["dm"]
+            kk_count = row["kk_count"]
+            if dk in dun_pdm_raw:
+                for item in dun_pdm_raw[dk]:
+                    if item["dm"] == dm:
+                        item["jumlah_ketua_keluarga"] = kk_count
+                        break
+
+        # ================================================================
+        # PARLIMEN-LEVEL aggregation (existing queries)
+        # ================================================================
 
         # Jumlah pengundi
         cursor.execute(f"SELECT COUNT(*) FROM pengundi {where}", params)
@@ -857,7 +945,9 @@ def get_dashboard(request: Request, dun: Optional[str] = None, user=Depends(get_
             "lokaliti_teratas": lokaliti_data,
             "klasifikasi_umur": klasifikasi_umur,
             "purata_umur": purata_umur,
-            "sokongan_ikut_umur": sokongan_ikut_umur
+            "sokongan_ikut_umur": sokongan_ikut_umur,
+            # 🚀 CONSOLIDATED DUN PDM DATA — single payload replaces 4 separate API calls
+            "dun_pdm": dun_pdm_raw
         }
     except Exception as e:
         import traceback
