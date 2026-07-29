@@ -170,7 +170,30 @@ function checkAdminOrDeveloper() { return checkAdmin() || checkDeveloper(); }
 // ============================================================
 
 function renderLoginPage() {
-    // Sembunyikan header bar (tajuk + butang menu) semasa login
+    // 🛡️ LOCK BODY: force perfect centering, kill scrollbars
+    document.body.style.overflow = 'hidden';
+    const appEl = document.getElementById('app');
+    if (appEl) {
+        appEl.style.display = 'flex';
+        appEl.style.justifyContent = 'center';
+        appEl.style.alignItems = 'center';
+        appEl.style.minHeight = '100vh';
+        appEl.style.width = '100vw';
+        appEl.style.margin = '0';
+        appEl.style.padding = '0';
+    }
+    // Reset inner wrapper offset
+    const innerWrapper = appEl?.querySelector('.flex-1');
+    if (innerWrapper) {
+        innerWrapper.style.padding = '0';
+        innerWrapper.style.display = 'flex';
+        innerWrapper.style.justifyContent = 'center';
+        innerWrapper.style.alignItems = 'center';
+        innerWrapper.style.width = '100%';
+    }
+    // Clear remnant heading text + hide header bar
+    const pageTitle = document.getElementById('pageTitle');
+    if (pageTitle) pageTitle.textContent = '';
     const headerBar = document.getElementById('pageTitle')?.closest('.flex.items-center.justify-between');
     if (headerBar) headerBar.style.display = 'none';
     document.getElementById('sidebar').classList.add('hidden');
@@ -186,19 +209,19 @@ function renderLoginPage() {
         return;
     }
     contentArea.innerHTML = `
-        <div class="flex items-center justify-center min-h-screen">
-            <div class="card w-full max-w-md p-8">
-                <div class="text-center mb-6">
-                    <img src="logo.png" alt="JenteraPintar Logo" class="w-32 h-32 mx-auto mb-4" onerror="this.style.display='none';">
+        <div class="flex items-center justify-center" style="min-height:100vh;width:100%;">
+            <div class="card w-full max-w-lg p-10 md:p-12" style="margin:0 auto;">
+                <div class="text-center mb-8">
+                    <img src="logo.png" alt="JenteraPintar Logo" class="w-40 h-40 mx-auto mb-4" onerror="this.style.display='none';">
                     <h2 class="text-xl font-bold text-gray-800">JenteraPintar</h2>
                     <p class="text-sm text-gray-500 mt-1">P170 Tuaran</p>
                 </div>
-                <div class="space-y-4">
-                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Nama Pengguna</label><input type="text" id="loginUsername" placeholder="Masukkan nama pengguna" value="" autocomplete="off"></div>
-                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Kata Laluan</label><input type="password" id="loginPassword" placeholder="Masukkan kata laluan" value="" autocomplete="new-password"></div>
-                    <button onclick="handleLogin(document.getElementById('loginUsername').value, document.getElementById('loginPassword').value)" class="btn btn-primary w-full py-3 text-lg">Log Masuk</button>
+                <div class="space-y-5">
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Nama Pengguna</label><input type="text" id="loginUsername" placeholder="Masukkan nama pengguna" value="" autocomplete="off" class="w-full py-3 text-lg"></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Kata Laluan</label><input type="password" id="loginPassword" placeholder="Masukkan kata laluan" value="" autocomplete="new-password" class="w-full py-3 text-lg"></div>
+                    <button onclick="handleLogin(document.getElementById('loginUsername').value, document.getElementById('loginPassword').value)" class="btn btn-primary w-full py-4 text-lg">Log Masuk</button>
                 </div>
-                <div class="mt-6 text-center">
+                <div class="mt-8 text-center">
                     <p class="text-xs text-slate-500 leading-relaxed">
                         © 2026 P170 Tuaran. Hak Cipta Terpelihara.<br>
                         Powered by Jarvis_KM | contact: jarvis_mql45dev@proton.me | Telegram: <a href="https://t.me/Jarvis_KM" target="_blank" class="text-xs text-slate-500 hover:text-blue-500 transition">@Jarvis_KM</a>
@@ -209,6 +232,26 @@ function renderLoginPage() {
 }
 
 function renderSidebar() {
+    // Pulihkan body & app container selepas login
+    document.body.style.overflow = '';
+    const appEl = document.getElementById('app');
+    if (appEl) {
+        appEl.style.display = '';
+        appEl.style.justifyContent = '';
+        appEl.style.alignItems = '';
+        appEl.style.minHeight = '';
+        appEl.style.width = '';
+        appEl.style.margin = '';
+        appEl.style.padding = '';
+    }
+    const innerWrapper = appEl?.querySelector('.flex-1');
+    if (innerWrapper) {
+        innerWrapper.style.padding = '';
+        innerWrapper.style.display = '';
+        innerWrapper.style.justifyContent = '';
+        innerWrapper.style.alignItems = '';
+        innerWrapper.style.width = '';
+    }
     // Pulihkan header bar selepas login
     const headerBar = document.getElementById('pageTitle')?.closest('.flex.items-center.justify-between');
     if (headerBar) headerBar.style.display = '';
