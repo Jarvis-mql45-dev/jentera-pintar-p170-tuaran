@@ -112,48 +112,72 @@ class _PostgresCursor:
 
 
 # =============================================================================
-# PEMBALUT SAMBUNGAN UNTUK PostgreSQL
+# 🚀 PHASE 3 PERF: THREADED CONNECTION POOL untuk PostgreSQL
 # =============================================================================
-class _PostgresConnection:
+import threading
+
+_pool = None
+_pool_lock = threading.Lock()
+POOL_MIN = 2
+POOL_MAX = 10
+
+def _transform_dsn(dsn):
+    """Apply all DSN transformations (dialect fix, pooler host, port, SSL)."""
+    import re
+    if not dsn or not dsn.strip():
+        raise ValueError("DATABASE_URL tidak diset atau kosong — sambungan PostgreSQL tidak dapat dibuat")
+    # 1. Dialect fix: psycopg2 hanya terima postgresql://, bukan postgres://
+    if dsn.startswith("postgres://"):
+        dsn = "postgresql://" + dsn[len("postgres://"):]
+    # 2. Force guna IPv4 Pooler Host
+    PROJECT_REF = "hgweacgibbnynjviocje"
+    if f"db.{PROJECT_REF}.supabase.co" in dsn:
+        dsn = dsn.replace(
+            f"db.{PROJECT_REF}.supabase.co",
+            "aws-0-ap-southeast-1.pooler.supabase.com"
+        )
+    # 2b. Pooler memerlukan username postgres.<project_ref>
+    if "aws-0-ap-southeast-1.pooler.supabase.com" in dsn:
+        if "://postgres:" in dsn and f"://postgres.{PROJECT_REF}:" not in dsn:
+            dsn = dsn.replace("://postgres:", f"://postgres.{PROJECT_REF}:")
+    # 3. Force port 6543 (Transaction Pooler)
+    dsn = re.sub(r':5432([/?]|$)', r':6543\1', dsn)
+    # 4. SSL in production
+    if settings.is_production and 'sslmode' not in dsn:
+        separator = '&' if '?' in dsn else '?'
+        dsn = f"{dsn}{separator}sslmode=require"
+    return dsn
+
+def _get_pool():
+    """Get or create the singleton ThreadedConnectionPool."""
+    global _pool
+    if _pool is None:
+        with _pool_lock:
+            if _pool is None:
+                try:
+                    from psycopg2.pool import ThreadedConnectionPool
+                    dsn = _transform_dsn(settings.DATABASE_URL)
+                    _pool = ThreadedConnectionPool(POOL_MIN, POOL_MAX, dsn)
+                    print(f"✅ PostgreSQL ThreadedConnectionPool created (min={POOL_MIN}, max={POOL_MAX})")
+                except Exception as e:
+                    import sys
+                    print(f"❌ Gagal buat connection pool: {e}", file=sys.stderr)
+                    raise
+    return _pool
+
+# =============================================================================
+# PEMBALUT SAMBUNGAN UNTUK PostgreSQL — pooled version
+# =============================================================================
+class _PooledPostgresConnection:
     """
-    Pembalut sambungan psycopg2 yang menyamai antara muka `sqlite3.Connection`.
+    Pembalut sambungan psycopg2 pooled yang menyamai antara muka `sqlite3.Connection`.
     Fungsi .cursor() memulangkan _PostgresCursor.
+    close() mengembalikan sambungan ke pool (bukan tutup sebenar).
     """
 
-    def __init__(self, dsn: str):
-        import psycopg2
-        import re
-        # 0. Guard clause: jangan teruskan jika DSN kosong
-        if not dsn or not dsn.strip():
-            raise ValueError("DATABASE_URL tidak diset atau kosong — sambungan PostgreSQL tidak dapat dibuat")
-        # 1. Dialect fix: psycopg2 hanya terima postgresql://, bukan postgres://
-        if dsn.startswith("postgres://"):
-            dsn = "postgresql://" + dsn[len("postgres://"):]
-        # 2. Force guna IPv4 Pooler Host: tukar domain Direct Connection ke pooler
-        #    Vercel Serverless tidak menyokong IPv6 — pooler guna IPv4
-        PROJECT_REF = "hgweacgibbnynjviocje"
-        if f"db.{PROJECT_REF}.supabase.co" in dsn:
-            dsn = dsn.replace(
-                f"db.{PROJECT_REF}.supabase.co",
-                "aws-0-ap-southeast-1.pooler.supabase.com"
-            )
-        # 2b. Pooler memerlukan username dalam format postgres.<project_ref>
-        #     (bukan postgres sahaja) — jika tidak, ENOIDENTIFIER error
-        if "aws-0-ap-southeast-1.pooler.supabase.com" in dsn:
-            if "://postgres:" in dsn and f"://postgres.{PROJECT_REF}:" not in dsn:
-                dsn = dsn.replace("://postgres:", f"://postgres.{PROJECT_REF}:")
-        # 3. Force guna port 6543 (Transaction Pooler) jika port 5432 masih ada
-        dsn = re.sub(r':5432([/?]|$)', r':6543\1', dsn)
-        # 4. Dalam production (Supabase/Vercel), pastikan SSL diwajibkan
-        if settings.is_production and 'sslmode' not in dsn:
-            separator = '&' if '?' in dsn else '?'
-            dsn = f"{dsn}{separator}sslmode=require"
-        try:
-            self._inner = psycopg2.connect(dsn)
-        except Exception as e:
-            import sys
-            print(f"❌ KRITIKAL: Gagal sambung PostgreSQL (dsn={dsn[:30]}...): {e}", file=sys.stderr)
-            raise
+    def __init__(self, conn, pool):
+        self._inner = conn
+        self._pool = pool
         self._inner.autocommit = False
 
     def cursor(self):
@@ -166,21 +190,29 @@ class _PostgresConnection:
         self._inner.rollback()
 
     def close(self):
-        self._inner.close()
+        """Return connection to pool for reuse — NOT actually closing."""
+        if self._pool and self._inner:
+            try:
+                self._pool.putconn(self._inner)
+            except Exception:
+                pass
+            self._inner = None
+            self._pool = None
 
 
 # =============================================================================
-# FUNGSI UTAMA get_db() – kembali sambungan SQLite ATAU PostgreSQL
+# FUNGSI UTAMA get_db() – kembali sambungan SQLite ATAU PostgreSQL (pooled)
 # =============================================================================
 def get_db():
     """
     Kembalikan sambungan pangkalan data.
-
-    - Jika DATABASE_URL diset → PostgreSQL (psycopg2)
+    - Jika DATABASE_URL diset → PostgreSQL (psycopg2 pooled)
     - Jika tidak → SQLite tempatan (sqlite3)
     """
     if USE_POSTGRES:
-        return _PostgresConnection(settings.DATABASE_URL)
+        pool = _get_pool()
+        conn = pool.getconn()
+        return _PooledPostgresConnection(conn, pool)
 
     import sqlite3
     conn = sqlite3.connect(settings.DB_PATH)

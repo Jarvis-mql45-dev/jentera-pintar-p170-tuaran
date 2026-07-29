@@ -242,7 +242,11 @@ const state = {
     pengundiData: null, dashboardData: null, pdmList: [], chart: null,
     surveyPage: 'list', surveyEditId: null, surveyQuestions: [], charts: {},
     dunChartDun: 'N12', dunChartPdm: '', dashboardEditMode: false,
-    dashboardLayout: safeParse(localStorage.getItem('dashboardLayout_v2'), null), dashboardItems: []
+    dashboardLayout: safeParse(localStorage.getItem('dashboardLayout_v2'), null), dashboardItems: [],
+    // 🚀 PHASE 3 PERF: In-memory page cache — eliminates redundant re-fetch/re-render
+    pageCache: {},        // { 'dashboard': '<html>', 'pengundi': '<html>', ... }
+    pageCacheValid: {},   // { 'dashboard': true, 'pengundi': false, ... }
+    lastRenderedRole: null // track last rendered role for sidebar rebuild avoidance
 };
 const PDM_BY_DUN = {
     "N12": ["BARU-BARU","BATANGAN","INDAI","KINDU","PENIMBAWAN","SERUSUP","TAMBALANG"],
@@ -405,19 +409,52 @@ function renderSidebar() {
             <div class="px-3 py-2 border-t border-gray-100 mt-1"><p class="text-xs text-slate-500 text-center leading-relaxed">&copy; 2026 P170 Tuaran.<br>Powered by Jarvis_KM</p></div>
         </div>`;
 }
+// 🚀 PHASE 3 PERF: Update only the active sidebar item highlight — no full rebuild
+function updateSidebarActive(page) {
+    document.querySelectorAll('.sidebar-item').forEach(el => {
+        const matches = el.getAttribute('onclick')?.includes(`'${page}'`);
+        if (matches) {
+            el.classList.add('bg-primary-50', 'text-primary-700', 'font-medium');
+            el.classList.remove('text-gray-600', 'hover:bg-gray-50');
+        } else {
+            el.classList.remove('bg-primary-50', 'text-primary-700', 'font-medium');
+            el.classList.add('text-gray-600', 'hover:bg-gray-50');
+        }
+    });
+}
+// 🚀 PHASE 3 PERF: Cache-aware navigation — skip re-render if page is cached
 function navigate(page) {
     if (!requiresAuth()) { renderLoginPage(); return; }
+    const prevPage = state.currentPage;
     state.currentPage = page;
     localStorage.setItem('currentPage', page);
-    renderSidebar();
-    document.getElementById('pageTitle').textContent = page==='dashboard'?'Papan Pemuka':page==='pengundi'?'Senarai Pengundi':page==='approval'?'Kelulusan Data':page==='audit'?'Log Aktiviti':page==='users'?'Pengurusan Pengguna':page==='import'?'Import Data Excel':page==='survey'?'Senarai Soal Selidik':page==='survey-create'?'Cipta Soal Selidik':page==='survey-view'?'Borang Soal Selidik':page==='ketua-keluarga'?'Pengurusan Ketua Keluarga':'Papan Pemuka';
+    
+    // 🚀 PHASE 3 PERF: Only rebuild sidebar if role changed or first time
+    const currentRole = state.user?.peranan || '';
+    if (state.lastRenderedRole !== currentRole || !document.querySelector('.sidebar-item')) {
+        renderSidebar();
+        state.lastRenderedRole = currentRole;
+    } else {
+        updateSidebarActive(page);
+        // Ensure sidebar is visible
+        document.getElementById('sidebar').classList.remove('hidden');
+    }
+    
+    document.getElementById('pageTitle').textContent = page==='dashboard'?'Papan Pemuka':page==='pengundi'?'Senarai Pengundi':page==='approval'?'Kelulusan Data':page==='audit'?'Log Aktiviti':page==='users'?'Pengurusan Pengguna':page==='import'?'Import Data Excel':page==='survey'?'Senarai Soal Selidik':page==='survey-create'?'Cipta Soal Selidik':page==='survey-view'?'Borang Soal Selidik':page==='pegawai-penyelaras'?'Pengurusan Pegawai Penyelaras':page==='ketua-keluarga'?'Pengurusan Ketua Keluarga':page==='kpi'?'Petunjuk Prestasi Utama (PPU)':'Papan Pemuka';
     // Close sidebar + overlay
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
     sidebar.classList.remove('open');
     sidebar.classList.add('closed');
-    overlay.classList.remove('active');
+    if (overlay) overlay.classList.remove('active');
     document.body.classList.remove('no-scroll');
+    
+    // 🚀 PHASE 3 PERF: Restore from cache if valid
+    if (state.pageCacheValid[page] && state.pageCache[page]) {
+        document.getElementById('contentArea').innerHTML = state.pageCache[page];
+        return;
+    }
+    
     if (page==='dashboard') renderDashboard();
     else if (page==='pengundi') { if (typeof renderPengundi === 'function') renderPengundi(); }
     else if (page==='approval') renderApprovalQueue();
@@ -427,7 +464,19 @@ function navigate(page) {
     else if (page==='survey') renderSurveyList();
     else if (page==='survey-create') renderCreateSurvey();
     else if (page==='survey-view') renderSurveyView();
+    else if (page==='pegawai-penyelaras') { if (typeof renderPegawaiPenyelaras === 'function') renderPegawaiPenyelaras(); }
+    else if (page==='ketua-keluarga') { if (typeof renderKetuaKeluarga === 'function') renderKetuaKeluarga(); }
+    else if (page==='kpi') { if (typeof renderKpi === 'function') renderKpi(); }
     else renderComingSoon(page);
+}
+// 🚀 PHASE 3 PERF: Invalidate page cache — call after any data mutation
+function invalidateCache(page) {
+    if (page) {
+        state.pageCacheValid[page] = false;
+    } else {
+        // Invalidate ALL pages except dashboard (which has its own data refresh)
+        Object.keys(state.pageCacheValid).forEach(k => { state.pageCacheValid[k] = false; });
+    }
 }
 // SURVEY FUNCTIONS
 async function renderSurveyList() { /* survey list inline */ }
