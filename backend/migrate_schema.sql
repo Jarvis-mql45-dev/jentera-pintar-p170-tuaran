@@ -184,6 +184,12 @@ CREATE INDEX IF NOT EXISTS idx_pengundi_kampung_id ON pengundi(kampung_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_username ON audit_logs(username);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_tindakan ON audit_logs(tindakan);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_dicipta ON audit_logs(dicipta_pada);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_no_kp ON audit_logs(no_kp_terlibat);
+
+-- 🚀 PHASE 1: Missing indexes for FK columns & composite searches
+CREATE INDEX IF NOT EXISTS idx_pengundi_ketua_keluarga ON pengundi(ketua_keluarga_id);
+CREATE INDEX IF NOT EXISTS idx_pengundi_pegawai_penyelaras ON pengundi(pegawai_penyelaras_id);
+CREATE INDEX IF NOT EXISTS idx_pengundi_dun_status ON pengundi(dun_id, status_fizikal, status_rekod);
 
 -- ============================================================
 -- SELESAI – Semua jadual dan indeks telah dibina.

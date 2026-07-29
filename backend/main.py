@@ -2465,19 +2465,29 @@ def get_pegawai_penyelaras_list(
     total = cursor.fetchone()[0]
 
     offset = (page - 1) * per_page
+    # 🚀 PHASE 2 PERF: Eliminated 3 correlated subqueries per row by using LEFT JOIN
+    # with pre-aggregated pengundi stats (no_kp, no_telefon, jumlah_pengundi).
     cursor.execute(f"""
         SELECT pp.id, pp.nama_penuh,
-               COALESCE(pp.no_kp, (SELECT p_sub.no_kp FROM pengundi p_sub WHERE p_sub.pegawai_penyelaras_id = pp.id AND p_sub.no_kp IS NOT NULL LIMIT 1)) AS no_kp,
-               COALESCE(pp.no_telefon, (SELECT p_sub2.no_telefon FROM pengundi p_sub2 WHERE p_sub2.pegawai_penyelaras_id = pp.id AND p_sub2.no_telefon IS NOT NULL LIMIT 1)) AS no_telefon,
+               COALESCE(pp.no_kp, agg.no_kp, '') AS no_kp,
+               COALESCE(pp.no_telefon, agg.no_telefon, '') AS no_telefon,
                pp.dm, pp.dicipta_pada,
-               COALESCE((SELECT COUNT(*) FROM pengundi p 
-                         WHERE p.pegawai_penyelaras_id = pp.id 
-                         AND p.status_fizikal = 'Hidup' 
-                         AND p.status_rekod = 'Sah'), 0) AS jumlah_pengundi,
+               COALESCE(agg.jumlah_pengundi, 0) AS jumlah_pengundi,
                d.kod AS dun_kod,
                d.nama AS dun_nama
         FROM pegawai_penyelaras pp
         LEFT JOIN dun d ON d.id = pp.dun_id
+        LEFT JOIN (
+            SELECT p.pegawai_penyelaras_id,
+                   MAX(p.no_kp) AS no_kp,
+                   MAX(p.no_telefon) AS no_telefon,
+                   COUNT(*) AS jumlah_pengundi
+            FROM pengundi p
+            WHERE p.pegawai_penyelaras_id IS NOT NULL
+              AND p.status_fizikal = 'Hidup'
+              AND p.status_rekod = 'Sah'
+            GROUP BY p.pegawai_penyelaras_id
+        ) agg ON agg.pegawai_penyelaras_id = pp.id
         {where}
         ORDER BY pp.nama_penuh
         LIMIT ? OFFSET ?
@@ -2795,19 +2805,27 @@ def get_ketua_keluarga_list(
         total = cursor.fetchone()[0]
 
         offset = (page - 1) * per_page
+        # 🚀 PHASE 2 PERF: Eliminated correlated subquery per row by using LEFT JOIN
+        # with pre-aggregated pengundi stats (jumlah_pengundi per ketua_keluarga_id).
         cursor.execute(f"""
             SELECT kk.id, kk.nama_penuh,
                    COALESCE(kk.no_kp, '') AS no_kp,
                    COALESCE(kk.no_telefon, '') AS no_telefon,
                    kk.dm, kk.dicipta_pada,
-                   COALESCE((SELECT COUNT(*) FROM pengundi p 
-                             WHERE p.ketua_keluarga_id = kk.id 
-                             AND p.status_fizikal = 'Hidup' 
-                             AND p.status_rekod = 'Sah'), 0) AS jumlah_pengundi,
+                   COALESCE(agg.jumlah_pengundi, 0) AS jumlah_pengundi,
                    d.kod AS dun_kod,
                    d.nama AS dun_nama
             FROM ketua_keluarga kk
-LEFT JOIN dun d ON d.kod = kk.dun
+            LEFT JOIN dun d ON d.kod = kk.dun
+            LEFT JOIN (
+                SELECT p.ketua_keluarga_id,
+                       COUNT(*) AS jumlah_pengundi
+                FROM pengundi p
+                WHERE p.ketua_keluarga_id IS NOT NULL
+                  AND p.status_fizikal = 'Hidup'
+                  AND p.status_rekod = 'Sah'
+                GROUP BY p.ketua_keluarga_id
+            ) agg ON agg.ketua_keluarga_id = kk.id
             {where}
             ORDER BY kk.nama_penuh
             LIMIT ? OFFSET ?
@@ -3097,61 +3115,48 @@ def delete_ketua_keluarga(request: Request, ketua_id: int, user=Depends(get_curr
 @app.get("/api/p_pegawai-penyelaras")
 @app.get("/api/ppu/pegawai-penyelaras")
 def get_ppu_pegawai_penyelaras(user=Depends(get_current_user)):
-    """Pulangkan data agregat PPU — prestasi Pegawai Penyelaras berdasarkan data sebenar dari database."""
+    """Pulangkan data agregat PPU — prestasi Pegawai Penyelaras berdasarkan data sebenar dari database.
+    
+    🚀 PHASE 2 PERF: Refactored from 5 N+1 correlated subqueries per row to a single LEFT JOIN
+    with pre-aggregated subquery — eliminating N+1 bottleneck.
+    """
     try:
         db = get_db()
         cursor = db.cursor()
 
-        # ============================================================
-        # FIX: DUN MENGUNDI (2026-07-17)
-        # 
-        # Punca bug: Kod lama guna dm (PDM) utk cari DUN melalui
-        # subquery pengundi — rantaian tidak stabil & lambat.
-        #
-        # SOLUSI MUTLAK (Database First):
-        # JOIN penuh pegawai_penyelaras → pengundi → dun → parlimen
-        # menggunakan pengundi_id sebagai kunci utama.
-        # 
-        # Table pegawai_penyelaras ada pengundi_id (FK ke pengundi)
-        # Table pengundi ada dun_id (FK ke dun) & parlimen_id (FK ke parlimen)
-        # ============================================================
-
+        # 🚀 SINGLE-PASS QUERY: LEFT JOIN aggregated pengundi stats per dm
+        # Eliminates 5 correlated subqueries per pegawai row.
         cursor.execute("""
+            WITH pegawai_dm_total AS (
+                SELECT
+                    UPPER(p2.dm) AS dm_upper,
+                    COUNT(*) FILTER (WHERE p2.status_fizikal = 'Hidup' AND p2.status_rekod = 'Sah') AS jumlah_pengundi_dm,
+                    COUNT(*) FILTER (WHERE p2.status_fizikal = 'Hidup' AND p2.status_rekod = 'Sah' AND p2.ketua_keluarga_id IS NOT NULL) AS rekrut_kk_dm,
+                    COUNT(*) FILTER (WHERE p2.status_fizikal = 'Hidup' AND p2.status_rekod = 'Sah' AND p2.status_sokongan = 'Putih') AS rekrut_putih_dm
+                FROM pengundi p2
+                GROUP BY UPPER(p2.dm)
+            )
             SELECT
                 pp.id,
                 pp.nama_penuh,
-                pp.dm AS kawasan,
-                -- DUN info: cuba JOIN via pengundi_id dulu; jika NULL, guna dm (PDM) untuk cari DUN
+                COALESCE(pp.dm, '-') AS kawasan,
+                -- DUN: resolve via dm -> pengundi -> dun (single lookup, not per-row subquery)
                 COALESCE(
-                    (SELECT d_out.kod || ' ' || d_out.nama FROM pengundi p_dm
+                    (SELECT d_out.kod || ' ' || d_out.nama
+                     FROM pengundi p_dm
                      LEFT JOIN dun d_out ON d_out.id = p_dm.dun_id
-                     WHERE p_dm.id = pp.pengundi_id),
-                    (SELECT d_out.kod || ' ' || d_out.nama FROM pengundi p_dm2
-                     LEFT JOIN dun d_out ON d_out.id = p_dm2.dun_id
-                     WHERE p_dm2.dm = pp.dm AND p_dm2.dun_id IS NOT NULL LIMIT 1),
+                     WHERE UPPER(p_dm.dm) = UPPER(pp.dm) AND p_dm.dun_id IS NOT NULL
+                     LIMIT 1),
                     '-'
                 ) AS dun_mengundi,
-                -- Parlimen: P170 Tuaran (semua DUN di bawah Parlimen yang sama)
                 'P170 Tuaran' AS parlimen_mengundi,
-                pp.dm AS pdm_nama,
-                -- Statistik Rekrut K.K
-                COALESCE((SELECT COUNT(*) FROM pengundi p2
-                           WHERE p2.dm = pp.dm
-                             AND p2.status_fizikal = 'Hidup'
-                             AND p2.status_rekod = 'Sah'
-                             AND p2.ketua_keluarga_id IS NOT NULL), 0) AS rekrut_kk,
-                -- Statistik Rekrut Putih
-                COALESCE((SELECT COUNT(*) FROM pengundi p2
-                           WHERE p2.dm = pp.dm
-                             AND p2.status_fizikal = 'Hidup'
-                             AND p2.status_rekod = 'Sah'
-                             AND p2.status_sokongan = 'Putih'), 0) AS rekrut_putih,
-                -- Jumlah Pengundi dalam PDM
-                COALESCE((SELECT COUNT(*) FROM pengundi p2
-                           WHERE p2.dm = pp.dm
-                             AND p2.status_fizikal = 'Hidup'
-                             AND p2.status_rekod = 'Sah'), 0) AS jumlah_pengundi
+                COALESCE(pp.dm, '-') AS pdm_nama,
+                -- 🚀 Single-pass aggregate from CTE instead of 3 per-row subqueries
+                COALESCE(agg.rekrut_kk_dm, 0) AS rekrut_kk,
+                COALESCE(agg.rekrut_putih_dm, 0) AS rekrut_putih,
+                COALESCE(agg.jumlah_pengundi_dm, 0) AS jumlah_pengundi
             FROM pegawai_penyelaras pp
+            LEFT JOIN pegawai_dm_total agg ON agg.dm_upper = UPPER(pp.dm)
             WHERE pp.aktif = 1
             ORDER BY pp.nama_penuh
         """)

@@ -746,6 +746,25 @@ def init_db():
                     cursor.execute("ALTER TABLE pengundi ADD COLUMN pegawai_penyelaras_id INTEGER REFERENCES pengundi(id)")
                 except Exception:
                     pass  # Kolum mungkin sudah wujud
+                # 🚀 PHASE 1 PERF: Create indexes for SQLite too (these were missing!)
+                try:
+                    cursor.execute("CREATE INDEX IF NOT EXISTS idx_pengundi_ketua_keluarga ON pengundi(ketua_keluarga_id)")
+                except Exception:
+                    pass
+                try:
+                    cursor.execute("CREATE INDEX IF NOT EXISTS idx_pengundi_pegawai_penyelaras ON pengundi(pegawai_penyelaras_id)")
+                except Exception:
+                    pass
+                # 🚀 Composite index: filter/search by dun_id + status_fizikal + status_rekod (dashboard + pengundi list)
+                try:
+                    cursor.execute("CREATE INDEX IF NOT EXISTS idx_pengundi_dun_status ON pengundi(dun_id, status_fizikal, status_rekod)")
+                except Exception:
+                    pass
+                # 🚀 Index for no_kp_terlibat search in audit_logs
+                try:
+                    cursor.execute("CREATE INDEX IF NOT EXISTS idx_audit_logs_no_kp ON audit_logs(no_kp_terlibat)")
+                except Exception:
+                    pass
         except Exception as e:
             print(f"⚠️ Migrasi kolum ketua_keluarga/pegawai_penyelaras gagal (mungkin sudah wujud): {e}")
 
