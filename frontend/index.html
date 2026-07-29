@@ -328,7 +328,7 @@ function handleLogout() {
     renderApp();
 }
 function requiresAuth() { return !!(state.token && state.user); }
-function checkAdmin() { return state.user?.peranan === 'Admin'; }
+function checkAdmin() { return state.user?.peranan?.startsWith('Admin') || state.user?.peranan === 'Developer'; }
 
 // renderLoginPage is DELEGATED to app.js — DO NOT duplicate here
 function renderSidebar() {
@@ -373,8 +373,8 @@ function renderSidebar() {
             <button onclick="navigate('pengundi')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='pengundi'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg> Senarai Pengundi
             </button>
-            ${peranan==='Admin' ? `<button onclick="navigate('approval')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='approval'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Kelulusan Data<span id="approvalBadge" class="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full hidden">0</span></button>` : ''}
-            ${peranan==='Admin' ? `
+            ${(peranan.startsWith('Admin') || peranan==='Developer') ? `<button onclick="navigate('approval')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='approval'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Kelulusan Data<span id="approvalBadge" class="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full hidden">0</span></button>` : ''}
+            ${(peranan.startsWith('Admin') || peranan==='Developer') ? `
             <div class="text-xs text-gray-400 uppercase font-semibold mb-2 mt-4 px-3">Pentadbiran</div>
             <button onclick="navigate('audit')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='audit'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg> Log Aktiviti</button>
             <button onclick="navigate('users')" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 ${state.currentPage==='users'?'bg-primary-50 text-primary-700 font-medium':'text-gray-600 hover:bg-gray-50'}"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/></svg> Pengurusan Pengguna</button>
@@ -576,9 +576,9 @@ function renderApp() {
     if (window.innerWidth < 768) document.getElementById('sidebar').classList.add('closed');
     else document.getElementById('sidebar').classList.remove('closed');
     document.getElementById('sidebarOverlay').classList.remove('active');
-    document.getElementById('userInfo').innerHTML = `<span class="hidden md:block text-sm text-gray-600">${state.user?.nama_penuh}</span><span class="badge ${state.user?.peranan==='Admin'?'badge-putih':state.user?.peranan==='Petugas Padang'?'badge-atas':'badge-tiada'}">${state.user?.peranan}</span><button onclick="handleLogout()" class="btn btn-danger text-sm flex items-center gap-1.5 px-3 py-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg> Log Keluar</button>`;
+    document.getElementById('userInfo').innerHTML = `<span class="hidden md:block text-sm text-gray-600">${state.user?.nama_penuh}</span><span class="badge ${(state.user?.peranan?.startsWith('Admin') || state.user?.peranan==='Developer')?'badge-putih':state.user?.peranan==='Petugas Padang'?'badge-atas':'badge-tiada'}">${state.user?.peranan}</span><button onclick="handleLogout()" class="btn btn-danger text-sm flex items-center gap-1.5 px-3 py-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg> Log Keluar</button>`;
     navigate(state.currentPage);
-    if (state.user?.peranan==='Admin') updateApprovalBadge();
+    if (state.user?.peranan?.startsWith('Admin') || state.user?.peranan==='Developer') updateApprovalBadge();
 }
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
@@ -597,7 +597,7 @@ function toggleSidebar() {
 }
 document.getElementById('menuToggle')?.addEventListener('click', toggleSidebar);
 try { renderApp(); } catch(e) { console.error('[CRITICAL] renderApp() crashed:', e); document.getElementById('sidebar')?.classList.add('hidden'); document.getElementById('pageTitle').textContent = 'Log Masuk'; document.getElementById('userInfo').innerHTML = ''; document.getElementById('contentArea').innerHTML = '<div class="flex items-center justify-center min-h-[70vh]"><div class="card w-full max-w-md p-8 text-center"><div class="w-16 h-16 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4"><svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg></div><h2 class="text-lg font-bold text-gray-800 mb-2">Ralat Aplikasi</h2><p class="text-sm text-gray-500 mb-4">Aplikasi mengalami masalah teknikal. Sila muat semula halaman.</p><button onclick="location.reload()" class="btn btn-primary">Muat Semula</button></div></div>'; }
-setInterval(() => { if (state.user?.peranan==='Admin' && state.token) updateApprovalBadge(); }, 30000);
+setInterval(() => { if ((state.user?.peranan?.startsWith('Admin') || state.user?.peranan==='Developer') && state.token) updateApprovalBadge(); }, 30000);
 // Click outside to close sidebar (mobile) — with overlay support
 document.addEventListener('click', (e) => {
     const sidebar = document.getElementById('sidebar');

@@ -940,6 +940,9 @@ def get_dashboard(request: Request, dun: Optional[str] = None, user=Depends(get_
                 sokongan_ikut_umur[k] = {}
             sokongan_ikut_umur[k][s] = j
 
+        import sys
+        print(f"[DASHBOARD] User: {user.get('username')} | Role: {user.get('peranan')} | dun param: {dun} | dun_pdm keys: {list(dun_pdm_raw.keys())} | jumlah_pengundi: {jumlah_pengundi}", file=sys.stderr)
+
         db.close()
 
         return {
