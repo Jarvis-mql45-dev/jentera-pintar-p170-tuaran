@@ -174,22 +174,27 @@ function renderLoginPage() {
     document.body.style.overflow = 'hidden';
     const appEl = document.getElementById('app');
     if (appEl) {
-        appEl.style.display = 'flex';
-        appEl.style.justifyContent = 'center';
-        appEl.style.alignItems = 'center';
-        appEl.style.minHeight = '100vh';
-        appEl.style.width = '100vw';
-        appEl.style.margin = '0';
-        appEl.style.padding = '0';
+        appEl.style.setProperty('display', 'flex', 'important');
+        appEl.style.setProperty('justifyContent', 'center', 'important');
+        appEl.style.setProperty('alignItems', 'center', 'important');
+        appEl.style.setProperty('minHeight', '100vh', 'important');
+        appEl.style.setProperty('width', '100vw', 'important');
+        appEl.style.setProperty('maxWidth', '100%', 'important');
+        appEl.style.setProperty('margin', '0', 'important');
+        appEl.style.setProperty('padding', '0', 'important');
+        appEl.style.setProperty('boxSizing', 'border-box', 'important');
     }
-    // Reset inner wrapper offset
+    // Reset inner wrapper offset — kill hidden sidebar margin-left: 260px
     const innerWrapper = appEl?.querySelector('.flex-1');
     if (innerWrapper) {
-        innerWrapper.style.padding = '0';
-        innerWrapper.style.display = 'flex';
-        innerWrapper.style.justifyContent = 'center';
-        innerWrapper.style.alignItems = 'center';
-        innerWrapper.style.width = '100%';
+        innerWrapper.style.setProperty('padding', '0', 'important');
+        innerWrapper.style.setProperty('display', 'flex', 'important');
+        innerWrapper.style.setProperty('justifyContent', 'center', 'important');
+        innerWrapper.style.setProperty('alignItems', 'center', 'important');
+        innerWrapper.style.setProperty('width', '100%', 'important');
+        innerWrapper.style.setProperty('margin', '0', 'important');
+        innerWrapper.style.setProperty('marginLeft', '0', 'important');
+        innerWrapper.style.setProperty('maxWidth', '100%', 'important');
     }
     // Clear remnant heading text + hide header bar
     const pageTitle = document.getElementById('pageTitle');
@@ -210,21 +215,21 @@ function renderLoginPage() {
     }
     contentArea.innerHTML = `
         <div class="flex items-center justify-center" style="min-height:100vh;width:100%;">
-            <div class="card w-full max-w-lg p-10 md:p-12" style="margin:0 auto;">
+            <div class="card w-full max-w-[440px] p-10 md:p-12" style="margin:0 auto;">
                 <div class="text-center mb-8">
                     <img src="logo.png" alt="JenteraPintar Logo" class="w-40 h-40 mx-auto mb-4" onerror="this.style.display='none';">
-                    <h2 class="text-xl font-bold text-gray-800">JenteraPintar</h2>
-                    <p class="text-sm text-gray-500 mt-1">P170 Tuaran</p>
+                    <h2 class="text-2xl font-bold text-gray-800">JenteraPintar</h2>
+                    <p class="mt-1" style="font-size:0.95rem;color:#6b7280;">P170 Tuaran</p>
                 </div>
                 <div class="space-y-5">
-                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Nama Pengguna</label><input type="text" id="loginUsername" placeholder="Masukkan nama pengguna" value="" autocomplete="off" class="w-full py-3 text-lg"></div>
-                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Kata Laluan</label><input type="password" id="loginPassword" placeholder="Masukkan kata laluan" value="" autocomplete="new-password" class="w-full py-3 text-lg"></div>
-                    <button onclick="handleLogin(document.getElementById('loginUsername').value, document.getElementById('loginPassword').value)" class="btn btn-primary w-full py-4 text-lg">Log Masuk</button>
+                    <div><label class="block mb-1" style="font-size:0.95rem;font-weight:600;color:#374151;">Nama Pengguna</label><input type="text" id="loginUsername" placeholder="Masukkan nama pengguna" value="" autocomplete="off" style="width:100%;padding:12px 16px;font-size:1rem;border:1px solid #d1d5db;border-radius:8px;outline:none;"></div>
+                    <div><label class="block mb-1" style="font-size:0.95rem;font-weight:600;color:#374151;">Kata Laluan</label><input type="password" id="loginPassword" placeholder="Masukkan kata laluan" value="" autocomplete="new-password" style="width:100%;padding:12px 16px;font-size:1rem;border:1px solid #d1d5db;border-radius:8px;outline:none;"></div>
+                    <button onclick="handleLogin(document.getElementById('loginUsername').value, document.getElementById('loginPassword').value)" class="btn btn-primary w-full" style="height:48px;font-size:1.05rem;font-weight:bold;">Log Masuk</button>
                 </div>
-                <div class="mt-8 text-center">
-                    <p class="text-xs text-slate-500 leading-relaxed">
-                        © 2026 P170 Tuaran. Hak Cipta Terpelihara.<br>
-                        Powered by Jarvis_KM | contact: jarvis_mql45dev@proton.me | Telegram: <a href="https://t.me/Jarvis_KM" target="_blank" class="text-xs text-slate-500 hover:text-blue-500 transition">@Jarvis_KM</a>
+                <div class="mt-6 text-center">
+                    <p style="font-size:0.85rem;color:#64748b;line-height:1.625;">
+                        &copy; 2026 P170 Tuaran. Hak Cipta Terpelihara.<br>
+                        Powered by Jarvis_KM | contact: jarvis_mql45dev@proton.me | Telegram: <a href="https://t.me/Jarvis_KM" target="_blank" style="font-size:0.85rem;color:#64748b;" class="hover:text-blue-500 transition">@Jarvis_KM</a>
                     </p>
                 </div>
             </div>
