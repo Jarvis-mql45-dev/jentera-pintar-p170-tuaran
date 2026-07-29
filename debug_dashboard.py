@@ -1,5 +1,6 @@
 """
 Debug script: test the consolidated dashboard endpoint JSON structure.
+UPDATED: Removed strict status_fizikal/status_rekod filters to match fix in main.py.
 """
 import sys
 import os
@@ -11,12 +12,12 @@ db = get_db()
 cursor = db.cursor()
 
 THN_SEMASA = 2026
-where = "WHERE status_fizikal = 'Hidup' AND status_rekod = 'Sah'"
+where = "WHERE 1=1"
 params = []
 
 cursor.execute(f"""
     SELECT
-        d.kod AS dun_kod,
+        COALESCE(d.kod, 'TIDAK_DITETAPKAN') AS dun_kod,
         p.dm,
         COUNT(p.id) AS jumlah,
         SUM(CASE WHEN p.status_sokongan = 'Putih' THEN 1 ELSE 0 END) AS putih,
@@ -28,7 +29,7 @@ cursor.execute(f"""
         SUM(CASE WHEN p.tahun_lahir IS NOT NULL AND (? - p.tahun_lahir) BETWEEN 31 AND 59 THEN 1 ELSE 0 END) AS usia_31_59,
         SUM(CASE WHEN p.tahun_lahir IS NOT NULL AND (? - p.tahun_lahir) >= 60 THEN 1 ELSE 0 END) AS usia_60plus
     FROM pengundi p
-    JOIN dun d ON d.id = p.dun_id
+    LEFT JOIN dun d ON d.id = p.dun_id
     {where}
       AND p.dm IS NOT NULL AND p.dm != ''
     GROUP BY d.kod, p.dm
@@ -49,13 +50,32 @@ for row in cursor.fetchall():
 print("=== DUN KEYS FOUND ===")
 print(list(dun_pdm_raw.keys()))
 print()
+
+total_parlimen = 0
 for k in ['N12', 'N13', 'N14', 'N15']:
     data = dun_pdm_raw.get(k, [])
-    print(f"{k}: {len(data)} PDM records")
+    dk_total = sum(d.get("jumlah", 0) for d in data)
+    total_parlimen += dk_total
+    putih_total = sum(d.get("putih", 0) for d in data)
+    print(f"{k}: {len(data)} PDM records, total pengundi={dk_total}, putih={putih_total}")
     if data:
         print(f"  First 3 DMs: {[d['dm'] for d in data[:3]]}")
     else:
         print(f"  ⚠️ EMPTY - will trigger fallback message!")
+
+print()
+print("=== TOTAL PARLIMEN P170 ===")
+print(f"Total pengundi across all DUN: {total_parlimen}")
+
+print()
+print("=== COUNT ALL (unfiltered) ===")
+cursor.execute("SELECT COUNT(*) FROM pengundi WHERE dm IS NOT NULL AND dm != ''")
+all_with_dm = cursor.fetchone()[0]
+print(f"All records with DM: {all_with_dm}")
+
+cursor.execute("SELECT COUNT(*) FROM pengundi")
+all_records = cursor.fetchone()[0]
+print(f"All records (total): {all_records}")
 
 print()
 print("=== FRONTEND SIMULATION ===")

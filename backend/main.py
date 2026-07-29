@@ -760,7 +760,7 @@ def get_dashboard(request: Request, dun: Optional[str] = None, user=Depends(get_
         db = get_db()
         cursor = db.cursor()
 
-        where = "WHERE status_fizikal = 'Hidup' AND status_rekod = 'Sah'"
+        where = "WHERE 1=1"
         params = []
         if dun:
             where += " AND dun_id = (SELECT id FROM dun WHERE kod = ?)"
@@ -774,7 +774,7 @@ def get_dashboard(request: Request, dun: Optional[str] = None, user=Depends(get_
         # ================================================================
         cursor.execute(f"""
             SELECT
-                d.kod AS dun_kod,
+                COALESCE(d.kod, 'TIDAK_DITETAPKAN') AS dun_kod,
                 p.dm,
                 COUNT(p.id) AS jumlah,
                 SUM(CASE WHEN p.status_sokongan = 'Putih' THEN 1 ELSE 0 END) AS putih,
@@ -786,7 +786,7 @@ def get_dashboard(request: Request, dun: Optional[str] = None, user=Depends(get_
                 SUM(CASE WHEN p.tahun_lahir IS NOT NULL AND (? - p.tahun_lahir) BETWEEN 31 AND 59 THEN 1 ELSE 0 END) AS usia_31_59,
                 SUM(CASE WHEN p.tahun_lahir IS NOT NULL AND (? - p.tahun_lahir) >= 60 THEN 1 ELSE 0 END) AS usia_60plus
             FROM pengundi p
-            JOIN dun d ON d.id = p.dun_id
+            LEFT JOIN dun d ON d.id = p.dun_id
             {where}
               AND p.dm IS NOT NULL AND p.dm != ''
             GROUP BY d.kod, p.dm
@@ -818,17 +818,15 @@ def get_dashboard(request: Request, dun: Optional[str] = None, user=Depends(get_
         # Gunakan ROW_NUMBER untuk elak double-counting KK merentas PDM.
         # ================================================================
         cursor.execute(f"""
-            SELECT d.kod AS dun_kod, sub.dm, COUNT(*) AS kk_count
+            SELECT COALESCE(d2.kod, 'TIDAK_DITETAPKAN') AS dun_kod, sub.dm, COUNT(*) AS kk_count
             FROM (
                 SELECT p2.ketua_keluarga_id AS kk_id,
                        p2.dm,
                        d2.kod,
                        ROW_NUMBER() OVER (PARTITION BY p2.ketua_keluarga_id ORDER BY COUNT(*) DESC) AS rn
                 FROM pengundi p2
-                JOIN dun d2 ON d2.id = p2.dun_id
+                LEFT JOIN dun d2 ON d2.id = p2.dun_id
                 WHERE p2.ketua_keluarga_id IS NOT NULL
-                  AND p2.status_fizikal = 'Hidup'
-                  AND p2.status_rekod = 'Sah'
                   AND p2.dm IS NOT NULL AND p2.dm != ''
                 GROUP BY p2.ketua_keluarga_id, p2.dm, d2.kod
             ) sub
@@ -940,8 +938,16 @@ def get_dashboard(request: Request, dun: Optional[str] = None, user=Depends(get_
                 sokongan_ikut_umur[k] = {}
             sokongan_ikut_umur[k][s] = j
 
+        # 🚀 DIAGNOSTIK: Log aggregasi mentah untuk debugging
         import sys
         print(f"[DASHBOARD] User: {user.get('username')} | Role: {user.get('peranan')} | dun param: {dun} | dun_pdm keys: {list(dun_pdm_raw.keys())} | jumlah_pengundi: {jumlah_pengundi}", file=sys.stderr)
+        for dk, items in dun_pdm_raw.items():
+            total_dm = len(items)
+            total_jumlah = sum(i.get("jumlah", 0) for i in items)
+            total_putih = sum(i.get("putih", 0) for i in items)
+            total_hitam = sum(i.get("hitam", 0) for i in items)
+            total_meninggal = sum(i.get("meninggal", 0) for i in items)
+            print(f"[DASHBOARD]   {dk}: {total_dm} PDMs, jumlah={total_jumlah}, putih={total_putih}, hitam={total_hitam}, meninggal={total_meninggal}", file=sys.stderr)
 
         db.close()
 
