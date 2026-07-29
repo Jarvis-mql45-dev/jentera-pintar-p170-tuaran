@@ -1,0 +1,13 @@
+COLD-START vs WARM-CACHE BENCHMARK
+Date: 2026-07-30 07:36:39
+Production: https://jentera-pintar-p170-tuaran.vercel.app
+Iterations: 2
+
+Iteration    Cold (ms)       Warm (ms)       Delta (ms)      % Faster  
+------------ --------------- --------------- --------------- ----------
+1            35264           35277           -12            -0.0     %
+2            35263           35263           +0             +0.0     %
+------------ --------------- --------------- --------------- ----------
+AVERAGE      35264           35270           -6            
+
+Verdict: ❌ FAIL (target <50ms improvement)

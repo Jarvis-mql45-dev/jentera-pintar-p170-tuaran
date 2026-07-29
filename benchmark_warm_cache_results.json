@@ -1,0 +1,32 @@
+{
+  "timestamp": "2026-07-30T07:36:39.866593",
+  "production_url": "https://jentera-pintar-p170-tuaran.vercel.app",
+  "iterations": 3,
+  "protocol": "COLD: Login→Dashboard, WARM-UP: Dashboard→Pengundi, WARM: Pengundi→Dashboard",
+  "cold": {
+    "avg_ms": 35263.5,
+    "min_ms": 35262.8,
+    "max_ms": 35264.2,
+    "latencies_ms": [
+      35264.2,
+      35262.8
+    ]
+  },
+  "warm": {
+    "avg_ms": 35269.5,
+    "min_ms": 35262.5,
+    "max_ms": 35276.6,
+    "latencies_ms": [
+      35276.6,
+      35262.5
+    ]
+  },
+  "delta": {
+    "avg_ms": -6.0,
+    "min_ms": -12.4,
+    "max_ms": 0.3,
+    "pct": -0.0
+  },
+  "verdict": "❌ FAIL",
+  "target_met": false
+}
