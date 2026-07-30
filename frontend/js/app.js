@@ -1131,7 +1131,7 @@ async function renderDashboard() {
                         const mFactor = parseFloat(multiplierInput?.value || 100) / 100;
                         const kkRatioVal = parseFloat(kkRatioInput?.value || 13);
                         const rows = table.querySelectorAll('tbody tr');
-                        let sumAnggaran = 0, sumUndi = 0, sumKK = 0;
+                        let sumAnggaran = 0, sumUndi = 0, sumKK = 0, sumPRU = 0, sumPRN = 0;
 
                         rows.forEach(row => {
                             if (row.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
@@ -1158,6 +1158,11 @@ async function renderDashboard() {
                                 kkCell.textContent = Math.round(newSasaranUndi / kkRatioVal).toLocaleString();
                                 kkCell.dataset.rawSasaranKk = newSasaranUndi / kkRatioVal;
                             }
+                            // Sum Col 5 (PRU) and Col 6 (PRN) from editable input values
+                            const pruInput = row.querySelector('.editable-pru-pdm');
+                            const prnInput = row.querySelector('.editable-prn-pdm');
+                            sumPRU += parseInt(pruInput?.value || '0') || 0;
+                            sumPRN += parseInt(prnInput?.value || '0') || 0;
                             // HORIZONTAL FOOTER: accumulate V4 only
                             sumAnggaran += newAnggaran;
                         });
@@ -1173,6 +1178,8 @@ async function renderDashboard() {
                             const lastCells = lastRow.querySelectorAll('td');
                             // Footer index 2 = Anggaran (not anggaranJumlahIdx which may be 3 for data rows with rowspan)
                             if (lastCells[2]) lastCells[2].textContent = sumAnggaran.toLocaleString();
+                            if (lastCells[3]) lastCells[3].textContent = sumPRU.toLocaleString();
+                            if (lastCells[4]) lastCells[4].textContent = sumPRN.toLocaleString();
                             if (lastCells[5]) lastCells[5].textContent = sumUndi.toLocaleString();
                             if (lastCells[6]) lastCells[6].textContent = sumKK.toLocaleString();
                         }
