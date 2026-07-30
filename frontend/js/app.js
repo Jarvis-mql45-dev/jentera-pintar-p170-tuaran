@@ -987,44 +987,67 @@ async function renderDashboard() {
                             const kkRatioVal = parseFloat(document.getElementById('inputKKRatio')?.value) || 13;
                             const sasaranUndiMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
 
-                            // 🛡️ PDM Tables: recalculate on turnout change (this is the authoritative source)
-                            document.querySelectorAll('#pdm-tables .sasaran-undi-pdm').forEach(undiCell => {
-                                const row = undiCell.closest('tr');
+                            // 🛡️ FIX: ⬇️ Iterate setiap PDM row, bukan .sasaran-undi-pdm sahaja
+                            //     Column 4 (Bilangan Turun Mengundi) adalah cell dengan data-raw-anggaran
+                            //     Selepas update Column 4, recalculate Column 7 & 8 berdasarkan nilai baru.
+                            // ================================================================
+                            document.querySelectorAll('#pdm-tables tbody tr').forEach(row => {
                                 if (!row || row.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
                                 const cells = row.children;
                                 const hasDunRowspan = row.querySelector('td[rowspan]') !== null;
                                 const berdaftarIdx = hasDunRowspan ? 2 : 1;
+                                const turnoutIdx = hasDunRowspan ? 3 : 2;
                                 const daftar = parseInt((cells[berdaftarIdx]?.textContent || '0').replace(/,/g, '')) || 0;
+
+                                // ⬇️ Step 1: Kira & update Column 4 (Bilangan Turun Mengundi / Anggaran)
                                 const newAnggaran = Math.round(daftar * factor);
+                                if (cells[turnoutIdx]) {
+                                    cells[turnoutIdx].textContent = newAnggaran.toLocaleString();
+                                    cells[turnoutIdx].dataset.rawAnggaran = newAnggaran;
+                                }
+
+                                // ⬇️ Step 2: Kira & update Column 7 (Sasaran UNDI)
                                 const newSasaranUndi = Math.round(newAnggaran * sasaranUndiMultiplier / 100);
-                                undiCell.textContent = newSasaranUndi.toLocaleString();
-                                // 🛡️ UPDATE dataset.raw* attributes for JUMLAH high-precision accumulation
-                                undiCell.dataset.rawSasaranUndi = newAnggaran * sasaranUndiMultiplier / 100;
+                                const undiCell = row.querySelector('.sasaran-undi-pdm');
+                                if (undiCell) {
+                                    undiCell.textContent = newSasaranUndi.toLocaleString();
+                                    undiCell.dataset.rawSasaranUndi = newAnggaran * sasaranUndiMultiplier / 100;
+                                }
+
+                                // ⬇️ Step 3: Kira & update Column 8 (Sasaran K.K)
                                 const kkCell = row.querySelector('.sasaran-kk-pdm');
                                 if (kkCell) {
                                     kkCell.textContent = Math.round(newSasaranUndi / kkRatioVal).toLocaleString();
-                                    // 🛡️ UPDATE dataset.raw* attribute for KK JUMLAH high-precision accumulation
                                     kkCell.dataset.rawSasaranKk = (newAnggaran * sasaranUndiMultiplier / 100) / kkRatioVal;
                                 }
                             });
+
                             // Recalculate PDM table JUMLAH footers — HIGH-PRECISION: accumulate from data-raw-*
+                            // ⬇️ FIX: Turut accumulate Column 4 (Anggaran) untuk JUMLAH display
                             document.querySelectorAll('#pdm-tables table').forEach(table => {
                                 const rows = table.querySelectorAll('tbody tr');
                                 const lastRow = rows[rows.length - 1];
                                 if (!lastRow || !lastRow.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
                                 const lastCells = lastRow.querySelectorAll('td');
-                                let rawSumUndi = 0, rawSumKK = 0;
-                for (let i = 0; i < rows.length - 1; i++) {
-                    const undi = rows[i].querySelector('.sasaran-undi-pdm');
-                    const kk = rows[i].querySelector('.sasaran-kk-pdm');
-                    const rawUndi = parseFloat(undi?.dataset?.rawSasaranUndi) || 0;
-                    const rawKK = parseFloat(kk?.dataset?.rawSasaranKk) || 0;
-                    rawSumUndi += rawUndi;
-                    rawSumKK += rawKK;
-                }
-                // Single Math.round() at the end for JUMLAH display
-                if (lastCells[5]) lastCells[5].textContent = Math.round(rawSumUndi).toLocaleString();
-                if (lastCells[6]) lastCells[6].textContent = Math.round(rawSumKK).toLocaleString();
+                                // ⬇️ Detect indeks untuk Anggaran, SasaranUndi, SasaranKK di JUMLAH row
+                                const hasRowspan = lastRow.querySelector('td[rowspan]') !== null;
+                                const anggaranIdx = hasRowspan ? 3 : 2;
+                                let rawSumAnggaran = 0, rawSumUndi = 0, rawSumKK = 0;
+                                for (let i = 0; i < rows.length - 1; i++) {
+                                    const anggaranCell = rows[i].children[anggaraIdx];
+                                    const rawAnggaran = parseFloat(anggaranCell?.dataset?.rawAnggaran) || 0;
+                                    rawSumAnggaran += rawAnggaran;
+                                    const undi = rows[i].querySelector('.sasaran-undi-pdm');
+                                    const kk = rows[i].querySelector('.sasaran-kk-pdm');
+                                    const rawUndi = parseFloat(undi?.dataset?.rawSasaranUndi) || 0;
+                                    const rawKK = parseFloat(kk?.dataset?.rawSasaranKk) || 0;
+                                    rawSumUndi += rawUndi;
+                                    rawSumKK += rawKK;
+                                }
+                                // Single Math.round() at the end for JUMLAH display
+                                if (lastCells[anggaranIdx]) lastCells[anggaranIdx].textContent = Math.round(rawSumAnggaran).toLocaleString();
+                                if (lastCells[5]) lastCells[5].textContent = Math.round(rawSumUndi).toLocaleString();
+                                if (lastCells[6]) lastCells[6].textContent = Math.round(rawSumKK).toLocaleString();
                             });
 
                             // 🛡️ BOTTOM-UP: After PDM recalc, mirror PDM JUMLAH to Parlimen rows
