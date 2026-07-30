@@ -1074,6 +1074,11 @@ async function renderDashboard() {
                         });
                     }
 
+                    // Parlimen PRU/PRN inputs → recalculate JUMLAH footer
+                    document.querySelectorAll('#parlimenMirrorBody .editable-pru-pdm, #parlimenMirrorBody .editable-prn-pdm').forEach(inp => {
+                        inp.addEventListener('input', recalcParlimenJumlah);
+                    });
+
                     // Parlimen Sasaran UNDI Multiplier → recalculate ONLY Parlimen rows + JUMLAH
                     const sasaranUndiInput = document.getElementById('inputSasaranUndiMultiplier');
                     if (sasaranUndiInput) {
@@ -1193,6 +1198,10 @@ async function renderDashboard() {
                         card.querySelector('.input-turnout-pdm')?.addEventListener('input', bindRecalc);
                         card.querySelector('.input-multiplier-pdm')?.addEventListener('input', bindRecalc);
                         card.querySelector('.input-kkratio-pdm')?.addEventListener('input', bindRecalc);
+                        // Also recalc JUMLAH when PRU/PRN inputs change
+                        card.querySelectorAll('.editable-pru-pdm, .editable-prn-pdm').forEach(inp => {
+                            inp.addEventListener('input', bindRecalc);
+                        });
                     });
 
                     // ───────────────────────────────────────────────
