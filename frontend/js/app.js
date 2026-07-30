@@ -996,6 +996,18 @@ async function renderDashboard() {
                         // JUMLAH row: [0]=colspan2, [1]=Berdaftar, [2]=Anggaran, [3]=PRU, [4]=PRN, [5]=SasaranUndi, [6]=SasaranKK, [7]=KKTerkini
                         if (parlJumlahTds[1]) parlJumlahTds[1].textContent = sumBerdaftar.toLocaleString();
                         if (parlJumlahTds[2]) parlJumlahTds[2].textContent = sumAnggaran.toLocaleString();
+                        // Col 5 (PRU15) & Col 6 (PRN 2025) — LIVE VERTICAL SUM
+                        let sumPRU15 = 0, sumPRN2025 = 0;
+                        document.querySelectorAll('#parlimenMirrorBody tr[data-dun-row]').forEach(tr => {
+                            const pruInput = tr.querySelector('.editable-pru-pdm');
+                            const prnInput = tr.querySelector('.editable-prn-pdm');
+                            if (pruInput) sumPRU15 += parseInt(pruInput.value) || 0;
+                            if (prnInput) sumPRN2025 += parseInt(prnInput.value) || 0;
+                        });
+                        const totalPruCell = parlJumlah.querySelector('.total-pru15-pdm');
+                        const totalPrnCell = parlJumlah.querySelector('.total-prn2025-pdm');
+                        if (totalPruCell) totalPruCell.textContent = sumPRU15.toLocaleString('en-US');
+                        if (totalPrnCell) totalPrnCell.textContent = sumPRN2025.toLocaleString('en-US');
                         if (parlJumlahTds[5]) parlJumlahTds[5].textContent = sumSasaranUndi.toLocaleString();
                         const sasaranKKJumlah = parlJumlah.querySelector('.sasaran-kk-pdm');
                         if (sasaranKKJumlah) sasaranKKJumlah.textContent = sumSasaranKK.toLocaleString();
@@ -1171,6 +1183,20 @@ async function renderDashboard() {
                             
                             const totalKkCell = lastRow.querySelector('.total-sasaran-kk-pdm');
                             if (totalKkCell) totalKkCell.textContent = sumKK.toLocaleString();
+
+                            // Col 5 (PRU15) & Col 6 (PRN 2025) — LIVE VERTICAL SUM within this table
+                            let sumPRU15 = 0, sumPRN2025 = 0;
+                            rows.forEach(row => {
+                                if (row.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
+                                const pruInput = row.querySelector('.editable-pru-pdm');
+                                const prnInput = row.querySelector('.editable-prn-pdm');
+                                if (pruInput) sumPRU15 += parseInt(pruInput.value) || 0;
+                                if (prnInput) sumPRN2025 += parseInt(prnInput.value) || 0;
+                            });
+                            const totalPruCell = lastRow.querySelector('.total-pru15-pdm');
+                            const totalPrnCell = lastRow.querySelector('.total-prn2025-pdm');
+                            if (totalPruCell) totalPruCell.textContent = sumPRU15.toLocaleString('en-US');
+                            if (totalPrnCell) totalPrnCell.textContent = sumPRN2025.toLocaleString('en-US');
                         }
                     }
 
@@ -1182,6 +1208,14 @@ async function renderDashboard() {
                         card.querySelector('.input-turnout-pdm')?.addEventListener('input', bindRecalc);
                         card.querySelector('.input-multiplier-pdm')?.addEventListener('input', bindRecalc);
                         card.querySelector('.input-kkratio-pdm')?.addEventListener('input', bindRecalc);
+                        // Bind Col 5 & Col 6 manual inputs — live vertical sum
+                        table.querySelectorAll('.editable-pru-pdm, .editable-prn-pdm').forEach(inp => {
+                            inp.addEventListener('input', bindRecalc);
+                        });
+                    });
+                    // Bind Parlimen Col 5 & Col 6 inputs — live vertical sum
+                    document.querySelectorAll('#parlimenMirrorBody .editable-pru-pdm, #parlimenMirrorBody .editable-prn-pdm').forEach(inp => {
+                        inp.addEventListener('input', recalcParlimenJumlah);
                     });
 
                     // ───────────────────────────────────────────────
@@ -1347,8 +1381,8 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-medium">${p.dm || ''}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-semibold">${jumlah.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-bold text-blue-700" data-raw-anggaran="${rawAnggaran}">${anggaran.toLocaleString()}</td>
-            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5" placeholder="0"></td>
-            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5" placeholder="0"></td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5 editable-pru-pdm" placeholder="0"></td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5 editable-prn-pdm" placeholder="0"></td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-undi-pdm" data-raw-sasaran-undi="${rawSasaranUndi}">${sasaranUndi.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-kk-pdm" data-raw-sasaran-kk="${rawSasaranKK}">${sasaranKK.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle">${kkTerkini.toLocaleString()}</td>
@@ -1377,8 +1411,8 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
         <td colspan="2" class="border border-gray-300 px-2 py-1 font-bold text-gray-800">JUMLAH</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.berdaftar.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.turnout.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle"></td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle"></td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle total-pru15-pdm"></td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle total-prn2025-pdm"></td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-undi-pdm">${colSums.sasaran_undi.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-kk-pdm">${colSums.kk.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.kk_terkini.toLocaleString()}</td>
@@ -1499,8 +1533,8 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-medium">${agg.nama}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-semibold">${agg.jumlah.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-bold text-blue-700" data-raw-anggaran="${rawAnggaran}">${perPdmAnggaran.toLocaleString()}</td>
-            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5" placeholder="0"></td>
-            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5" placeholder="0"></td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5 editable-pru-pdm" placeholder="0"></td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5 editable-prn-pdm" placeholder="0"></td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-undi-pdm" data-raw-sasaran-undi="${rawSasaranUndi}">${perPdmSasaranUndi.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-kk-pdm" data-raw-sasaran-kk="${rawSasaranKK}">${perPdmSasaranKK.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle">${agg.jumlah_ketua_keluarga.toLocaleString()}</td>
@@ -1529,8 +1563,8 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
         <td colspan="2" class="border border-gray-300 px-2 py-1 font-bold text-gray-800">JUMLAH</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.berdaftar.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.turnout.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle"></td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle"></td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle total-pru15-pdm"></td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle total-prn2025-pdm"></td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-undi-pdm">${colSums.sasaran_undi.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-kk-pdm">${colSums.kk.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.kk_terkini.toLocaleString()}</td>
