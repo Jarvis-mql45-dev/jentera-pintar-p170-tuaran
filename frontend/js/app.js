@@ -1131,17 +1131,16 @@ async function renderDashboard() {
                         const mFactor = parseFloat(multiplierInput?.value || 100) / 100;
                         const kkRatioVal = parseFloat(kkRatioInput?.value || 13);
                         const rows = table.querySelectorAll('tbody tr');
-                        const hasRowspanGlobal = rows[0]?.querySelector('td[rowspan]') !== null;
-                        const anggaranJumlahIdx = hasRowspanGlobal ? 3 : 2;
                         let sumAnggaran = 0, sumUndi = 0, sumKK = 0;
 
                         rows.forEach(row => {
                             if (row.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
+                            const hasRowspan = row.querySelector('td[rowspan]') !== null;
                             const cells = row.children;
-                            const berdaftarD = parseInt((cells[hasRowspanGlobal ? 2 : 1]?.textContent || '0').replace(/,/g, '')) || 0;
+                            const berdaftarD = parseInt((cells[hasRowspan ? 2 : 1]?.textContent || '0').replace(/,/g, '')) || 0;
                             // V4 = Math.round(N_daftar * P_turnout/100)
                             const newAnggaran = Math.round(berdaftarD * tFactor);
-                            const turnIdx = hasRowspanGlobal ? 3 : 2;
+                            const turnIdx = hasRowspan ? 3 : 2;
                             if (cells[turnIdx]) {
                                 cells[turnIdx].textContent = newAnggaran.toLocaleString();
                                 cells[turnIdx].dataset.rawAnggaran = newAnggaran;
