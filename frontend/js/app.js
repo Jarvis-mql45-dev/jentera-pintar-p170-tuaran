@@ -977,22 +977,22 @@ async function renderDashboard() {
                         const parlJumlah = document.querySelector('#parlimenMirrorBody tr:last-child');
                         if (!parlJumlah || !parlJumlah.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
                         const parlJumlahTds = parlJumlah.querySelectorAll('td');
-                        let sumBerdaftar = 0, sumAnggaran = 0, sumSasaranUndi = 0, sumSasaranKK = 0, sumKKTerkini = 0;
+                        let sumBerdaftar = 0, sumAnggaran = 0, sumKKTerkini = 0;
                         document.querySelectorAll('#parlimenMirrorBody tr[data-dun-row]').forEach(tr => {
                             const cells = tr.children;
                             const hasRowspan = tr.querySelector('td[rowspan]') !== null;
                             const berdaftarIdx = hasRowspan ? 2 : 1;
                             const anggaranIdx = hasRowspan ? 3 : 2;
                             const kkTerkiniIdx = hasRowspan ? 8 : 7;
-                            const sasaranUndiCell = tr.querySelector('.sasaran-undi-pdm');
-                            const sasaranKKCell = tr.querySelector('.sasaran-kk-pdm');
                             sumBerdaftar += parseInt((cells[berdaftarIdx]?.textContent || '0').replace(/,/g, '')) || 0;
                             sumAnggaran += parseInt((cells[anggaranIdx]?.textContent || '0').replace(/,/g, '')) || 0;
-                            // Per Spec: JUMLAH = sum of ROUNDED display values (V4→V7→V8)
-                            sumSasaranUndi += parseInt((sasaranUndiCell?.textContent || '0').replace(/,/g, '')) || 0;
-                            sumSasaranKK += parseInt((sasaranKKCell?.textContent || '0').replace(/,/g, '')) || 0;
                             sumKKTerkini += parseInt((cells[kkTerkiniIdx]?.textContent || '0').replace(/,/g, '')) || 0;
                         });
+                        // HORIZONTAL FOOTER: JUMLAH_V7 = Math.round(JUMLAH_V4 * multiplier/100), JUMLAH_V8 = Math.round(JUMLAH_V7 / kkRatio)
+                        const multiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
+                        const kkRatio = parseFloat(document.getElementById('inputKKRatio')?.value) || 13;
+                        const sumSasaranUndi = Math.round(sumAnggaran * multiplier / 100);
+                        const sumSasaranKK = Math.round(sumSasaranUndi / kkRatio);
                         // JUMLAH row: [0]=colspan2, [1]=Berdaftar, [2]=Anggaran, [3]=PRU, [4]=PRN, [5]=SasaranUndi, [6]=SasaranKK, [7]=KKTerkini
                         if (parlJumlahTds[1]) parlJumlahTds[1].textContent = sumBerdaftar.toLocaleString();
                         if (parlJumlahTds[2]) parlJumlahTds[2].textContent = sumAnggaran.toLocaleString();
@@ -1143,11 +1143,12 @@ async function renderDashboard() {
                                 kkCell.textContent = Math.round(newSasaranUndi / kkRatioVal).toLocaleString();
                                 kkCell.dataset.rawSasaranKk = newSasaranUndi / kkRatioVal;
                             }
-                            // Accumulate ROUNDED display values for JUMLAH (per spec)
+                            // HORIZONTAL FOOTER: accumulate V4 only
                             sumAnggaran += newAnggaran;
-                            sumUndi += newSasaranUndi;
-                            sumKK += Math.round(newSasaranUndi / kkRatioVal);
                         });
+                        // HORIZONTAL FOOTER: JUMLAH_V7 = Math.round(JUMLAH_V4 * multiplier/100), JUMLAH_V8 = Math.round(JUMLAH_V7 / kkRatio)
+                        sumUndi = Math.round(sumAnggaran * mFactor);
+                        sumKK = Math.round(sumUndi / kkRatioVal);
 
                         // Recalculate JUMLAH footer
                         const lastRow = rows[rows.length - 1];
@@ -1332,8 +1333,8 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-medium">${p.dm || ''}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-semibold">${jumlah.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-bold text-blue-700" data-raw-anggaran="${rawAnggaran}">${anggaran.toLocaleString()}</td>
-            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="0" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5 editable-pru-pdm" data-dun="${dunKod}" data-pdm="${p.dm}"></td>
-            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="0" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5 editable-prn-pdm" data-dun="${dunKod}" data-pdm="${p.dm}"></td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5" placeholder="0"></td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5" placeholder="0"></td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-undi-pdm" data-raw-sasaran-undi="${rawSasaranUndi}">${sasaranUndi.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-kk-pdm" data-raw-sasaran-kk="${rawSasaranKK}">${sasaranKK.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle">${kkTerkini.toLocaleString()}</td>
@@ -1349,18 +1350,21 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
         
         colSums.berdaftar += jumlah; colSums.turnout += anggaran;
         colSums.pru15 += 0; colSums.prn2025 += 0; // editable inputs, not summed
-        colSums.sasaran_undi += sasaranUndi; colSums.kk += sasaranKK; colSums.kk_terkini += kkTerkini;
+        colSums.kk_terkini += kkTerkini;
         colSums.putih += putih; colSums.atas += atas; colSums.hitam += hitam; colSums.tidak += tidak;
         colSums.meninggal += meninggal;
         colSums.usia18 += usia18; colSums.usia31 += usia31; colSums.usia60 += usia60;
     });
+    // HORIZONTAL FOOTER: JUMLAH_V7 = Math.round(JUMLAH_V4 * multiplier/100), JUMLAH_V8 = Math.round(JUMLAH_V7 / kkRatio)
+    colSums.sasaran_undi = Math.round(colSums.turnout * sasaranUndiMultiplier / 100);
+    colSums.kk = Math.round(colSums.sasaran_undi / kkRatio);
     
     rows += `<tr class="bg-gray-100 font-semibold">
         <td colspan="2" class="border border-gray-300 px-2 py-1 font-bold text-gray-800">JUMLAH</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.berdaftar.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.turnout.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.pru15.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.prn2025.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle"></td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle"></td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-undi-pdm">${colSums.sasaran_undi.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-kk-pdm">${colSums.kk.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.kk_terkini.toLocaleString()}</td>
@@ -1481,8 +1485,8 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-medium">${agg.nama}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-semibold">${agg.jumlah.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-bold text-blue-700" data-raw-anggaran="${rawAnggaran}">${perPdmAnggaran.toLocaleString()}</td>
-            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="0" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5 editable-pru-pdm" data-dun="${kod}" data-pdm="parlimen"></td>
-            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="0" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5 editable-prn-pdm" data-dun="${kod}" data-pdm="parlimen"></td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5" placeholder="0"></td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5" placeholder="0"></td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-undi-pdm" data-raw-sasaran-undi="${rawSasaranUndi}">${perPdmSasaranUndi.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-kk-pdm" data-raw-sasaran-kk="${rawSasaranKK}">${perPdmSasaranKK.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle">${agg.jumlah_ketua_keluarga.toLocaleString()}</td>
@@ -1498,18 +1502,21 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
 
         colSums.berdaftar += agg.jumlah; colSums.turnout += perPdmAnggaran;
         colSums.pru15 += 0; colSums.prn2025 += 0;
-        colSums.sasaran_undi += perPdmSasaranUndi; colSums.kk += perPdmSasaranKK; colSums.kk_terkini += agg.jumlah_ketua_keluarga;
+        colSums.kk_terkini += agg.jumlah_ketua_keluarga;
         colSums.putih += agg.putih; colSums.atas += agg.atas_pagar; colSums.hitam += agg.hitam;
         colSums.tidak += agg.tidak_dikenali; colSums.meninggal += agg.meninggal;
         colSums.usia18 += agg.usia_18_30; colSums.usia31 += agg.usia_31_59; colSums.usia60 += agg.usia_60plus;
     });
+    // HORIZONTAL FOOTER: JUMLAH_V7 = Math.round(JUMLAH_V4 * multiplier/100), JUMLAH_V8 = Math.round(JUMLAH_V7 / kkRatio)
+    colSums.sasaran_undi = Math.round(colSums.turnout * sasaranUndiMultiplier / 100);
+    colSums.kk = Math.round(colSums.sasaran_undi / kkRatio);
 
     rows += `<tr class="bg-gray-100 font-semibold">
         <td colspan="2" class="border border-gray-300 px-2 py-1 font-bold text-gray-800">JUMLAH</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.berdaftar.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.turnout.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.pru15.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.prn2025.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle"></td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle"></td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-undi-pdm">${colSums.sasaran_undi.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-kk-pdm">${colSums.kk.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.kk_terkini.toLocaleString()}</td>
