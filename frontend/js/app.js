@@ -1122,8 +1122,9 @@ async function renderDashboard() {
                         rows.forEach(row => {
                             if (row.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
                             
-                            // Read pemilih from data-pemilih attribute instead of cells[N] indexing
-                            const pemilih = parseInt(row.dataset.pemilih) || 0;
+                            // Read pemilih from data-pemilih attribute OR fallback to Col 3 text content
+                            const rawPemilih = row.dataset.pemilih || row.querySelector('td:nth-child(3)')?.textContent || '0';
+                            const pemilih = parseInt(String(rawPemilih).replace(/,/g, ''), 10) || 0;
                             // V4 = Math.round(N_daftar * P_turnout/100)
                             const newAnggaran = Math.round(pemilih * tFactor);
                             
