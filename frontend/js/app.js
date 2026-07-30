@@ -1298,7 +1298,7 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
     
     let rows = '';
     let isFirstRow = true;
-    let colSums = { berdaftar: 0, turnout: 0, pru15: 0, prn2025: 0, sasaran_undi: 0, kk: 0, kk_terkini: 0, putih: 0, atas: 0, hitam: 0, tidak: 0, meninggal: 0, usia18: 0, usia31: 0, usia60: 0 };
+    let colSums = { berdaftar: 0, turnout: 0, sasaran_undi: 0, kk: 0, kk_terkini: 0, putih: 0, atas: 0, hitam: 0, tidak: 0, meninggal: 0, usia18: 0, usia31: 0, usia60: 0 };
     
     const cleanPdmData = pdmData.filter(p => p.dm !== 'Tidak Diagihkan' && p.dm !== 'ZZ');
     cleanPdmData.forEach(p => {
@@ -1333,8 +1333,8 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-medium">${p.dm || ''}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-semibold">${jumlah.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-bold text-blue-700" data-raw-anggaran="${rawAnggaran}">${anggaran.toLocaleString()}</td>
-            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5" placeholder="0"></td>
-            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5" placeholder="0"></td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5 editable-pru-pdm" placeholder="0"></td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5 editable-prn-pdm" placeholder="0"></td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-undi-pdm" data-raw-sasaran-undi="${rawSasaranUndi}">${sasaranUndi.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-kk-pdm" data-raw-sasaran-kk="${rawSasaranKK}">${sasaranKK.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle">${kkTerkini.toLocaleString()}</td>
@@ -1349,7 +1349,6 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
         </tr>`;
         
         colSums.berdaftar += jumlah; colSums.turnout += anggaran;
-        colSums.pru15 += 0; colSums.prn2025 += 0; // editable inputs, not summed
         colSums.kk_terkini += kkTerkini;
         colSums.putih += putih; colSums.atas += atas; colSums.hitam += hitam; colSums.tidak += tidak;
         colSums.meninggal += meninggal;
@@ -1437,7 +1436,7 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
     const pdmCount = allDunCodes.length;
     let rows = '';
     let isFirstRow = true;
-    const colSums = { berdaftar: 0, turnout: 0, pru15: 0, prn2025: 0, sasaran_undi: 0, kk: 0, kk_terkini: 0, putih: 0, atas: 0, hitam: 0, tidak: 0, meninggal: 0, usia18: 0, usia31: 0, usia60: 0 };
+    const colSums = { berdaftar: 0, turnout: 0, sasaran_undi: 0, kk: 0, kk_terkini: 0, putih: 0, atas: 0, hitam: 0, tidak: 0, meninggal: 0, usia18: 0, usia31: 0, usia60: 0 };
 
     allDunCodes.forEach((kod) => {
         const idx = DUN_PDM_CODES.indexOf(kod);
@@ -1485,8 +1484,8 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-medium">${agg.nama}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-semibold">${agg.jumlah.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle font-bold text-blue-700" data-raw-anggaran="${rawAnggaran}">${perPdmAnggaran.toLocaleString()}</td>
-            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5" placeholder="0"></td>
-            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5" placeholder="0"></td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5 editable-pru-pdm" placeholder="0"></td>
+            <td class="border border-gray-300 px-1 py-1 text-center align-middle"><input type="number" value="" class="w-14 text-center text-xs border border-gray-300 rounded px-1 py-0.5 editable-prn-pdm" placeholder="0"></td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-undi-pdm" data-raw-sasaran-undi="${rawSasaranUndi}">${perPdmSasaranUndi.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle text-gray-800 font-semibold sasaran-kk-pdm" data-raw-sasaran-kk="${rawSasaranKK}">${perPdmSasaranKK.toLocaleString()}</td>
             <td class="border border-gray-300 px-1 py-1 text-center align-middle">${agg.jumlah_ketua_keluarga.toLocaleString()}</td>
@@ -1501,7 +1500,6 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
         </tr>`;
 
         colSums.berdaftar += agg.jumlah; colSums.turnout += perPdmAnggaran;
-        colSums.pru15 += 0; colSums.prn2025 += 0;
         colSums.kk_terkini += agg.jumlah_ketua_keluarga;
         colSums.putih += agg.putih; colSums.atas += agg.atas_pagar; colSums.hitam += agg.hitam;
         colSums.tidak += agg.tidak_dikenali; colSums.meninggal += agg.meninggal;
