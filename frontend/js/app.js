@@ -1151,10 +1151,13 @@ async function renderDashboard() {
                         sumKK = Math.round(sumUndi / kkRatioVal);
 
                         // Recalculate JUMLAH footer
+                        // NOTE: Footer uses colspan="2" (not rowspan), so indices are FIXED:
+                        //   [0]=colspan2, [1]=Berdaftar, [2]=Anggaran, [3]=PRU, [4]=PRN, [5]=SasaranUNDI, [6]=SasaranKK
                         const lastRow = rows[rows.length - 1];
                         if (lastRow && lastRow.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) {
                             const lastCells = lastRow.querySelectorAll('td');
-                            if (lastCells[anggaranJumlahIdx]) lastCells[anggaranJumlahIdx].textContent = sumAnggaran.toLocaleString();
+                            // Footer index 2 = Anggaran (not anggaranJumlahIdx which may be 3 for data rows with rowspan)
+                            if (lastCells[2]) lastCells[2].textContent = sumAnggaran.toLocaleString();
                             if (lastCells[5]) lastCells[5].textContent = sumUndi.toLocaleString();
                             if (lastCells[6]) lastCells[6].textContent = sumKK.toLocaleString();
                         }
