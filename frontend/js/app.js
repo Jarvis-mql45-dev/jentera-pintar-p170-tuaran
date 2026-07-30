@@ -983,9 +983,16 @@ async function renderDashboard() {
                             const hasRowspan = tr.querySelector('td[rowspan]') !== null;
                             const berdaftarIdx = hasRowspan ? 2 : 1;
                             const anggaranIdx = hasRowspan ? 3 : 2;
+                            const pruIdx = hasRowspan ? 4 : 3;
+                            const prnIdx = hasRowspan ? 5 : 4;
                             const kkTerkiniIdx = hasRowspan ? 8 : 7;
                             sumBerdaftar += parseInt((cells[berdaftarIdx]?.textContent || '0').replace(/,/g, '')) || 0;
                             sumAnggaran += parseInt((cells[anggaranIdx]?.textContent || '0').replace(/,/g, '')) || 0;
+                            // Sum Col 5 (PRU) and Col 6 (PRN) from editable input values
+                            const pruInput = tr.querySelector('.editable-pru-pdm');
+                            const prnInput = tr.querySelector('.editable-prn-pdm');
+                            sumCol5 += parseInt(pruInput?.value || '0') || 0;
+                            sumCol6 += parseInt(prnInput?.value || '0') || 0;
                             sumKKTerkini += parseInt((cells[kkTerkiniIdx]?.textContent || '0').replace(/,/g, '')) || 0;
                         });
                         // HORIZONTAL FOOTER: JUMLAH_V7 = Math.round(JUMLAH_V4 * multiplier/100), JUMLAH_V8 = Math.round(JUMLAH_V7 / kkRatio)
@@ -996,6 +1003,8 @@ async function renderDashboard() {
                         // JUMLAH row: [0]=colspan2, [1]=Berdaftar, [2]=Anggaran, [3]=PRU, [4]=PRN, [5]=SasaranUndi, [6]=SasaranKK, [7]=KKTerkini
                         if (parlJumlahTds[1]) parlJumlahTds[1].textContent = sumBerdaftar.toLocaleString();
                         if (parlJumlahTds[2]) parlJumlahTds[2].textContent = sumAnggaran.toLocaleString();
+                        if (parlJumlahTds[3]) parlJumlahTds[3].textContent = sumCol5.toLocaleString();
+                        if (parlJumlahTds[4]) parlJumlahTds[4].textContent = sumCol6.toLocaleString();
                         if (parlJumlahTds[5]) parlJumlahTds[5].textContent = sumSasaranUndi.toLocaleString();
                         const sasaranKKJumlah = parlJumlah.querySelector('.sasaran-kk-pdm');
                         if (sasaranKKJumlah) sasaranKKJumlah.textContent = sumSasaranKK.toLocaleString();
@@ -1108,9 +1117,16 @@ async function renderDashboard() {
                         if (!table) return;
                         const card = table.closest('.pdm-table-card');
                         if (!card) return;
+                        const dunKod = card.dataset.dunCode;
                         const turnoutInput = card.querySelector('.input-turnout-pdm');
                         const multiplierInput = card.querySelector('.input-multiplier-pdm');
                         const kkRatioInput = card.querySelector('.input-kkratio-pdm');
+                        // 🛡️ Persist per-DUN values to localStorage on every change
+                        if (dunKod) {
+                            savePdmDefault(dunKod, 'turnout', parseFloat(turnoutInput?.value) || 75);
+                            savePdmDefault(dunKod, 'multiplier', parseFloat(multiplierInput?.value) || 100);
+                            savePdmDefault(dunKod, 'kkRatio', parseFloat(kkRatioInput?.value) || 13);
+                        }
                         const tFactor = parseFloat(turnoutInput?.value || 75) / 100;
                         const mFactor = parseFloat(multiplierInput?.value || 100) / 100;
                         const kkRatioVal = parseFloat(kkRatioInput?.value || 13);
@@ -1261,6 +1277,15 @@ async function loadPdmTables() {
     }
 }
 
+// 🛡️ Per-DUN localStorage helpers — decouple each PDM table from global Parlimen inputs
+function getPdmDefault(dunKod, key, fallback) {
+    const stored = localStorage.getItem(`pdm_${dunKod}_${key}`);
+    return stored !== null ? parseFloat(stored) : fallback;
+}
+function savePdmDefault(dunKod, key, value) {
+    localStorage.setItem(`pdm_${dunKod}_${key}`, String(value));
+}
+
 // ========= 4 DUN PDM TABLES =========
 const DUN_PDM_CONFIG = {
     'N12': { nama: 'DUN N12 SULAMAN', kod: 'N12' },
@@ -1292,12 +1317,12 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
     </div>`;
     }
     const pdmCount = pdmData ? pdmData.length : 1;
-    const turnOutInput = parseFloat(document.getElementById('inputTurnoutPercentage')?.value || '75');
+    const turnOutInput = getPdmDefault(dunKod, 'turnout', parseFloat(document.getElementById('inputTurnoutPercentage')?.value || '75'));
     const factor = turnOutInput / 100;
-    const kkRatio = parseFloat(document.getElementById('inputKKRatio')?.value || '13');
+    const kkRatio = getPdmDefault(dunKod, 'kkRatio', parseFloat(document.getElementById('inputKKRatio')?.value || '13'));
     const col1Label = document.getElementById('inputElectionCol1')?.value || 'PRU15 2022';
     const col2Label = document.getElementById('inputElectionCol2')?.value || 'PRN 2025';
-    const sasaranUndiMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
+    const sasaranUndiMultiplier = getPdmDefault(dunKod, 'multiplier', parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100);
     
     let rows = '';
     let isFirstRow = true;
