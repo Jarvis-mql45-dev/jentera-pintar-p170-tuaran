@@ -133,6 +133,15 @@ async function handleLogin(username, password) {
         state.user = data.user;
         localStorage.setItem('token', data.access_token);
         localStorage.setItem('user', JSON.stringify(data.user));
+        
+        // 🧠 REMEMBER ME: Simpan nama pengguna ke localStorage jika checkbox ditandakan
+        const rememberMeCheckbox = document.getElementById('rememberMe');
+        if (rememberMeCheckbox && rememberMeCheckbox.checked) {
+            localStorage.setItem('remembered_username', username);
+        } else {
+            localStorage.removeItem('remembered_username');
+        }
+        
         renderApp();
         showToast(`Selamat datang, ${data.user.nama_penuh}!`);
     } catch (err) {
@@ -192,6 +201,8 @@ function renderLoginPage() {
         console.warn("DOM Target 'contentArea' not found!");
         return;
     }
+    // 🧠 REMEMBER ME: Pulihkan nama pengguna dari localStorage jika pernah diingati
+    const rememberedUsername = localStorage.getItem('remembered_username') || '';
     contentArea.innerHTML = `
         <div class="flex items-center justify-center" style="min-height:100vh;width:100%;">
             <div class="card w-full max-w-[440px] p-10 md:p-12" style="margin:0 auto !important;">
@@ -201,8 +212,12 @@ function renderLoginPage() {
                     <p class="mt-1" style="font-size:0.95rem;color:#6b7280;">P170 Tuaran</p>
                 </div>
                 <div class="space-y-5">
-                    <div><label class="block mb-1" style="font-size:0.95rem;font-weight:600;color:#374151;">Nama Pengguna</label><input type="text" id="loginUsername" placeholder="Masukkan nama pengguna" value="" autocomplete="off" style="width:100%;padding:12px 16px;font-size:1rem;border:1px solid #d1d5db;border-radius:8px;outline:none;"></div>
+                    <div><label class="block mb-1" style="font-size:0.95rem;font-weight:600;color:#374151;">Nama Pengguna</label><input type="text" id="loginUsername" placeholder="Masukkan nama pengguna" value="${rememberedUsername}" autocomplete="off" style="width:100%;padding:12px 16px;font-size:1rem;border:1px solid #d1d5db;border-radius:8px;outline:none;"></div>
                     <div><label class="block mb-1" style="font-size:0.95rem;font-weight:600;color:#374151;">Kata Laluan</label><input type="password" id="loginPassword" placeholder="Masukkan kata laluan" value="" autocomplete="new-password" style="width:100%;padding:12px 16px;font-size:1rem;border:1px solid #d1d5db;border-radius:8px;outline:none;"></div>
+                    <label class="flex items-center gap-3 cursor-pointer select-none" style="padding:4px 0;">
+                        <input type="checkbox" id="rememberMe" class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500" ${rememberedUsername ? 'checked' : ''} style="accent-color:#2563eb;width:18px;height:18px;">
+                        <span style="font-size:0.95rem;color:#374151;font-weight:500;">Ingat Saya</span>
+                    </label>
                     <button onclick="handleLogin(document.getElementById('loginUsername').value, document.getElementById('loginPassword').value)" class="btn btn-primary w-full" style="height:48px;font-size:1.05rem;font-weight:bold;">Log Masuk</button>
                 </div>
                 <div class="mt-6 text-center">
@@ -996,7 +1011,7 @@ async function renderDashboard() {
                             sumKKTerkini += parseInt((cells[kkTerkiniIdx]?.textContent || '0').replace(/,/g, '')) || 0;
                         });
                         // HORIZONTAL FOOTER: JUMLAH_V7 = Math.round(JUMLAH_V4 * multiplier/100), JUMLAH_V8 = Math.round(JUMLAH_V7 / kkRatio)
-                        const multiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
+                        const multiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 75;
                         const kkRatio = parseFloat(document.getElementById('inputKKRatio')?.value) || 13;
                         const sumSasaranUndi = Math.round(sumAnggaran * multiplier / 100);
                         const sumSasaranKK = Math.round(sumSasaranUndi / kkRatio);
@@ -1022,7 +1037,7 @@ async function renderDashboard() {
                             const pct = parseFloat(this.value) || 0;
                             const factor = pct / 100;
                             const kkRatioVal = parseFloat(document.getElementById('inputKKRatio')?.value) || 13;
-                            const sasaranUndiMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
+                            const sasaranUndiMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 75;
 
                             document.querySelectorAll('#parlimenMirrorBody tr[data-dun-row]').forEach(row => {
                                 const cells = row.children;
@@ -1080,12 +1095,19 @@ async function renderDashboard() {
                     });
 
                     // Parlimen Sasaran UNDI Multiplier → recalculate ONLY Parlimen rows + JUMLAH
+                    // Also sync to all DUN-level .input-multiplier-pdm inputs + persist to localStorage
                     const sasaranUndiInput = document.getElementById('inputSasaranUndiMultiplier');
                     if (sasaranUndiInput) {
+                        // 🛡️ RESET all per-DUN localStorage multipliers to the global default (75) on each dashboard render
+                        // This ensures Column 7 (Sasaran UNDI) always starts at 75% across all DUN tables
+                        ['N12', 'N13', 'N14', 'N15'].forEach(dunKod => {
+                            const globalVal = parseFloat(sasaranUndiInput.value) || 75;
+                            savePdmDefault(dunKod, 'multiplier', globalVal);
+                        });
                         sasaranUndiInput.addEventListener('input', function() {
-                            const multiplier = parseFloat(this.value) || 100;
-                            const mFactor = multiplier / 100;
-                            const pct = parseFloat(document.getElementById('inputTurnoutPercentage')?.value) || 75;
+                        const multiplier = parseFloat(this.value) || 75;
+                        const mFactor = multiplier / 100;
+                        const pct = parseFloat(document.getElementById('inputTurnoutPercentage')?.value) || 75;
                             const tFactor = pct / 100;
                             const kkRatioVal = parseFloat(document.getElementById('inputKKRatio')?.value) || 13;
 
@@ -1110,6 +1132,18 @@ async function renderDashboard() {
                                 }
                             });
                             recalcParlimenJumlah();
+                            // 🛡️ SYNC: Propagate Parlimen multiplier to all DUN-level .input-multiplier-pdm inputs
+                            document.querySelectorAll('.input-multiplier-pdm').forEach(inp => {
+                                inp.value = multiplier;
+                                // Also update localStorage for each DUN
+                                const card = inp.closest('.pdm-table-card');
+                                if (card && card.dataset.dunCode) {
+                                    savePdmDefault(card.dataset.dunCode, 'multiplier', multiplier);
+                                }
+                                // Trigger recalc for that DUN table
+                                const table = inp.closest('table');
+                                if (table) recalcPdmTableRows(table);
+                            });
                         });
                     }
 
@@ -1129,11 +1163,11 @@ async function renderDashboard() {
                         // 🛡️ Persist per-DUN values to localStorage on every change
                         if (dunKod) {
                             savePdmDefault(dunKod, 'turnout', parseFloat(turnoutInput?.value) || 75);
-                            savePdmDefault(dunKod, 'multiplier', parseFloat(multiplierInput?.value) || 100);
+                            savePdmDefault(dunKod, 'multiplier', parseFloat(multiplierInput?.value) || 75);
                             savePdmDefault(dunKod, 'kkRatio', parseFloat(kkRatioInput?.value) || 13);
                         }
                         const tFactor = parseFloat(turnoutInput?.value || 75) / 100;
-                        const mFactor = parseFloat(multiplierInput?.value || 100) / 100;
+                        const mFactor = parseFloat(multiplierInput?.value || 75) / 100;
                         const kkRatioVal = parseFloat(kkRatioInput?.value || 13);
                         const rows = table.querySelectorAll('tbody tr');
                         let sumAnggaran = 0, sumUndi = 0, sumKK = 0, sumPRU = 0, sumPRN = 0;
@@ -1337,8 +1371,8 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
     const kkRatio = getPdmDefault(dunKod, 'kkRatio', parseFloat(document.getElementById('inputKKRatio')?.value || '13'));
     const col1Label = document.getElementById('inputElectionCol1')?.value || 'PRU15 2022';
     const col2Label = document.getElementById('inputElectionCol2')?.value || 'PRN 2025';
-    const sasaranUndiMultiplier = getPdmDefault(dunKod, 'multiplier', parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100);
-    
+    const sasaranUndiMultiplier = getPdmDefault(dunKod, 'multiplier', parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 75);
+
     let rows = '';
     let isFirstRow = true;
     let colSums = { berdaftar: 0, turnout: 0, sasaran_undi: 0, kk: 0, kk_terkini: 0, putih: 0, atas: 0, hitam: 0, tidak: 0, meninggal: 0, usia18: 0, usia31: 0, usia60: 0 };
@@ -1474,7 +1508,7 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
     const kkRatio = parseFloat(document.getElementById('inputKKRatio')?.value || '13');
     const col1Label = document.getElementById('inputElectionCol1')?.value || 'PRU15 2022';
     const col2Label = document.getElementById('inputElectionCol2')?.value || 'PRN 2025';
-    const sasaranUndiMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
+    const sasaranUndiMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 75;
 
     const pdmCount = allDunCodes.length;
     let rows = '';
@@ -1591,7 +1625,7 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
                         <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle whitespace-nowrap">Anggaran Peratusan Turun Mengundi <input type="number" id="inputTurnoutPercentage" value="75" class="w-12 text-center font-bold text-black border border-gray-300 rounded px-0.5" style="display:inline-block;"></th>
                         <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle"><input type="text" id="inputElectionCol1" value="PRU15 2022" class="w-28 text-center bg-white border border-gray-300 rounded-lg px-2 py-1 text-sm font-semibold text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></th>
                         <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle"><input type="text" id="inputElectionCol2" value="PRN 2025" class="w-28 text-center bg-white border border-gray-300 rounded-lg px-2 py-1 text-sm font-semibold text-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></th>
-                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle whitespace-nowrap">Sasaran UNDI <input type="number" id="inputSasaranUndiMultiplier" value="100" min="0" max="200" class="w-10 text-center font-bold text-black border border-gray-300 rounded px-0.5" style="display:inline-block;">%</th>
+                        <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle whitespace-nowrap">Sasaran UNDI <input type="number" id="inputSasaranUndiMultiplier" value="75" min="0" max="200" class="w-10 text-center font-bold text-black border border-gray-300 rounded px-0.5" style="display:inline-block;">%</th>
                         <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle whitespace-nowrap">Sasaran K.K (1:<input type="number" id="inputKKRatio" value="13" min="1" max="50" class="w-10 text-center font-bold text-black border border-gray-300 rounded px-0.5" style="display:inline-block;">)</th>
                         <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle">Jumlah K.K Terkini</th>
                         <th class="border border-gray-300 px-1 py-1 font-semibold text-center align-middle text-green-700">PUTIH TERKINI</th>
