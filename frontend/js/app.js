@@ -1104,6 +1104,8 @@ async function renderDashboard() {
                     // ═══════════════════════════════════════════════════════════════
 
                     // Helper: Recalculate a single PDM table's rows + JUMLAH footer
+                    // CRITICAL RULE: ONLY modifies Col 4 (Anggaran), Col 7 (Sasaran UNDI), Col 8 (Sasaran K.K)
+                    // NEVER writes to Col 5 (PRU15 2022 / .editable-pru-pdm) or Col 6 (PRN 2025 / .editable-prn-pdm)
                     function recalcPdmTableRows(table) {
                         if (!table) return;
                         const card = table.closest('.pdm-table-card');
@@ -1115,48 +1117,59 @@ async function renderDashboard() {
                         const mFactor = parseFloat(multiplierInput?.value || 100) / 100;
                         const kkRatioVal = parseFloat(kkRatioInput?.value || 13);
                         const rows = table.querySelectorAll('tbody tr');
-                        const hasRowspanGlobal = rows[0]?.querySelector('td[rowspan]') !== null;
-                        const anggaranJumlahIdx = hasRowspanGlobal ? 3 : 2;
-                        let sumAnggaran = 0, sumUndi = 0, sumKK = 0;
+                        let sumAnggaran = 0;
 
                         rows.forEach(row => {
                             if (row.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
-                            const cells = row.children;
-                            const berdaftarD = parseInt((cells[hasRowspanGlobal ? 2 : 1]?.textContent || '0').replace(/,/g, '')) || 0;
+                            
+                            // Read pemilih from data-pemilih attribute instead of cells[N] indexing
+                            const pemilih = parseInt(row.dataset.pemilih) || 0;
                             // V4 = Math.round(N_daftar * P_turnout/100)
-                            const newAnggaran = Math.round(berdaftarD * tFactor);
-                            const turnIdx = hasRowspanGlobal ? 3 : 2;
-                            if (cells[turnIdx]) {
-                                cells[turnIdx].textContent = newAnggaran.toLocaleString();
-                                cells[turnIdx].dataset.rawAnggaran = newAnggaran;
+                            const newAnggaran = Math.round(pemilih * tFactor);
+                            
+                            // Col 4 (Anggaran) - use CLASS-BASED selector ONLY
+                            const anggaranCell = row.querySelector('.anggaran-pdm');
+                            if (anggaranCell) {
+                                anggaranCell.textContent = newAnggaran.toLocaleString();
+                                anggaranCell.dataset.rawAnggaran = newAnggaran;
                             }
-                            // V7 = Math.round(V4 * M_sasaran/100)
+                            
+                            // Col 7 (Sasaran UNDI) = Math.round(V4 * M_sasaran/100) - use CLASS-BASED selector ONLY
                             const newSasaranUndi = Math.round(newAnggaran * mFactor);
                             const undiCell = row.querySelector('.sasaran-undi-pdm');
                             if (undiCell) {
                                 undiCell.textContent = newSasaranUndi.toLocaleString();
                                 undiCell.dataset.rawSasaranUndi = newAnggaran * mFactor;
                             }
-                            // V8 = Math.round(V7 / R_kk)
+                            
+                            // Col 8 (Sasaran K.K) = Math.round(V7 / R_kk) - use CLASS-BASED selector ONLY
                             const kkCell = row.querySelector('.sasaran-kk-pdm');
                             if (kkCell) {
                                 kkCell.textContent = Math.round(newSasaranUndi / kkRatioVal).toLocaleString();
                                 kkCell.dataset.rawSasaranKk = newSasaranUndi / kkRatioVal;
                             }
+                            
+                            // NEVER write to Col 5 (.editable-pru-pdm) or Col 6 (.editable-prn-pdm)
+                            
                             // HORIZONTAL FOOTER: accumulate V4 only
                             sumAnggaran += newAnggaran;
                         });
+                        
                         // HORIZONTAL FOOTER: JUMLAH_V7 = Math.round(JUMLAH_V4 * multiplier/100), JUMLAH_V8 = Math.round(JUMLAH_V7 / kkRatio)
-                        sumUndi = Math.round(sumAnggaran * mFactor);
-                        sumKK = Math.round(sumUndi / kkRatioVal);
+                        const sumUndi = Math.round(sumAnggaran * mFactor);
+                        const sumKK = Math.round(sumUndi / kkRatioVal);
 
-                        // Recalculate JUMLAH footer
+                        // Recalculate JUMLAH footer using CLASS-BASED selectors ONLY
                         const lastRow = rows[rows.length - 1];
                         if (lastRow && lastRow.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) {
-                            const lastCells = lastRow.querySelectorAll('td');
-                            if (lastCells[anggaranJumlahIdx]) lastCells[anggaranJumlahIdx].textContent = sumAnggaran.toLocaleString();
-                            if (lastCells[5]) lastCells[5].textContent = sumUndi.toLocaleString();
-                            if (lastCells[6]) lastCells[6].textContent = sumKK.toLocaleString();
+                            const totalAnggaranCell = lastRow.querySelector('.total-anggaran-pdm');
+                            if (totalAnggaranCell) totalAnggaranCell.textContent = sumAnggaran.toLocaleString();
+                            
+                            const totalUndiCell = lastRow.querySelector('.total-sasaran-undi-pdm');
+                            if (totalUndiCell) totalUndiCell.textContent = sumUndi.toLocaleString();
+                            
+                            const totalKkCell = lastRow.querySelector('.total-sasaran-kk-pdm');
+                            if (totalKkCell) totalKkCell.textContent = sumKK.toLocaleString();
                         }
                     }
 
