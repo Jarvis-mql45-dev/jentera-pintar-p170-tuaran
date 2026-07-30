@@ -977,7 +977,7 @@ async function renderDashboard() {
                         const parlJumlah = document.querySelector('#parlimenMirrorBody tr:last-child');
                         if (!parlJumlah || !parlJumlah.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
                         const parlJumlahTds = parlJumlah.querySelectorAll('td');
-                        let sumBerdaftar = 0, sumAnggaran = 0, rawSumSasaranUndi = 0, rawSumSasaranKK = 0, sumKKTerkini = 0;
+                        let sumBerdaftar = 0, sumAnggaran = 0, sumSasaranUndi = 0, sumSasaranKK = 0, sumKKTerkini = 0;
                         document.querySelectorAll('#parlimenMirrorBody tr[data-dun-row]').forEach(tr => {
                             const cells = tr.children;
                             const hasRowspan = tr.querySelector('td[rowspan]') !== null;
@@ -988,22 +988,17 @@ async function renderDashboard() {
                             const sasaranKKCell = tr.querySelector('.sasaran-kk-pdm');
                             sumBerdaftar += parseInt((cells[berdaftarIdx]?.textContent || '0').replace(/,/g, '')) || 0;
                             sumAnggaran += parseInt((cells[anggaranIdx]?.textContent || '0').replace(/,/g, '')) || 0;
-                            rawSumSasaranUndi += parseFloat(sasaranUndiCell?.dataset?.rawSasaranUndi) || 0;
-                            rawSumSasaranKK += parseFloat(sasaranKKCell?.dataset?.rawSasaranKk) || 0;
+                            // Per Spec: JUMLAH = sum of ROUNDED display values (V4→V7→V8)
+                            sumSasaranUndi += parseInt((sasaranUndiCell?.textContent || '0').replace(/,/g, '')) || 0;
+                            sumSasaranKK += parseInt((sasaranKKCell?.textContent || '0').replace(/,/g, '')) || 0;
                             sumKKTerkini += parseInt((cells[kkTerkiniIdx]?.textContent || '0').replace(/,/g, '')) || 0;
                         });
                         // JUMLAH row: [0]=colspan2, [1]=Berdaftar, [2]=Anggaran, [3]=PRU, [4]=PRN, [5]=SasaranUndi, [6]=SasaranKK, [7]=KKTerkini
                         if (parlJumlahTds[1]) parlJumlahTds[1].textContent = sumBerdaftar.toLocaleString();
                         if (parlJumlahTds[2]) parlJumlahTds[2].textContent = sumAnggaran.toLocaleString();
-                        if (parlJumlahTds[5]) {
-                            parlJumlahTds[5].textContent = Math.round(rawSumSasaranUndi).toLocaleString();
-                            parlJumlahTds[5].dataset.rawSasaranUndi = rawSumSasaranUndi;
-                        }
+                        if (parlJumlahTds[5]) parlJumlahTds[5].textContent = sumSasaranUndi.toLocaleString();
                         const sasaranKKJumlah = parlJumlah.querySelector('.sasaran-kk-pdm');
-                        if (sasaranKKJumlah) {
-                            sasaranKKJumlah.textContent = Math.round(rawSumSasaranKK).toLocaleString();
-                            sasaranKKJumlah.dataset.rawSasaranKk = rawSumSasaranKK;
-                        }
+                        if (sasaranKKJumlah) sasaranKKJumlah.textContent = sumSasaranKK.toLocaleString();
                         if (parlJumlahTds[7]) parlJumlahTds[7].textContent = sumKKTerkini.toLocaleString();
                     }
 
@@ -1122,42 +1117,45 @@ async function renderDashboard() {
                         const rows = table.querySelectorAll('tbody tr');
                         const hasRowspanGlobal = rows[0]?.querySelector('td[rowspan]') !== null;
                         const anggaranJumlahIdx = hasRowspanGlobal ? 3 : 2;
-                        let rawSumAnggaran = 0, rawSumUndi = 0, rawSumKK = 0;
+                        let sumAnggaran = 0, sumUndi = 0, sumKK = 0;
 
                         rows.forEach(row => {
                             if (row.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
                             const cells = row.children;
                             const berdaftarD = parseInt((cells[hasRowspanGlobal ? 2 : 1]?.textContent || '0').replace(/,/g, '')) || 0;
+                            // V4 = Math.round(N_daftar * P_turnout/100)
                             const newAnggaran = Math.round(berdaftarD * tFactor);
                             const turnIdx = hasRowspanGlobal ? 3 : 2;
                             if (cells[turnIdx]) {
                                 cells[turnIdx].textContent = newAnggaran.toLocaleString();
                                 cells[turnIdx].dataset.rawAnggaran = newAnggaran;
                             }
-                            const rawSasaranUndi = newAnggaran * mFactor;
+                            // V7 = Math.round(V4 * M_sasaran/100)
+                            const newSasaranUndi = Math.round(newAnggaran * mFactor);
                             const undiCell = row.querySelector('.sasaran-undi-pdm');
                             if (undiCell) {
-                                undiCell.textContent = Math.round(rawSasaranUndi).toLocaleString();
-                                undiCell.dataset.rawSasaranUndi = rawSasaranUndi;
+                                undiCell.textContent = newSasaranUndi.toLocaleString();
+                                undiCell.dataset.rawSasaranUndi = newAnggaran * mFactor;
                             }
-                            const rawSasaranKK = rawSasaranUndi / kkRatioVal;
+                            // V8 = Math.round(V7 / R_kk)
                             const kkCell = row.querySelector('.sasaran-kk-pdm');
                             if (kkCell) {
-                                kkCell.textContent = Math.round(rawSasaranKK).toLocaleString();
-                                kkCell.dataset.rawSasaranKk = rawSasaranKK;
+                                kkCell.textContent = Math.round(newSasaranUndi / kkRatioVal).toLocaleString();
+                                kkCell.dataset.rawSasaranKk = newSasaranUndi / kkRatioVal;
                             }
-                            rawSumAnggaran += berdaftarD * tFactor;
-                            rawSumUndi += rawSasaranUndi;
-                            rawSumKK += rawSasaranKK;
+                            // Accumulate ROUNDED display values for JUMLAH (per spec)
+                            sumAnggaran += newAnggaran;
+                            sumUndi += newSasaranUndi;
+                            sumKK += Math.round(newSasaranUndi / kkRatioVal);
                         });
 
                         // Recalculate JUMLAH footer
                         const lastRow = rows[rows.length - 1];
                         if (lastRow && lastRow.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) {
                             const lastCells = lastRow.querySelectorAll('td');
-                            if (lastCells[anggaranJumlahIdx]) lastCells[anggaranJumlahIdx].textContent = Math.round(rawSumAnggaran).toLocaleString();
-                            if (lastCells[5]) lastCells[5].textContent = Math.round(rawSumUndi).toLocaleString();
-                            if (lastCells[6]) lastCells[6].textContent = Math.round(rawSumKK).toLocaleString();
+                            if (lastCells[anggaranJumlahIdx]) lastCells[anggaranJumlahIdx].textContent = sumAnggaran.toLocaleString();
+                            if (lastCells[5]) lastCells[5].textContent = sumUndi.toLocaleString();
+                            if (lastCells[6]) lastCells[6].textContent = sumKK.toLocaleString();
                         }
                     }
 
@@ -1302,22 +1300,16 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
     let colSums = { berdaftar: 0, turnout: 0, pru15: 0, prn2025: 0, sasaran_undi: 0, kk: 0, kk_terkini: 0, putih: 0, atas: 0, hitam: 0, tidak: 0, meninggal: 0, usia18: 0, usia31: 0, usia60: 0 };
     
     const cleanPdmData = pdmData.filter(p => p.dm !== 'Tidak Diagihkan' && p.dm !== 'ZZ');
-    // Track raw (high-precision) values for each row to compute JUMLAH with single Math.round
-    let rawSums = { anggaran: 0, sasaran_undi: 0, sasaran_kk: 0 };
     cleanPdmData.forEach(p => {
         const jumlah = p.jumlah || 0;
-        // Raw high-precision values
+        // ROW-LEVEL COMPUTATIONS per MANDATORY FORMULA SPEC:
+        //   V4 = Math.round(N_daftar * P_turnout / 100)
         const rawAnggaran = jumlah * factor;
-        const rawSasaranUndi = rawAnggaran * sasaranUndiMultiplier / 100;
-        const rawSasaranKK = rawSasaranUndi / kkRatio;
-        // Display values: Math.round() once per row
-        const anggaran = Math.round(rawAnggaran);
-        const sasaranUndi = Math.round(rawSasaranUndi);
-        const sasaranKK = Math.round(rawSasaranKK);
-        // Accumulate raw values for JUMLAH (single Math.round at the end)
-        rawSums.anggaran += rawAnggaran;
-        rawSums.sasaran_undi += rawSasaranUndi;
-        rawSums.sasaran_kk += rawSasaranKK;
+        const anggaran = Math.round(rawAnggaran);                     // V4 = rounded
+        const rawSasaranUndi = anggaran * sasaranUndiMultiplier / 100;
+        const sasaranUndi = Math.round(rawSasaranUndi);               // V7 = Math.round(V4 * M/100)
+        const rawSasaranKK = sasaranUndi / kkRatio;
+        const sasaranKK = Math.round(rawSasaranKK);                   // V8 = Math.round(V7 / R_kk)
         const kkTerkini = p.jumlah_ketua_keluarga ?? Math.round(jumlah / kkRatio);
         const putih = p.putih || 0;
         const hitam = p.hitam || 0;
@@ -1366,11 +1358,11 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
     rows += `<tr class="bg-gray-100 font-semibold">
         <td colspan="2" class="border border-gray-300 px-2 py-1 font-bold text-gray-800">JUMLAH</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.berdaftar.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle" data-raw-anggaran="${rawSums.anggaran}">${Math.round(rawSums.anggaran).toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.turnout.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.pru15.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.prn2025.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-undi-pdm" data-raw-sasaran-undi="${rawSums.sasaran_undi}">${Math.round(rawSums.sasaran_undi).toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-kk-pdm" data-raw-sasaran-kk="${rawSums.sasaran_kk}">${Math.round(rawSums.sasaran_kk).toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-undi-pdm">${colSums.sasaran_undi.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-kk-pdm">${colSums.kk.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.kk_terkini.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle text-green-700">${colSums.putih.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle text-yellow-700">${colSums.atas.toLocaleString()}</td>
@@ -1442,8 +1434,6 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
     let rows = '';
     let isFirstRow = true;
     const colSums = { berdaftar: 0, turnout: 0, pru15: 0, prn2025: 0, sasaran_undi: 0, kk: 0, kk_terkini: 0, putih: 0, atas: 0, hitam: 0, tidak: 0, meninggal: 0, usia18: 0, usia31: 0, usia60: 0 };
-    // Track raw (high-precision) values for JUMLAH — single Math.round at the end
-    let rawParlimenSums = { anggaran: 0, sasaran_undi: 0, sasaran_kk: 0 };
 
     allDunCodes.forEach((kod) => {
         const idx = DUN_PDM_CODES.indexOf(kod);
@@ -1454,15 +1444,16 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
         const jumlah = cleanData.reduce((s, p) => s + (p.jumlah || 0), 0);
         const sumKKTerkini = cleanData.reduce((s, p) => s + (p.jumlah_ketua_keluarga || 0), 0);
         
-        // Row-level raw (high-precision) values — NOT aggregated per-PDM with individual rounding
+        // ROW-LEVEL COMPUTATIONS per MANDATORY FORMULA SPEC:
+        //   V4 = Math.round(N_daftar * P_turnout / 100)
+        //   V7 = Math.round(V4 * M_sasaran / 100)
+        //   V8 = Math.round(V7 / R_kk)
         const rawAnggaran = jumlah * factor;
-        const rawSasaranUndi = rawAnggaran * sasaranUndiMultiplier / 100;
-        const rawSasaranKK = rawSasaranUndi / kkRatio;
-        
-        // Display values: Math.round() once per row
-        const perPdmAnggaran = Math.round(rawAnggaran);
-        const perPdmSasaranUndi = Math.round(rawSasaranUndi);
-        const perPdmSasaranKK = Math.round(rawSasaranKK);
+        const perPdmAnggaran = Math.round(rawAnggaran);           // V4 = rounded
+        const rawSasaranUndi = perPdmAnggaran * sasaranUndiMultiplier / 100;
+        const perPdmSasaranUndi = Math.round(rawSasaranUndi);     // V7 = Math.round(V4 * M/100)
+        const rawSasaranKK = perPdmSasaranUndi / kkRatio;
+        const perPdmSasaranKK = Math.round(rawSasaranKK);         // V8 = Math.round(V7 / R_kk)
 
         // Raw aggregates (non-calculated columns) still use plain sum
         const agg = {
@@ -1511,20 +1502,16 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
         colSums.putih += agg.putih; colSums.atas += agg.atas_pagar; colSums.hitam += agg.hitam;
         colSums.tidak += agg.tidak_dikenali; colSums.meninggal += agg.meninggal;
         colSums.usia18 += agg.usia_18_30; colSums.usia31 += agg.usia_31_59; colSums.usia60 += agg.usia_60plus;
-        // Accumulate raw high-precision values for JUMLAH (single Math.round at the end)
-        rawParlimenSums.anggaran += rawAnggaran;
-        rawParlimenSums.sasaran_undi += rawSasaranUndi;
-        rawParlimenSums.sasaran_kk += rawSasaranKK;
     });
 
     rows += `<tr class="bg-gray-100 font-semibold">
         <td colspan="2" class="border border-gray-300 px-2 py-1 font-bold text-gray-800">JUMLAH</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.berdaftar.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle" data-raw-anggaran="${rawParlimenSums.anggaran}">${Math.round(rawParlimenSums.anggaran).toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.turnout.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.pru15.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.prn2025.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle" data-raw-sasaran-undi="${colSums.turnout * sasaranUndiMultiplier / 100}">${Math.round(colSums.turnout * (sasaranUndiMultiplier / 100)).toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-kk-pdm" data-raw-sasaran-kk="${rawParlimenSums.sasaran_kk}">${Math.round(rawParlimenSums.sasaran_kk).toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-undi-pdm">${colSums.sasaran_undi.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-kk-pdm">${colSums.kk.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.kk_terkini.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle text-green-700">${colSums.putih.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle text-yellow-700">${colSums.atas.toLocaleString()}</td>
