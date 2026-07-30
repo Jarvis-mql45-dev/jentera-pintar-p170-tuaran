@@ -977,7 +977,7 @@ async function renderDashboard() {
                         const parlJumlah = document.querySelector('#parlimenMirrorBody tr:last-child');
                         if (!parlJumlah || !parlJumlah.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
                         const parlJumlahTds = parlJumlah.querySelectorAll('td');
-                        let sumBerdaftar = 0, sumAnggaran = 0, sumKKTerkini = 0;
+                        let sumBerdaftar = 0, sumAnggaran = 0, sumKKTerkini = 0, sumCol5 = 0, sumCol6 = 0;
                         document.querySelectorAll('#parlimenMirrorBody tr[data-dun-row]').forEach(tr => {
                             const cells = tr.children;
                             const hasRowspan = tr.querySelector('td[rowspan]') !== null;
@@ -988,6 +988,13 @@ async function renderDashboard() {
                             sumAnggaran += parseInt((cells[anggaranIdx]?.textContent || '0').replace(/,/g, '')) || 0;
                             sumKKTerkini += parseInt((cells[kkTerkiniIdx]?.textContent || '0').replace(/,/g, '')) || 0;
                         });
+                        // SUM Col 5 & Col 6 from ALL DUN PDM tables' user-typed inputs
+                        document.querySelectorAll('.editable-pru-pdm').forEach(inp => {
+                            sumCol5 += parseInt(inp.value) || 0;
+                        });
+                        document.querySelectorAll('.editable-prn-pdm').forEach(inp => {
+                            sumCol6 += parseInt(inp.value) || 0;
+                        });
                         // HORIZONTAL FOOTER: JUMLAH_V7 = Math.round(JUMLAH_V4 * multiplier/100), JUMLAH_V8 = Math.round(JUMLAH_V7 / kkRatio)
                         const multiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
                         const kkRatio = parseFloat(document.getElementById('inputKKRatio')?.value) || 13;
@@ -996,6 +1003,8 @@ async function renderDashboard() {
                         // JUMLAH row: [0]=colspan2, [1]=Berdaftar, [2]=Anggaran, [3]=PRU, [4]=PRN, [5]=SasaranUndi, [6]=SasaranKK, [7]=KKTerkini
                         if (parlJumlahTds[1]) parlJumlahTds[1].textContent = sumBerdaftar.toLocaleString();
                         if (parlJumlahTds[2]) parlJumlahTds[2].textContent = sumAnggaran.toLocaleString();
+                        if (parlJumlahTds[3]) parlJumlahTds[3].textContent = sumCol5.toLocaleString();
+                        if (parlJumlahTds[4]) parlJumlahTds[4].textContent = sumCol6.toLocaleString();
                         if (parlJumlahTds[5]) parlJumlahTds[5].textContent = sumSasaranUndi.toLocaleString();
                         const sasaranKKJumlah = parlJumlah.querySelector('.sasaran-kk-pdm');
                         if (sasaranKKJumlah) sasaranKKJumlah.textContent = sumSasaranKK.toLocaleString();
@@ -1168,6 +1177,18 @@ async function renderDashboard() {
                         card.querySelector('.input-turnout-pdm')?.addEventListener('input', bindRecalc);
                         card.querySelector('.input-multiplier-pdm')?.addEventListener('input', bindRecalc);
                         card.querySelector('.input-kkratio-pdm')?.addEventListener('input', bindRecalc);
+                    });
+
+                    // ───────────────────────────────────────────────
+                    // DUN PDM COL 5 & COL 6 USER INPUT → Parliament JUMLAH
+                    // Setiap input pada .editable-pru-pdm dan .editable-prn-pdm
+                    // akan trigger recalcParlimenJumlah untuk mengumpul semua
+                    // nilai dari 4 DUN tables ke baris JUMLAH Parlimen (Col 5 & Col 6).
+                    // ───────────────────────────────────────────────
+                    document.addEventListener('input', function(e) {
+                        if (e.target.matches('.editable-pru-pdm') || e.target.matches('.editable-prn-pdm')) {
+                            recalcParlimenJumlah();
+                        }
                     });
 
                     // ───────────────────────────────────────────────
