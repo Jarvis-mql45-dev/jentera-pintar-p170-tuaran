@@ -1362,11 +1362,11 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
     rows += `<tr class="bg-gray-100 font-semibold">
         <td colspan="2" class="border border-gray-300 px-2 py-1 font-bold text-gray-800">JUMLAH</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.berdaftar.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.turnout.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle total-anggaran-pdm">${colSums.turnout.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle"></td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle"></td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-undi-pdm">${colSums.sasaran_undi.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-kk-pdm">${colSums.kk.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle total-sasaran-undi-pdm">${colSums.sasaran_undi.toLocaleString()}</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle total-sasaran-kk-pdm">${colSums.kk.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.kk_terkini.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle text-green-700">${colSums.putih.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle text-yellow-700">${colSums.atas.toLocaleString()}</td>
