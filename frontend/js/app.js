@@ -988,11 +988,11 @@ async function renderDashboard() {
                             sumAnggaran += parseInt((cells[anggaranIdx]?.textContent || '0').replace(/,/g, '')) || 0;
                             sumKKTerkini += parseInt((cells[kkTerkiniIdx]?.textContent || '0').replace(/,/g, '')) || 0;
                         });
-                        // SUM Col 5 & Col 6 from ALL DUN PDM tables' user-typed inputs
-                        document.querySelectorAll('.editable-pru-pdm').forEach(inp => {
+                        // SUM Col 5 & Col 6 from Parlimen table's own rows (not DUN tables)
+                        document.querySelectorAll('#parlimenMirrorBody .editable-pru-pdm').forEach(inp => {
                             sumCol5 += parseInt(inp.value) || 0;
                         });
-                        document.querySelectorAll('.editable-prn-pdm').forEach(inp => {
+                        document.querySelectorAll('#parlimenMirrorBody .editable-prn-pdm').forEach(inp => {
                             sumCol6 += parseInt(inp.value) || 0;
                         });
                         // HORIZONTAL FOOTER: JUMLAH_V7 = Math.round(JUMLAH_V4 * multiplier/100), JUMLAH_V8 = Math.round(JUMLAH_V7 / kkRatio)
@@ -1177,18 +1177,6 @@ async function renderDashboard() {
                         card.querySelector('.input-turnout-pdm')?.addEventListener('input', bindRecalc);
                         card.querySelector('.input-multiplier-pdm')?.addEventListener('input', bindRecalc);
                         card.querySelector('.input-kkratio-pdm')?.addEventListener('input', bindRecalc);
-                    });
-
-                    // ───────────────────────────────────────────────
-                    // DUN PDM COL 5 & COL 6 USER INPUT → Parliament JUMLAH
-                    // Setiap input pada .editable-pru-pdm dan .editable-prn-pdm
-                    // akan trigger recalcParlimenJumlah untuk mengumpul semua
-                    // nilai dari 4 DUN tables ke baris JUMLAH Parlimen (Col 5 & Col 6).
-                    // ───────────────────────────────────────────────
-                    document.addEventListener('input', function(e) {
-                        if (e.target.matches('.editable-pru-pdm') || e.target.matches('.editable-prn-pdm')) {
-                            recalcParlimenJumlah();
-                        }
                     });
 
                     // ───────────────────────────────────────────────
