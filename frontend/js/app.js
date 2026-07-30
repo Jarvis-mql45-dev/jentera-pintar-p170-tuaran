@@ -968,17 +968,50 @@ async function renderDashboard() {
                 pdmContainer.innerHTML = pdmTablesHtml;
                 content.appendChild(pdmContainer);
                 
-                // 🛡️ FORCE INITIAL RECALC: After innerHTML is written, trigger a synchronous pass
+                // 🚀 DECOUPLED ARCHITECTURE: Setiap table input recalculate table sendiri sahaja
                 requestAnimationFrame(() => {
-                    syncPdmJumlahToParlimen();
-                    
-                    // ================================================================
-                    // 🛡️ FIX: Event listeners moved INSIDE innermost rAF where DOM exists.
-                    //     Phase 3 chunked rendering caused elements to not exist yet when
-                    //     this code ran synchronously. Now it runs AFTER all DOM is painted.
-                    // ================================================================
+                    // ───────────────────────────────────────────────
+                    // PARLIMEN TABLE: Recalculate JUMLAH footer helper
+                    // ───────────────────────────────────────────────
+                    function recalcParlimenJumlah() {
+                        const parlJumlah = document.querySelector('#parlimenMirrorBody tr:last-child');
+                        if (!parlJumlah || !parlJumlah.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
+                        const parlJumlahTds = parlJumlah.querySelectorAll('td');
+                        let sumBerdaftar = 0, sumAnggaran = 0, rawSumSasaranUndi = 0, rawSumSasaranKK = 0, sumKKTerkini = 0;
+                        document.querySelectorAll('#parlimenMirrorBody tr[data-dun-row]').forEach(tr => {
+                            const cells = tr.children;
+                            const hasRowspan = tr.querySelector('td[rowspan]') !== null;
+                            const berdaftarIdx = hasRowspan ? 2 : 1;
+                            const anggaranIdx = hasRowspan ? 3 : 2;
+                            const kkTerkiniIdx = hasRowspan ? 8 : 7;
+                            const sasaranUndiCell = tr.querySelector('.sasaran-undi-pdm');
+                            const sasaranKKCell = tr.querySelector('.sasaran-kk-pdm');
+                            sumBerdaftar += parseInt((cells[berdaftarIdx]?.textContent || '0').replace(/,/g, '')) || 0;
+                            sumAnggaran += parseInt((cells[anggaranIdx]?.textContent || '0').replace(/,/g, '')) || 0;
+                            rawSumSasaranUndi += parseFloat(sasaranUndiCell?.dataset?.rawSasaranUndi) || 0;
+                            rawSumSasaranKK += parseFloat(sasaranKKCell?.dataset?.rawSasaranKk) || 0;
+                            sumKKTerkini += parseInt((cells[kkTerkiniIdx]?.textContent || '0').replace(/,/g, '')) || 0;
+                        });
+                        // JUMLAH row: [0]=colspan2, [1]=Berdaftar, [2]=Anggaran, [3]=PRU, [4]=PRN, [5]=SasaranUndi, [6]=SasaranKK, [7]=KKTerkini
+                        if (parlJumlahTds[1]) parlJumlahTds[1].textContent = sumBerdaftar.toLocaleString();
+                        if (parlJumlahTds[2]) parlJumlahTds[2].textContent = sumAnggaran.toLocaleString();
+                        if (parlJumlahTds[5]) {
+                            parlJumlahTds[5].textContent = Math.round(rawSumSasaranUndi).toLocaleString();
+                            parlJumlahTds[5].dataset.rawSasaranUndi = rawSumSasaranUndi;
+                        }
+                        const sasaranKKJumlah = parlJumlah.querySelector('.sasaran-kk-pdm');
+                        if (sasaranKKJumlah) {
+                            sasaranKKJumlah.textContent = Math.round(rawSumSasaranKK).toLocaleString();
+                            sasaranKKJumlah.dataset.rawSasaranKk = rawSumSasaranKK;
+                        }
+                        if (parlJumlahTds[7]) parlJumlahTds[7].textContent = sumKKTerkini.toLocaleString();
+                    }
 
-                    // Live turnout input binding (DOM now exists)
+                    // ───────────────────────────────────────────────
+                    // PARLIMEN TABLE INPUT HANDLERS — recalc ONLY Parlimen rows
+                    // ───────────────────────────────────────────────
+
+                    // Parlimen Turnout% → recalculate Parlimen rows + JUMLAH
                     const turnoutInput = document.getElementById('inputTurnoutPercentage');
                     if (turnoutInput) {
                         turnoutInput.addEventListener('input', function() {
@@ -987,115 +1020,57 @@ async function renderDashboard() {
                             const kkRatioVal = parseFloat(document.getElementById('inputKKRatio')?.value) || 13;
                             const sasaranUndiMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
 
-                            // 🛡️ FIX: ⬇️ Iterate setiap PDM row, bukan .sasaran-undi-pdm sahaja
-                            //     Column 4 (Bilangan Turun Mengundi) adalah cell dengan data-raw-anggaran
-                            //     Selepas update Column 4, recalculate Column 7 & 8 berdasarkan nilai baru.
-                            // ================================================================
-                            document.querySelectorAll('#pdm-tables tbody tr').forEach(row => {
-                                if (!row || row.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
+                            document.querySelectorAll('#parlimenMirrorBody tr[data-dun-row]').forEach(row => {
                                 const cells = row.children;
-                                const hasDunRowspan = row.querySelector('td[rowspan]') !== null;
-                                const berdaftarIdx = hasDunRowspan ? 2 : 1;
-                                const turnoutIdx = hasDunRowspan ? 3 : 2;
+                                const hasRowspan = row.querySelector('td[rowspan]') !== null;
+                                const berdaftarIdx = hasRowspan ? 2 : 1;
+                                const turnoutIdx = hasRowspan ? 3 : 2;
                                 const daftar = parseInt((cells[berdaftarIdx]?.textContent || '0').replace(/,/g, '')) || 0;
 
-                                // ⬇️ Step 1: Kira & update Column 4 (Bilangan Turun Mengundi / Anggaran)
+                                // Column 4 (Anggaran Turun Mengundi)
                                 const newAnggaran = Math.round(daftar * factor);
                                 if (cells[turnoutIdx]) {
                                     cells[turnoutIdx].textContent = newAnggaran.toLocaleString();
                                     cells[turnoutIdx].dataset.rawAnggaran = newAnggaran;
                                 }
-
-                                // ⬇️ Step 2: Kira & update Column 7 (Sasaran UNDI)
+                                // Column 7 (Sasaran UNDI)
                                 const newSasaranUndi = Math.round(newAnggaran * sasaranUndiMultiplier / 100);
                                 const undiCell = row.querySelector('.sasaran-undi-pdm');
                                 if (undiCell) {
                                     undiCell.textContent = newSasaranUndi.toLocaleString();
                                     undiCell.dataset.rawSasaranUndi = newAnggaran * sasaranUndiMultiplier / 100;
                                 }
-
-                                // ⬇️ Step 3: Kira & update Column 8 (Sasaran K.K)
+                                // Column 8 (Sasaran K.K)
                                 const kkCell = row.querySelector('.sasaran-kk-pdm');
                                 if (kkCell) {
                                     kkCell.textContent = Math.round(newSasaranUndi / kkRatioVal).toLocaleString();
                                     kkCell.dataset.rawSasaranKk = (newAnggaran * sasaranUndiMultiplier / 100) / kkRatioVal;
                                 }
                             });
-
-                            // Recalculate PDM table JUMLAH footers — HIGH-PRECISION: accumulate from data-raw-*
-                            // ⬇️ FIX: Turut accumulate Column 4 (Anggaran) untuk JUMLAH display
-                            document.querySelectorAll('#pdm-tables table').forEach(table => {
-                                const rows = table.querySelectorAll('tbody tr');
-                                const lastRow = rows[rows.length - 1];
-                                if (!lastRow || !lastRow.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
-                                const lastCells = lastRow.querySelectorAll('td');
-                                // ⬇️ Detect indeks untuk Anggaran, SasaranUndi, SasaranKK di JUMLAH row
-                                const hasRowspan = lastRow.querySelector('td[rowspan]') !== null;
-                                const anggaranIdx = hasRowspan ? 3 : 2;
-                                let rawSumAnggaran = 0, rawSumUndi = 0, rawSumKK = 0;
-                                for (let i = 0; i < rows.length - 1; i++) {
-                                    const anggaranCell = rows[i].children[anggaraIdx];
-                                    const rawAnggaran = parseFloat(anggaranCell?.dataset?.rawAnggaran) || 0;
-                                    rawSumAnggaran += rawAnggaran;
-                                    const undi = rows[i].querySelector('.sasaran-undi-pdm');
-                                    const kk = rows[i].querySelector('.sasaran-kk-pdm');
-                                    const rawUndi = parseFloat(undi?.dataset?.rawSasaranUndi) || 0;
-                                    const rawKK = parseFloat(kk?.dataset?.rawSasaranKk) || 0;
-                                    rawSumUndi += rawUndi;
-                                    rawSumKK += rawKK;
-                                }
-                                // Single Math.round() at the end for JUMLAH display
-                                if (lastCells[anggaranIdx]) lastCells[anggaranIdx].textContent = Math.round(rawSumAnggaran).toLocaleString();
-                                if (lastCells[5]) lastCells[5].textContent = Math.round(rawSumUndi).toLocaleString();
-                                if (lastCells[6]) lastCells[6].textContent = Math.round(rawSumKK).toLocaleString();
-                            });
-
-                            // 🛡️ BOTTOM-UP: After PDM recalc, mirror PDM JUMLAH to Parlimen rows
-                            syncPdmJumlahToParlimen();
+                            recalcParlimenJumlah();
                         });
                     }
 
-                    // KKRatio live input binding — recalculates Sasaran K.K across ALL tables
+                    // Parlimen KK Ratio → recalculate ONLY Parlimen rows + JUMLAH
                     const kkRatioInput = document.getElementById('inputKKRatio');
                     if (kkRatioInput) {
                         kkRatioInput.addEventListener('input', function() {
                             const ratio = parseFloat(this.value) || 13;
-
-                            // PDM Tables: recalculate sasaran-kk-pdm and sum each table's total
-                            document.querySelectorAll('#pdm-tables .sasaran-kk-pdm').forEach(kkCell => {
+                            document.querySelectorAll('#parlimenMirrorBody tr[data-dun-row] .sasaran-kk-pdm').forEach(kkCell => {
                                 const row = kkCell.closest('tr');
-                                if (!row || row.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
+                                if (!row) return;
                                 const undiCell = row.querySelector('.sasaran-undi-pdm');
                                 if (undiCell) {
                                     const undi = parseInt((undiCell.textContent || '0').replace(/,/g, '')) || 0;
                                     kkCell.textContent = Math.round(undi / ratio).toLocaleString();
-                                    // 🛡️ UPDATE dataset.raw* attribute for KK JUMLAH high-precision accumulation
                                     kkCell.dataset.rawSasaranKk = undi / ratio;
                                 }
                             });
-                            // HIGH-PRECISION: accumulate KK from data-raw-sasaran-kk, single Math.round at JUMLAH
-                            document.querySelectorAll('#pdm-tables table').forEach(table => {
-                                const rows = table.querySelectorAll('tbody tr');
-                                const lastPdm = rows[rows.length - 1];
-                                if (lastPdm && lastPdm.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) {
-                                    const lastCells = lastPdm.querySelectorAll('td');
-                                    let rawSumKK = 0;
-                                    for (let i = 0; i < rows.length - 1; i++) {
-                                        const kk = rows[i].querySelector('.sasaran-kk-pdm');
-                                        const rawKK = parseFloat(kk?.dataset?.rawSasaranKk) || 0;
-                                        rawSumKK += rawKK;
-                                    }
-                                    // 🛡️ POKA-YOKE: lastCells[6] = Sasaran K.K (after colspan="2" at [0])
-                                    // Single Math.round() at the end for JUMLAH display
-                                    if (lastCells[6]) lastCells[6].textContent = Math.round(rawSumKK).toLocaleString();
-                                }
-                            });
-                            // 🛡️ BOTTOM-UP: After PDM recalc, mirror PDM JUMLAH to Parlimen rows
-                            syncPdmJumlahToParlimen();
+                            recalcParlimenJumlah();
                         });
                     }
 
-                    // Sasaran UNDI multiplier live input binding — recalculates across ALL tables
+                    // Parlimen Sasaran UNDI Multiplier → recalculate ONLY Parlimen rows + JUMLAH
                     const sasaranUndiInput = document.getElementById('inputSasaranUndiMultiplier');
                     if (sasaranUndiInput) {
                         sasaranUndiInput.addEventListener('input', function() {
@@ -1105,156 +1080,114 @@ async function renderDashboard() {
                             const tFactor = pct / 100;
                             const kkRatioVal = parseFloat(document.getElementById('inputKKRatio')?.value) || 13;
 
-                            // === PDM TABLES: recalculate sasaran-undi-pdm and sasaran-kk-pdm ===
-                            document.querySelectorAll('#pdm-tables .sasaran-undi-pdm').forEach(undiCell => {
-                                const row = undiCell.closest('tr');
-                                if (!row || row.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
+                            document.querySelectorAll('#parlimenMirrorBody tr[data-dun-row]').forEach(row => {
                                 const cells = row.children;
-                                const hasDunRowspan = row.querySelector('td[rowspan]') !== null;
-                                const berdaftarIdx = hasDunRowspan ? 2 : 1;
+                                const hasRowspan = row.querySelector('td[rowspan]') !== null;
+                                const berdaftarIdx = hasRowspan ? 2 : 1;
                                 const daftar = parseInt((cells[berdaftarIdx]?.textContent || '0').replace(/,/g, '')) || 0;
                                 const anggaranVal = Math.round(daftar * tFactor);
                                 const newSasaranUndi = Math.round(anggaranVal * mFactor);
-                                undiCell.textContent = newSasaranUndi.toLocaleString();
-                                // 🛡️ UPDATE dataset.raw* attributes for JUMLAH high-precision accumulation
-                                undiCell.dataset.rawSasaranUndi = anggaranVal * mFactor;
-                                const turnoutIdx = hasDunRowspan ? 3 : 2;
+                                const undiCell = row.querySelector('.sasaran-undi-pdm');
+                                if (undiCell) {
+                                    undiCell.textContent = newSasaranUndi.toLocaleString();
+                                    undiCell.dataset.rawSasaranUndi = anggaranVal * mFactor;
+                                }
+                                const turnoutIdx = hasRowspan ? 3 : 2;
                                 if (cells[turnoutIdx]) cells[turnoutIdx].textContent = anggaranVal.toLocaleString();
                                 const kkCell = row.querySelector('.sasaran-kk-pdm');
                                 if (kkCell) {
                                     kkCell.textContent = Math.round(newSasaranUndi / kkRatioVal).toLocaleString();
-                                    // 🛡️ UPDATE dataset.raw* attribute for KK JUMLAH high-precision accumulation
                                     kkCell.dataset.rawSasaranKk = (anggaranVal * mFactor) / kkRatioVal;
                                 }
                             });
-
-                            // Recalculate PDM table JUMLAH footers — HIGH-PRECISION: accumulate from data-raw-*
-                            document.querySelectorAll('#pdm-tables table').forEach(table => {
-                                const rows = table.querySelectorAll('tbody tr');
-                                const lastPdm = rows[rows.length - 1];
-                                if (!lastPdm || !lastPdm.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
-                                const lastCells = lastPdm.querySelectorAll('td');
-                                let rawSumUndi = 0, rawSumKK = 0;
-                                for (let i = 0; i < rows.length - 1; i++) {
-                                    const undi = rows[i].querySelector('.sasaran-undi-pdm');
-                                    const kk = rows[i].querySelector('.sasaran-kk-pdm');
-                                    const rawUndi = parseFloat(undi?.dataset?.rawSasaranUndi) || 0;
-                                    const rawKK = parseFloat(kk?.dataset?.rawSasaranKk) || 0;
-                                    rawSumUndi += rawUndi;
-                                    rawSumKK += rawKK;
-                                }
-                                // Single Math.round() at the end for JUMLAH display
-                                if (lastCells[5]) lastCells[5].textContent = Math.round(rawSumUndi).toLocaleString();
-                                if (lastCells[6]) lastCells[6].textContent = Math.round(rawSumKK).toLocaleString();
-                            });
-
-                            // 🛡️ BOTTOM-UP: After PDM recalc, mirror PDM JUMLAH to Parlimen rows
-                            syncPdmJumlahToParlimen();
+                            recalcParlimenJumlah();
                         });
                     }
 
                     // ═══════════════════════════════════════════════════════════════
-                    // PDM Table Input Sync — Two-Way Mirror ke P170 inputs
+                    // INDEPENDENT PDM TABLE INPUT HANDLERS — recalc ONLY their own table
                     // ═══════════════════════════════════════════════════════════════
 
-                    // Guard variable to prevent infinite loop during two-way sync
-                    let pdmSyncGuard = false;
+                    // Helper: Recalculate a single PDM table's rows + JUMLAH footer
+                    function recalcPdmTableRows(table) {
+                        if (!table) return;
+                        const card = table.closest('.pdm-table-card');
+                        if (!card) return;
+                        const turnoutInput = card.querySelector('.input-turnout-pdm');
+                        const multiplierInput = card.querySelector('.input-multiplier-pdm');
+                        const kkRatioInput = card.querySelector('.input-kkratio-pdm');
+                        const tFactor = parseFloat(turnoutInput?.value || 75) / 100;
+                        const mFactor = parseFloat(multiplierInput?.value || 100) / 100;
+                        const kkRatioVal = parseFloat(kkRatioInput?.value || 13);
+                        const rows = table.querySelectorAll('tbody tr');
+                        const hasRowspanGlobal = rows[0]?.querySelector('td[rowspan]') !== null;
+                        const anggaranJumlahIdx = hasRowspanGlobal ? 3 : 2;
+                        let rawSumAnggaran = 0, rawSumUndi = 0, rawSumKK = 0;
 
-                    // 2.1 Turnout % sync: .input-turnout-pdm → #inputTurnoutPercentage
-                    document.querySelectorAll('.input-turnout-pdm').forEach(inp => {
-                        inp.addEventListener('input', function() {
-                            if (pdmSyncGuard) return;
-                            pdmSyncGuard = true;
-                            const p170Input = document.getElementById('inputTurnoutPercentage');
-                            if (p170Input) {
-                                p170Input.value = this.value;
-                                p170Input.dispatchEvent(new Event('input', { bubbles: true }));
+                        rows.forEach(row => {
+                            if (row.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
+                            const cells = row.children;
+                            const berdaftarD = parseInt((cells[hasRowspanGlobal ? 2 : 1]?.textContent || '0').replace(/,/g, '')) || 0;
+                            const newAnggaran = Math.round(berdaftarD * tFactor);
+                            const turnIdx = hasRowspanGlobal ? 3 : 2;
+                            if (cells[turnIdx]) {
+                                cells[turnIdx].textContent = newAnggaran.toLocaleString();
+                                cells[turnIdx].dataset.rawAnggaran = newAnggaran;
                             }
-                            pdmSyncGuard = false;
+                            const rawSasaranUndi = newAnggaran * mFactor;
+                            const undiCell = row.querySelector('.sasaran-undi-pdm');
+                            if (undiCell) {
+                                undiCell.textContent = Math.round(rawSasaranUndi).toLocaleString();
+                                undiCell.dataset.rawSasaranUndi = rawSasaranUndi;
+                            }
+                            const rawSasaranKK = rawSasaranUndi / kkRatioVal;
+                            const kkCell = row.querySelector('.sasaran-kk-pdm');
+                            if (kkCell) {
+                                kkCell.textContent = Math.round(rawSasaranKK).toLocaleString();
+                                kkCell.dataset.rawSasaranKk = rawSasaranKK;
+                            }
+                            rawSumAnggaran += berdaftarD * tFactor;
+                            rawSumUndi += rawSasaranUndi;
+                            rawSumKK += rawSasaranKK;
                         });
+
+                        // Recalculate JUMLAH footer
+                        const lastRow = rows[rows.length - 1];
+                        if (lastRow && lastRow.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) {
+                            const lastCells = lastRow.querySelectorAll('td');
+                            if (lastCells[anggaranJumlahIdx]) lastCells[anggaranJumlahIdx].textContent = Math.round(rawSumAnggaran).toLocaleString();
+                            if (lastCells[5]) lastCells[5].textContent = Math.round(rawSumUndi).toLocaleString();
+                            if (lastCells[6]) lastCells[6].textContent = Math.round(rawSumKK).toLocaleString();
+                        }
+                    }
+
+                    // Bind per-PDM-table input handlers
+                    document.querySelectorAll('#pdm-tables .pdm-table-card').forEach(card => {
+                        const table = card.querySelector('table');
+                        if (!table) return;
+                        const bindRecalc = () => recalcPdmTableRows(table);
+                        card.querySelector('.input-turnout-pdm')?.addEventListener('input', bindRecalc);
+                        card.querySelector('.input-multiplier-pdm')?.addEventListener('input', bindRecalc);
+                        card.querySelector('.input-kkratio-pdm')?.addEventListener('input', bindRecalc);
                     });
 
-                    // 2.2 Multiplier sync: .input-multiplier-pdm → #inputSasaranUndiMultiplier
-                    document.querySelectorAll('.input-multiplier-pdm').forEach(inp => {
-                        inp.addEventListener('input', function() {
-                            if (pdmSyncGuard) return;
-                            pdmSyncGuard = true;
-                            const p170Input = document.getElementById('inputSasaranUndiMultiplier');
-                            if (p170Input) {
-                                p170Input.value = this.value;
-                                p170Input.dispatchEvent(new Event('input', { bubbles: true }));
-                            }
-                            pdmSyncGuard = false;
-                        });
-                    });
-
-                    // 2.3 KK Ratio sync: .input-kkratio-pdm → #inputKKRatio
-                    document.querySelectorAll('.input-kkratio-pdm').forEach(inp => {
-                        inp.addEventListener('input', function() {
-                            if (pdmSyncGuard) return;
-                            pdmSyncGuard = true;
-                            const p170Input = document.getElementById('inputKKRatio');
-                            if (p170Input) {
-                                p170Input.value = this.value;
-                                p170Input.dispatchEvent(new Event('input', { bubbles: true }));
-                            }
-                            pdmSyncGuard = false;
-                        });
-                    });
-
-                    // 2.4 Election label sync: .input-election-col1-pdm → #inputElectionCol1
+                    // ───────────────────────────────────────────────
+                    // ELECTION LABEL SYNC (visual sahaja — no recalc cascade)
+                    // ───────────────────────────────────────────────
                     document.querySelectorAll('.input-election-col1-pdm').forEach(inp => {
                         inp.addEventListener('input', function() {
-                            if (pdmSyncGuard) return;
-                            pdmSyncGuard = true;
-                            const p170Input = document.getElementById('inputElectionCol1');
-                            if (p170Input) {
-                                p170Input.value = this.value;
-                            }
-                            // Update all PDM tables' col1 headers to reflect new label
                             document.querySelectorAll('.input-election-col1-pdm').forEach(other => {
                                 if (other !== this) other.value = this.value;
                             });
-                            pdmSyncGuard = false;
                         });
                     });
-
-                    // 2.4b Election label sync: .input-election-col2-pdm → #inputElectionCol2
                     document.querySelectorAll('.input-election-col2-pdm').forEach(inp => {
                         inp.addEventListener('input', function() {
-                            if (pdmSyncGuard) return;
-                            pdmSyncGuard = true;
-                            const p170Input = document.getElementById('inputElectionCol2');
-                            if (p170Input) {
-                                p170Input.value = this.value;
-                            }
-                            // Update all PDM tables' col2 headers to reflect new label
                             document.querySelectorAll('.input-election-col2-pdm').forEach(other => {
                                 if (other !== this) other.value = this.value;
                             });
-                            pdmSyncGuard = false;
                         });
                     });
-
-                    // Also sync the P170 inputs back to PDM tables when changed
-                    const syncP170ToPdm = (p170Id, pdmClass) => {
-                        const p170Input = document.getElementById(p170Id);
-                        if (!p170Input) return;
-                        p170Input.addEventListener('input', function() {
-                            if (pdmSyncGuard) return;
-                            pdmSyncGuard = true;
-                            document.querySelectorAll(`.${pdmClass}`).forEach(inp => {
-                                inp.value = this.value;
-                            });
-                            pdmSyncGuard = false;
-                        });
-                    };
-                    syncP170ToPdm('inputTurnoutPercentage', 'input-turnout-pdm');
-                    syncP170ToPdm('inputSasaranUndiMultiplier', 'input-multiplier-pdm');
-                    syncP170ToPdm('inputKKRatio', 'input-kkratio-pdm');
-                    syncP170ToPdm('inputElectionCol1', 'input-election-col1-pdm');
-                    syncP170ToPdm('inputElectionCol2', 'input-election-col2-pdm');
-
                     // 🚀 PHASE 3 PERF: Save to cache after rendering completes
                     state.pageCache['dashboard'] = content.innerHTML;
                     state.pageCacheValid['dashboard'] = true;
@@ -1262,174 +1195,12 @@ async function renderDashboard() {
             });
         });
 
-        // ================================================================
-        // 🛡️ BOTTOM-UP SYNC HELPER: After PDM recalculation, copy PDM JUMLAH
-        // row values to Parlimen rows — guarantees 100% match between DUN
-        // tables and Parlimen table.
-        // ================================================================
-        function syncPdmJumlahToParlimen() {
-            const dunCodes = ['N12', 'N13', 'N14', 'N15'];
-            dunCodes.forEach(dunKod => {
-                const pdmCard = document.querySelector(`.pdm-table-card[data-dun-code="${dunKod}"]`);
-                const parlRow = document.querySelector(`#parlimenMirrorBody tr[data-dun-row="${dunKod}"]`);
-                if (!pdmCard || !parlRow) return;
-                const pdmTable = pdmCard.querySelector('table');
-                if (!pdmTable) return;
-                const rows = pdmTable.querySelectorAll('tbody tr');
-                const pdmJumlah = rows[rows.length - 1];
-                if (!pdmJumlah || !pdmJumlah.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
-                const pdmTds = pdmJumlah.querySelectorAll('td');
-                const parlTds = parlRow.children;
-                // 🛡️ POKA-YOKE: CSS class selectors untuk SasaranUndi & SasaranKK tidak terjejas
-                //     oleh perbezaan indeks akibat rowspan. Gunakan .sasaran-undi-pdm dan .sasaran-kk-pdm.
-                // PDM JUMLAH: td[0]=colspan2, td[1]=Berdaftar, td[2]=Anggaran, td[3]=PRU, td[4]=PRN, td[5]=SasaranUndi, td[6]=SasaranKK, td[7]=KKTerkini
-                // Parlimen (ada rowspan N12): td[0]=PARLIMEN(rowspan), td[1]=DUN, td[2]=Berdaftar, td[3]=Anggaran, td[4]=PRU, td[5]=PRN, td[6]=SasaranUndi, td[7]=SasaranKK, td[8]=KKTerkini
-                // Parlimen (tiada rowspan N13-N15): td[0]=DUN, td[1]=Berdaftar, td[2]=Anggaran, td[3]=PRU, td[4]=PRN, td[5]=SasaranUndi, td[6]=SasaranKK, td[7]=KKTerkini
-                const pdmBerdaftar = pdmTds[1]?.textContent || '0';
-                const pdmAnggaran = pdmTds[2]?.textContent || '0';
-                const pdmKKTerkini = pdmTds[7]?.textContent || '0';
-                // Berdaftar & Anggaran: detect offset akibat rowspan
-                const hasRowspan = parlRow.querySelector('td[rowspan]') !== null;
-                const berdaftarIdx = hasRowspan ? 2 : 1;
-                const anggaranIdx = hasRowspan ? 3 : 2;
-                const kkTerkiniIdx = hasRowspan ? 8 : 7;
-                if (parlTds[berdaftarIdx]) parlTds[berdaftarIdx].textContent = pdmBerdaftar;
-                if (parlTds[anggaranIdx]) parlTds[anggaranIdx].textContent = pdmAnggaran;
-                if (parlTds[kkTerkiniIdx]) parlTds[kkTerkiniIdx].textContent = pdmKKTerkini;
-                // 🛡️ SasaranUndi & SasaranKK: guna CSS class selector (tidak terjejas rowspan offset)
-                const parlSasaranUndi = parlRow.querySelector('.sasaran-undi-pdm');
-                const pdmSasaranUndi = pdmJumlah.querySelector('.sasaran-undi-pdm');
-                if (parlSasaranUndi && pdmSasaranUndi) {
-                    parlSasaranUndi.textContent = pdmSasaranUndi.textContent;
-                    // 🛡️ CRITICAL: Copy dataset.raw* so Parlimen JUMLAH recalc reads LIVE values (not stale initial render)
-                    parlSasaranUndi.dataset.rawSasaranUndi = pdmSasaranUndi.dataset.rawSasaranUndi;
-                }
-                const parlSasaranKK = parlRow.querySelector('.sasaran-kk-pdm');
-                const pdmSasaranKK = pdmJumlah.querySelector('.sasaran-kk-pdm');
-                if (parlSasaranKK && pdmSasaranKK) {
-                    parlSasaranKK.textContent = pdmSasaranKK.textContent;
-                    // 🛡️ CRITICAL: Copy dataset.raw* so Parlimen JUMLAH recalc reads LIVE values (not stale initial render)
-                    parlSasaranKK.dataset.rawSasaranKk = pdmSasaranKK.dataset.rawSasaranKk;
-                }
-            });
-                // 🛡️ Recalculate Parlimen JUMLAH row by summing per-DUN rows — HIGH-PRECISION using data-raw-*
-                // 🛡️ POKA-YOKE: CSS class selectors (.sasaran-undi-pdm, .sasaran-kk-pdm) digunakan
-                //     supaya tidak terjejas oleh perbezaan indeks akibat rowspan pada baris pertama.
-                //     Baris N12 ada td[rowspan] untuk "P170 TUARAN", baris N13-N15 tiada — jadi
-                //     indeks hardcoded akan off-by-one. CSS class menjamin 100% ketepatan.
-                // 🛡️ JUMLAH row: colspan="2" pada td[0] (JUMLAH), jadi indeks sebenar:
-                //     [1]=Berdaftar, [2]=Anggaran, [5]=SasaranUndi, [6]=SasaranKK, [7]=KKTerkini
-                // 🛡️ HIGH-PRECISION: Use data-raw-sasaran-undi / data-raw-sasaran-kk attributes for accumulation,
-                //     single Math.round() at JUMLAH display.
-                const parlJumlah = document.querySelector('#parlimenMirrorBody tr:last-child');
-                if (!parlJumlah || !parlJumlah.querySelector('td:first-child')?.textContent?.includes('JUMLAH')) return;
-                const parlJumlahTds = parlJumlah.querySelectorAll('td');
-                let sumBerdaftar = 0, sumAnggaran = 0, rawSumSasaranUndi = 0, rawSumSasaranKK = 0, sumKKTerkini = 0;
-                document.querySelectorAll('#parlimenMirrorBody tr:not(:last-child)').forEach(tr => {
-                    const cells = tr.children;
-                    // 🛡️ Detect if row has td[rowspan] (baris pertama N12) untuk offset berdaftar/anggaran
-                    const hasRowspan = tr.querySelector('td[rowspan]') !== null;
-                    const berdaftarIdx = hasRowspan ? 2 : 1;
-                    const anggaranIdx = hasRowspan ? 3 : 2;
-                    const kkTerkiniIdx = hasRowspan ? 8 : 7;
-                    // 🛡️ Gunakan data-raw attributes & CSS class selector untuk ketepatan cemerlang
-                    const sasaranUndiCell = tr.querySelector('.sasaran-undi-pdm');
-                    const sasaranKKCell = tr.querySelector('.sasaran-kk-pdm');
-                    
-                    sumBerdaftar += parseInt((cells[berdaftarIdx]?.textContent || '0').replace(/,/g, '')) || 0;
-                    sumAnggaran += parseInt((cells[anggaranIdx]?.textContent || '0').replace(/,/g, '')) || 0;
-                    rawSumSasaranUndi += parseFloat(sasaranUndiCell?.dataset?.rawSasaranUndi) || 0;
-                    rawSumSasaranKK += parseFloat(sasaranKKCell?.dataset?.rawSasaranKk) || 0;
-                    sumKKTerkini += parseInt((cells[kkTerkiniIdx]?.textContent || '0').replace(/,/g, '')) || 0;
-                });
-                // 🛡️ JUMLAH row indices: [0]=colspan2(JUMLAH), [1]=Berdaftar, [2]=Anggaran,
-                //     [3]=PRU, [4]=PRN, [5]=SasaranUndi, [6]=SasaranKK, [7]=KKTerkini
-                // Single Math.round() at the end for JUMLAH display
-                if (parlJumlahTds[1]) parlJumlahTds[1].textContent = sumBerdaftar.toLocaleString();
-                if (parlJumlahTds[2]) parlJumlahTds[2].textContent = sumAnggaran.toLocaleString();
-                if (parlJumlahTds[5]) {
-                    // 🛡️ 9994 FIX: Read raw data-raw-anggaran from each per-DUN row for HIGH-PRECISION accumulation
-                    let rawSumTurnout = 0;
-                    document.querySelectorAll('#parlimenMirrorBody tr[data-dun-row]').forEach(tr => {
-                        const hasRs = tr.querySelector('td[rowspan]') !== null;
-                        const anggIdx = hasRs ? 3 : 2;
-                        const rawVal = parseFloat(tr.children[anggIdx]?.dataset?.rawAnggaran) || 0;
-                        if (rawVal > 0) rawSumTurnout += rawVal;
-                    });
-                    const totalTurnout = rawSumTurnout > 0 ? rawSumTurnout : (parseInt((parlJumlahTds[2]?.textContent || '0').replace(/,/g, '')) || 0);
-                    const sasaranMultiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
-                    parlJumlahTds[5].textContent = Math.round(totalTurnout * (sasaranMultiplier / 100)).toLocaleString();
-                    parlJumlahTds[5].dataset.rawSasaranUndi = totalTurnout * (sasaranMultiplier / 100);
-                }
-                // 🛡️ SasaranKK: guna CSS class selector untuk ketepatan maksimum
-                const sasaranKKJumlah = parlJumlah.querySelector('.sasaran-kk-pdm');
-                if (sasaranKKJumlah) sasaranKKJumlah.textContent = Math.round(rawSumSasaranKK).toLocaleString();
-                if (parlJumlahTds[7]) parlJumlahTds[7].textContent = sumKKTerkini.toLocaleString();
-
-                // 🛡️ SURGICAL FIX: Recalculate per-DUN Sasaran Undi from data-raw-anggaran (exact float) NOT volatile textContent
-                //     This eliminates the 9994 bug where DOM corruption causes 19986 to be read as 19988.
-                //     renderParlimenMirrorTable() stores exact rawAnggaran in data-raw-anggaran at render time.
-                //     syncPdmJumlahToParlimen() overwrites textContent with PDM JUMLAH values (potentially rounded).
-                //     By reading data-raw-anggaran, we bypass textContent entirely and use the original exact integer.
-                const multiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
-                const kkRatio = parseFloat(document.getElementById('inputKKRatio')?.value) || 13;
-                const turnoutPct = parseFloat(document.getElementById('inputTurnoutPercentage')?.value) || 75;
-                document.querySelectorAll('#parlimenMirrorBody tr[data-dun-row]').forEach(tr => {
-                    const hasRs = tr.querySelector('td[rowspan]') !== null;
-                    const aggIdx = hasRs ? 3 : 2;
-                    const brfIdx = hasRs ? 2 : 1;
-                    
-                    // HARD-BIND: Read exact raw float from data-raw-anggaran
-                    const exactDunTurnout = parseFloat(tr.children[aggIdx]?.dataset?.rawAnggaran) || 0;
-                    // FALLBACK: Compute from berdaftar * turnout% if data attribute missing
-                    const berdaftar = parseInt((tr.children[brfIdx]?.textContent || '0').replace(/,/g, ''), 10) || 0;
-                    const finalTurnout = exactDunTurnout > 0 ? Math.round(exactDunTurnout) : (berdaftar * turnoutPct / 100);
-                    
-                    const sasaranUndi = Math.round(finalTurnout * (multiplier / 100));
-                    const rawSasaranUndi = finalTurnout * (multiplier / 100);
-                    const rawSasaranKK = rawSasaranUndi / kkRatio;
-                    const sasaranKK = Math.round(rawSasaranKK);
-                    
-                    console.log("DUN " + tr.dataset.dunRow + " TARGET:", finalTurnout, "*", multiplier, "% =", sasaranUndi);
-                    
-                    const undiCell = tr.querySelector('.sasaran-undi-pdm');
-                    const kkCell = tr.querySelector('.sasaran-kk-pdm');
-                    if (undiCell) {
-                        undiCell.textContent = sasaranUndi.toLocaleString();
-                        undiCell.dataset.rawSasaranUndi = rawSasaranUndi;
-                    }
-                    if (kkCell) {
-                        kkCell.textContent = sasaranKK.toLocaleString();
-                        kkCell.dataset.rawSasaranKk = rawSasaranKK;
-                    }
-                });
-                // 🛡️ POST-FIX: Re-accumulate JUMLAH row Column 7 & Column 8 from freshly-updated per-DUN dataset.*
-                //     Without this block, Column 8 (Sasaran K.K) JUMLAH stays stale because the earlier accumulation
-                //     (rawSumSasaranKK at line 998-999) used pre-fix dataset values, then the SURGICAL FIX above
-                //     overwrites per-DUN dataset.rawSasaranKk — but the JUMLAH row was never refreshed.
-                const updatedKkRatio = parseFloat(document.getElementById('inputKKRatio')?.value) || 13;
-                let reaccumUndi = 0, reaccumKK = 0;
-                document.querySelectorAll('#parlimenMirrorBody tr[data-dun-row]').forEach(tr => {
-                    const undiCell = tr.querySelector('.sasaran-undi-pdm');
-                    const kkCell = tr.querySelector('.sasaran-kk-pdm');
-                    reaccumUndi += parseFloat(undiCell?.dataset?.rawSasaranUndi) || 0;
-                    reaccumKK += parseFloat(kkCell?.dataset?.rawSasaranKk) || 0;
-                });
-                // 🛡️ Update JUMLAH row Column 7 (Sasaran UNDI) — td[5] after colspan=2
-                if (parlJumlahTds[5]) {
-                    parlJumlahTds[5].textContent = Math.round(reaccumUndi).toLocaleString();
-                    parlJumlahTds[5].dataset.rawSasaranUndi = reaccumUndi;
-                }
-                // 🛡️ Update JUMLAH row Column 8 (Sasaran K.K) — CSS class selector (robust vs rowspan)
-                const sasaranKKJumlahUpdated = parlJumlah.querySelector('.sasaran-kk-pdm');
-                if (sasaranKKJumlahUpdated) {
-                    // Use raw reaccumKK (high-precision float sum) for display, single Math.round()
-                    const totalKkDisplay = Math.round(reaccumKK);
-                    sasaranKKJumlahUpdated.textContent = totalKkDisplay.toLocaleString();
-                    sasaranKKJumlahUpdated.dataset.rawSasaranKk = reaccumKK;
-                }
-        }
-
+        // ════════════════════════════════════════════════════
+        // [REMOVED] syncPdmJumlahToParlimen() — DECOUPLED ARCHITECTURE
+        // Setiap table (Parlimen & PDM) kini recalculate dan
+        // JUMLAH footer masing-masing secara INDEPENDEN.
+        // Tiada lagi DOM mirroring Parlimen ← PDM JUMLAH.
+        // ════════════════════════════════════════════════════
 
         
         // ═══ END OF INNER TRY (RENDER BLOCK) ═══
