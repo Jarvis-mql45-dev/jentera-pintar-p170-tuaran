@@ -988,13 +988,6 @@ async function renderDashboard() {
                             sumAnggaran += parseInt((cells[anggaranIdx]?.textContent || '0').replace(/,/g, '')) || 0;
                             sumKKTerkini += parseInt((cells[kkTerkiniIdx]?.textContent || '0').replace(/,/g, '')) || 0;
                         });
-                        // SUM Col 5 & Col 6 from Parlimen table's own rows (not DUN tables)
-                        document.querySelectorAll('#parlimenMirrorBody .editable-pru-pdm').forEach(inp => {
-                            sumCol5 += parseInt(inp.value) || 0;
-                        });
-                        document.querySelectorAll('#parlimenMirrorBody .editable-prn-pdm').forEach(inp => {
-                            sumCol6 += parseInt(inp.value) || 0;
-                        });
                         // HORIZONTAL FOOTER: JUMLAH_V7 = Math.round(JUMLAH_V4 * multiplier/100), JUMLAH_V8 = Math.round(JUMLAH_V7 / kkRatio)
                         const multiplier = parseFloat(document.getElementById('inputSasaranUndiMultiplier')?.value) || 100;
                         const kkRatio = parseFloat(document.getElementById('inputKKRatio')?.value) || 13;
@@ -1003,8 +996,6 @@ async function renderDashboard() {
                         // JUMLAH row: [0]=colspan2, [1]=Berdaftar, [2]=Anggaran, [3]=PRU, [4]=PRN, [5]=SasaranUndi, [6]=SasaranKK, [7]=KKTerkini
                         if (parlJumlahTds[1]) parlJumlahTds[1].textContent = sumBerdaftar.toLocaleString();
                         if (parlJumlahTds[2]) parlJumlahTds[2].textContent = sumAnggaran.toLocaleString();
-                        if (parlJumlahTds[3]) parlJumlahTds[3].textContent = sumCol5.toLocaleString();
-                        if (parlJumlahTds[4]) parlJumlahTds[4].textContent = sumCol6.toLocaleString();
                         if (parlJumlahTds[5]) parlJumlahTds[5].textContent = sumSasaranUndi.toLocaleString();
                         const sasaranKKJumlah = parlJumlah.querySelector('.sasaran-kk-pdm');
                         if (sasaranKKJumlah) sasaranKKJumlah.textContent = sumSasaranKK.toLocaleString();
@@ -1371,8 +1362,8 @@ function renderPdmTable(dunKod, dunNama, pdmData) {
         <td colspan="2" class="border border-gray-300 px-2 py-1 font-bold text-gray-800">JUMLAH</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.berdaftar.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle total-anggaran-pdm">${colSums.turnout.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle"></td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle"></td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle">0</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle">0</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle total-sasaran-undi-pdm">${colSums.sasaran_undi.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle total-sasaran-kk-pdm">${colSums.kk.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.kk_terkini.toLocaleString()}</td>
@@ -1522,8 +1513,8 @@ function renderParlimenMirrorTable(pdmResults, dunCodes, dunNames) {
         <td colspan="2" class="border border-gray-300 px-2 py-1 font-bold text-gray-800">JUMLAH</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.berdaftar.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.turnout.toLocaleString()}</td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle"></td>
-        <td class="border border-gray-300 px-1 py-1 text-center align-middle"></td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle">0</td>
+        <td class="border border-gray-300 px-1 py-1 text-center align-middle">0</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-undi-pdm">${colSums.sasaran_undi.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle sasaran-kk-pdm">${colSums.kk.toLocaleString()}</td>
         <td class="border border-gray-300 px-1 py-1 text-center align-middle">${colSums.kk_terkini.toLocaleString()}</td>
