@@ -8,6 +8,7 @@ Menyokong DUA mod:
 Semua kod aplikasi TIDAK perlu diubah — antara muka cursor dikekalkan.
 """
 import os
+import sys
 from datetime import datetime
 from backend.config import settings
 from typing import Optional
@@ -121,32 +122,139 @@ _pool_lock = threading.Lock()
 POOL_MIN = 2
 POOL_MAX = 10
 
-def _transform_dsn(dsn):
-    """Apply all DSN transformations (dialect fix, pooler host, port, SSL)."""
+# Domain shared pooler Supabase — username WAJIB berbentuk <role>.<project_ref>
+SUPABASE_SHARED_POOLER_DOMAIN = ".pooler.supabase.com"
+
+
+def _env_value(name: str, default: str = "") -> str:
+    """Baca environment variable dan buang whitespace. TIADA nilai sensitif di-hardcode."""
+    return (os.environ.get(name) or default).strip()
+
+
+def _safe_port(parts) -> Optional[int]:
+    """Ambil port dari URL dengan selamat (None jika tiada / tidak sah)."""
+    try:
+        return parts.port
+    except ValueError:
+        return None
+
+
+def _extract_project_ref(host: str, username: str) -> str:
+    """
+    Kesan Supabase project ref secara DINAMIK daripada DSN:
+      1. username pooler → postgres.<project_ref>  /  <role>.<project_ref>
+      2. host direct     → db.<project_ref>.supabase.co
+    Pulangkan "" jika tidak dapat dikesan (jangan mereka-reka nilai).
+    """
     import re
+    match = re.match(r"^[^.@/]+\.([a-z0-9]{15,})$", (username or "").strip())
+    if match:
+        return match.group(1)
+    match = re.match(r"^db\.([a-z0-9]{15,})\.supabase\.co$", (host or "").strip())
+    if match:
+        return match.group(1)
+    return ""
+
+
+def describe_database_target(dsn: Optional[str] = None) -> str:
+    """
+    Ringkasan sasaran pangkalan data UNTUK LOG SAHAJA —
+    kata laluan TIDAK dipaparkan.
+    """
+    from urllib.parse import urlsplit
+    raw = dsn if dsn is not None else settings.DATABASE_URL
+    if not raw:
+        return "SQLite tempatan (DATABASE_URL tidak diset)"
+    try:
+        parts = urlsplit(raw)
+        return (
+            f"{parts.hostname or '?'}:{_safe_port(parts) or 5432}"
+            f"{parts.path or '/postgres'} (user={parts.username or '?'})"
+        )
+    except Exception:
+        return "(DSN tidak dapat dihurai)"
+
+
+def _transform_dsn(dsn):
+    """
+    Normalisasi DATABASE_URL secara DINAMIK (dialect fix, pooler username, SSL).
+
+    🛡️ POKA-YOKE: TIADA project ref atau host pooler di-hardcode di sini.
+    Semua nilai diambil daripada DATABASE_URL sendiri (atau env override
+    eksplisit), supaya pertukaran projek Supabase / cluster pooler tidak lagi
+    memerlukan perubahan kod.
+
+    Transformasi yang dilakukan:
+      1. postgres://      → postgresql://  (keperluan psycopg2)
+      2. JENTERA_DB_HOST / JENTERA_DB_PORT (pilihan) → override host/port
+      3. Shared pooler Supabase → pastikan username berbentuk <role>.<project_ref>
+         (Supavisor WAJIB format ini, jika tidak: ralat
+          'FATAL: (ENOTFOUND) tenant/user ... not found')
+      4. Production        → tambah sslmode=require jika belum ada
+    """
+    from urllib.parse import urlsplit, urlunsplit
+
     if not dsn or not dsn.strip():
         raise ValueError("DATABASE_URL tidak diset atau kosong — sambungan PostgreSQL tidak dapat dibuat")
+
     # 1. Dialect fix: psycopg2 hanya terima postgresql://, bukan postgres://
     if dsn.startswith("postgres://"):
         dsn = "postgresql://" + dsn[len("postgres://"):]
-    # 2. Force guna IPv4 Pooler Host
-    PROJECT_REF = "hgweacgibbnynjviocje"
-    if f"db.{PROJECT_REF}.supabase.co" in dsn:
-        dsn = dsn.replace(
-            f"db.{PROJECT_REF}.supabase.co",
-            "aws-0-ap-southeast-1.pooler.supabase.com"
+
+    parts = urlsplit(dsn)
+    username = parts.username or ""
+    password = parts.password or ""
+    host = parts.hostname or ""
+    port = _safe_port(parts)
+    path = parts.path or "/postgres"
+    query = parts.query
+
+    # 2. Override eksplisit (pilihan) — membolehkan pindah host tanpa ubah kod
+    host_override = _env_value("JENTERA_DB_HOST")
+    port_override = _env_value("JENTERA_DB_PORT")
+    if host_override and host_override != host:
+        print(f"ℹ️ DSN override: host '{host}' → '{host_override}'")
+        host = host_override
+    if port_override.isdigit():
+        port = int(port_override)
+
+    # 3. Nota IPv4: sambungan DIRECT Supabase (db.<ref>.supabase.co) selalunya IPv6-only
+    #    pada Free tier → timeout pada rangkaian IPv4. Cadangkan host pooler (tanpa ubah DSN).
+    if not host_override and not host.endswith(SUPABASE_SHARED_POOLER_DOMAIN) and _extract_project_ref(host, ""):
+        print(
+            "⚠️ DSN: host ialah sambungan DIRECT Supabase (db.<ref>.supabase.co). Pada Free tier ia "
+            "selalunya IPv6-only dan akan timeout pada rangkaian IPv4. Disyorkan guna host "
+            "'Session/Transaction pooler' dari Supabase → Connect.",
+            file=sys.stderr
         )
-    # 2b. Pooler memerlukan username postgres.<project_ref>
-    if "aws-0-ap-southeast-1.pooler.supabase.com" in dsn:
-        if "://postgres:" in dsn and f"://postgres.{PROJECT_REF}:" not in dsn:
-            dsn = dsn.replace("://postgres:", f"://postgres.{PROJECT_REF}:")
-    # 3. Force port 6543 (Transaction Pooler)
-    dsn = re.sub(r':5432([/?]|$)', r':6543\1', dsn)
-    # 4. SSL in production
-    if settings.is_production and 'sslmode' not in dsn:
-        separator = '&' if '?' in dsn else '?'
-        dsn = f"{dsn}{separator}sslmode=require"
-    return dsn
+
+    # 3b. Shared pooler Supabase: username WAJIB <role>.<project_ref>
+    if host.endswith(SUPABASE_SHARED_POOLER_DOMAIN):
+        project_ref = _env_value("JENTERA_SUPABASE_REF") or _extract_project_ref(host, username)
+        if "." not in username:
+            if project_ref:
+                username = f"{username or 'postgres'}.{project_ref}"
+                print(f"ℹ️ DSN: username pooler dilengkapkan secara dinamik (ref={project_ref})")
+            else:
+                print(
+                    "⚠️ DSN: host ialah shared pooler Supabase tetapi username tiada "
+                    "'<role>.<project_ref>' dan ref tidak dapat dikesan. Ini akan menyebabkan "
+                    "ralat 'FATAL: (ENOTFOUND) tenant/user ... not found'. Salin semula "
+                    "connection string penuh dari Supabase → Connect (Transaction/Session pooler), "
+                    "atau set JENTERA_SUPABASE_REF.",
+                    file=sys.stderr
+                )
+
+    # 4. SSL dalam production
+    if settings.is_production and "sslmode" not in query:
+        query = f"{query}&sslmode=require" if query else "sslmode=require"
+
+    # Bina semula DSN — kata laluan dikekalkan seperti asal (tidak diubah)
+    auth = f"{username}:{password}" if password else username
+    netloc = f"{auth}@{host}" if host else auth
+    if port:
+        netloc = f"{netloc}:{port}"
+    return urlunsplit(("postgresql", netloc, path, query, ""))
 
 def _get_pool():
     """Get or create the singleton ThreadedConnectionPool."""
@@ -159,9 +267,21 @@ def _get_pool():
                     dsn = _transform_dsn(settings.DATABASE_URL)
                     _pool = ThreadedConnectionPool(POOL_MIN, POOL_MAX, dsn)
                     print(f"✅ PostgreSQL ThreadedConnectionPool created (min={POOL_MIN}, max={POOL_MAX})")
+                    print(f"   🎯 Sasaran DB: {describe_database_target(dsn)}")
                 except Exception as e:
-                    import sys
-                    print(f"❌ Gagal buat connection pool: {e}", file=sys.stderr)
+                    print(
+                        f"❌ Gagal buat connection pool | sasaran: "
+                        f"{describe_database_target(settings.DATABASE_URL)} | {e}",
+                        file=sys.stderr
+                    )
+                    if "ENOTFOUND" in str(e) or "tenant/user" in str(e):
+                        print(
+                            "   💡 Punca lazim: host cluster pooler SALAH (contoh aws-0 vs aws-1) "
+                            "atau projek Supabase sudah dipadam/dipause.\n"
+                            "      Salin SEMULA connection string penuh dari Supabase → Connect → "
+                            "Transaction/Session pooler. Jangan reka host sendiri.",
+                            file=sys.stderr
+                        )
                     raise
     return _pool
 

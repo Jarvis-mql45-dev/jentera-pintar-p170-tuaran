@@ -255,3 +255,94 @@ Untuk sebarang isu atau pertanyaan:
 ---
 
 *Panduan ini untuk kegunaan deployment versi trial. Pastikan semua langkah keselamatan dipatuhi.*
+
+---
+
+# 🚀 RUNBOOK DEPLOYMENT VERCEL + SUPABASE (Kemas kini 2026-09-22)
+
+> ⚠️ Bahagian di atas adalah panduan **lama** (build/obfuscation/IIS/Nginx/N05 Matunggong).
+> Bahagian ini adalah prosedur **SEBENAR** untuk production
+> **https://jentera-pintar-p170-tuaran.vercel.app** (Vercel Static + Python serverless + Supabase PostgreSQL).
+> Nota: kod yang di-deploy = **working tree lokal** (Vercel CLI), bukan hanya apa yang di-commit.
+
+## 1. Environment Variables di Vercel (Production)
+
+| Nama | Nilai / Nota |
+|---|---|
+| `DATABASE_URL` | Connection string Supabase. **Salin dari Supabase → Connect → `Transaction pooler`.** Format: `postgresql://postgres.<PROJECT_REF>:<PASSWORD>@<POOLER_HOST>:6543/postgres?sslmode=require`. Projek ini disahkan pada `aws-0-ap-southeast-1.pooler.supabase.com:6543` (2026-09-22). |
+| `JENTERA_PRODUCTION` | `true` |
+| `JENTERA_SECRET_KEY` | kunci JWT rahsia (jangan kongsi) |
+| `JENTERA_TOKEN_EXPIRE_HOURS` | `24` |
+| `JENTERA_ALLOWED_ORIGINS` | `https://jentera-pintar-p170-tuaran.vercel.app,http://localhost:3000` |
+| `NEXT_PUBLIC_SUPABASE_URL` *(pilihan)* | `https://<PROJECT_REF>.supabase.co` — belum digunakan oleh kod (vanilla JS + FastAPI); simpan untuk rujukan. |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` *(pilihan)* | Kunci publishable/anon — selamat didedahkan. RLS (`backend/enable_rls.sql`) menghalang bacaan jadual melalui kunci ini. |
+
+⚠️ **Jangan commit `.env` / `.env.local`** (kedua-duanya dalam `.gitignore`).
+`NEXT_PUBLIC_*` **BUKAN** kredential DB — sambungan backend kekal guna `DATABASE_URL`.
+
+## 2. Sahkan sambungan DB SEBELUM deploy (WAJIB)
+
+```bash
+python backend/check_db.py             # uji sambungan + bilangan baris setiap jadual
+python backend/check_db.py --selftest  # ujian offline parsing DSN (tiada rangkaian)
+python backend/check_db.py --init      # hanya untuk DB baharu: bina skema + seed parlimen/dun/pdm
+```
+Output mesti menunjukkan `✅ SAMBUNGAN DB BERJAYA` sebelum teruskan.
+
+## 3. Deploy ke production
+
+```bash
+npx vercel login          # sekali sahaja pada mesin baharu (interaktif)
+npx vercel --prod         # deploy working tree lokal ke production
+```
+Alternatif tanpa login interaktif (token, boleh revoke selepas siap):
+```powershell
+$env:VERCEL_TOKEN = "<token-dari-vercel.com/account/tokens>"
+npx vercel --prod --token $env:VERCEL_TOKEN --yes
+Remove-Item Env:\VERCEL_TOKEN   # bersihkan selepas deploy
+```
+
+## 4. Kemas kini env var tanpa dashboard
+
+```bash
+npx vercel env ls production        # senarai NAMA sahaja (nilai tidak dipaparkan)
+npx vercel env rm DATABASE_URL production
+"postgresql://postgres.<REF>:<PWD>@<HOST>:6543/postgres?sslmode=require" | npx vercel env add DATABASE_URL production
+npx vercel --prod                   # env baru HANYA terpakai pada deployment BAHARU
+```
+
+## 5. Pengesahan selepas deploy (PowerShell, tanpa browser)
+
+```powershell
+$B = 'https://jentera-pintar-p170-tuaran.vercel.app'
+$tok = (curl.exe -s -X POST "$B/api/login" -H "Content-Type: application/json" `
+        -d '{\"username\":\"admin\",\"kata_laluan\":\"admin123\"}' | ConvertFrom-Json).access_token
+foreach ($ep in @('/api/dashboard','/api/pdm','/api/approval-queue/list?page=1&per_page=1')) {
+    curl.exe -sS -o NUL -w "$ep -> %{http_code} | %{size_download} bait | %{time_total}s`n" `
+      -H "Authorization: Bearer $tok" "$B$ep"
+}
+```
+**Jangkaan: SEMUA 200.** Rujukan saiz payload sah (2026-09-22): `/api/dashboard` ≈ 8,228 bait ·
+`/api/pdm` ≈ 2,779 bait · `/api/approval-queue/list?per_page=1` ≈ 59 bait.
+
+## 6. Ralat lazim & punca (dari kes sebenar 2026-09-22)
+
+| Gejala | Punca | Tindakan |
+|---|---|---|
+| `500` + `FATAL: (ENOTFOUND) tenant/user postgres.<ref> not found` | Projek Supabase **dipause / dipadam**, ATAU host cluster pooler salah (`aws-0` BUKAN default selamat — projek boleh dapat `aws-1`/`aws-2`) | Unpause projek (Dashboard → Restore). Salin **semula** connection string dari Connect → pooler. Jika ragu, uji beberapa host cluster. |
+| `500` + `{"error":"Internal Server Error","details":"...","type":"..."}` | Exception tidak dibalut dalam endpoint (`/api/pdm`, `/api/approval-queue/*`) → ditangkap `@app.exception_handler` di `backend/main.py` | Baca `details` (bukan `detail`). |
+| `/api/dashboard` `500` + `{"detail":"OperationalError: ..."}` | Exception dalam endpoint dashboard | Mesej penuh ada dalam `detail`. |
+| Login `petugas` `401` tetapi `admin/admin123` berjaya | DB mati + **STRICT FALLBACK** di `backend/secure_auth.py` (fake-login) | Betulkan DB. Ini juga yang menyebabkan UI "nampak berjaya log masuk" walaupun semua data gagal dimuat. |
+| Warning `cdn.tailwindcss.com should not be used in production` | Play CDN memang `console.warn()` tanpa syarat — `suppressWarnings: true` **tidak** berkesan | Bukan ralat. Penyelesaian sebenar: bina CSS Tailwind (CLI) dan buang CDN. |
+| `UnicodeEncodeError: 'charmap' codec...` semasa `python main.py` | Konsol Windows cp1252 tidak boleh encode emoji yang dicetak ke **stdout** | `python -X utf8 -m uvicorn backend.main:app --port 8000` atau `chcp 65001`. Di Vercel (Linux/UTF-8) tiada masalah. |
+
+## 7. Prosedur jika projek Supabase perlu dibina semula
+
+1. Cipta projek Supabase baharu (region `ap-southeast-1`).
+2. Salin connection string `Connect → Transaction pooler` → kemas kini `.env` **dan** env Vercel `DATABASE_URL`.
+3. `python backend/check_db.py --init` → bina skema + seed parlimen (P170) + 4 DUN (N12–N15).
+4. Buka app sekali (atau hit `/api/login`) → startup event seed pengguna lalai
+   (developer/admin/petugas/ketuafamily/pemerhati).
+5. Import semula data pengundi melalui menu **Import Excel** (`/api/pengundi/import-excel`)
+   dari `DUN N12 SULAMAN/SENARAI PENGUNDI SULAMAN.xlsx` dan seumpamanya.
+6. **JANGAN** jalankan `backend/seed_data.py` ke production — ia memasukkan 10 pengundi **DUMMY**.

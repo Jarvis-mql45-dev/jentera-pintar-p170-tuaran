@@ -95,9 +95,22 @@ Single-Page Application (PWA) untuk pengurusan data pengundi, analisis demografi
    ```
    Edit `.env.local` with your Supabase credentials:
    ```
-   DATABASE_URL=postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require
+   DATABASE_URL=postgresql://postgres.[PROJECT_REF]:[PASSWORD]@[POOLER_HOST_FROM_CONNECT_DIALOG]:6543/postgres?sslmode=require
    JENTERA_SECRET_KEY=<your-secret-key>
    JENTERA_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8000
+   ```
+   ⚠️ **PENTING — salin SEMULA connection string dari Supabase Dashboard → Connect →**
+   **`Session pooler` / `Transaction pooler`. JANGAN reka host sendiri.**
+   Nombor cluster pooler (`aws-0`, `aws-1`, `aws-2`, …) **berbeza mengikut projek**, jadi
+   andaian `aws-0` akan gagal dengan ralat
+   `FATAL: (ENOTFOUND) tenant/user postgres.[PROJECT_REF] not found`
+   walaupun password betul. Username pooler WAJIB berbentuk `postgres.[PROJECT_REF]`.
+
+   Semak sambungan sebelum deploy:
+   ```bash
+   python backend/check_db.py            # uji sambungan + papar bilangan baris setiap jadual
+   python backend/check_db.py --init     # bina skema + seed asas (parlimen/dun/pdm) jika DB baharu
+   python backend/check_db.py --selftest # ujian offline parsing DSN (tiada rangkaian)
    ```
 
 4. **Run Backend**
