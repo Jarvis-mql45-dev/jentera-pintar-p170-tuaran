@@ -51,6 +51,63 @@ function renderGroupedPdmOptions(pdmList, selectedValue, selectedDun) {
 // API HELPER — API_BASE diisytiharkan dalam index.html inline script (global)
 // ============================================================
 
+// ============================================================
+// 🛡️ FASA 2 — PENGENDALIAN RALAT API (POKA-YOKE)
+// Backend memulangkan TIGA bentuk ralat yang berbeza:
+//   1. {"detail": "..."}                        → HTTPException (cth /api/dashboard)
+//   2. {"error":.., "details":.., "type":..}    → @app.exception_handler (backend/main.py)
+//                                                  (cth /api/pdm, /api/approval-queue/*)
+//   3. teks / HTML mentah                       → serverless crash (Vercel)
+// Sebelum ini kod hanya baca `data.detail` → ralat sebenar (contoh:
+// "ENOTFOUND tenant/user ... not found") disamarkan sebagai "Ralat berlaku".
+// ====== FASA2 HELPERS — START ======
+function extractApiError(data, status = 0) {
+    // 1. Respons bukan-JSON (serverless crash) → data ialah teks mentah
+    if (typeof data === 'string') {
+        const teks = data.trim();
+        if (!teks) return `Ralat pelayan (HTTP ${status || '?'}) — respons kosong`;
+        return `Ralat pelayan (HTTP ${status || '?'}): ${teks.slice(0, 300)}`;
+    }
+    if (data && typeof data === 'object') {
+        // Utamakan: detail → details → error → message → msg
+        for (const nilai of [data.detail, data.details, data.error, data.message, data.msg]) {
+            if (typeof nilai === 'string' && nilai.trim()) return nilai.trim();
+            // FastAPI validation error: detail = [{loc, msg, type}, ...]
+            if (Array.isArray(nilai) && nilai.length) {
+                const pesan = nilai
+                    .map(i => (i && (i.msg || i.message)) ? String(i.msg || i.message) : JSON.stringify(i))
+                    .join('; ');
+                if (pesan.trim()) return pesan;
+            }
+        }
+    }
+    if (status >= 500) return `Ralat pelayan (HTTP ${status}) — tiada butiran dari backend`;
+    return `Ralat (HTTP ${status || '?'})`;
+}
+
+async function readApiBody(res) {
+    // 🛡️ res.json() akan THROW jika badan bukan JSON (cth "A server error has occurred"),
+    // lalu mesej ralat sebenar hilang sepenuhnya. Baca teks dahulu, cuba parse JSON.
+    try {
+        const teks = await res.text();
+        if (!teks) return null;
+        try { return JSON.parse(teks); } catch (e) { return teks; }
+    } catch (e) {
+        return null;
+    }
+}
+
+function escapeHtml(teks) {
+    // 🛡️ POKA-YOKE: mesej ralat dari backend mesti di-escape sebelum masuk innerHTML
+    return String(teks == null ? '' : teks)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+// ====== FASA2 HELPERS — END ======
+
 async function api(path, options = {}) {
     // 🛡️ POKA-YOKE: Early return jika tiada token — elak 403/401 yang tidak perlu
     if (!state.token) {
@@ -60,10 +117,12 @@ async function api(path, options = {}) {
     headers['Authorization'] = `Bearer ${state.token}`;
     try {
         const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-        const data = await res.json();
+        const data = await readApiBody(res);   // 🛡️ FASA 2: tahan respons bukan-JSON
         // POKA-YOKE: Auto-redirect login on 401, 403 or any auth error
         if (!res.ok) {
-            const errMsg = data.detail || 'Ralat berlaku';
+            // 🛡️ FASA 2: baca detail || details || error (bukan `detail` sahaja)
+            const errMsg = extractApiError(data, res.status);
+            console.error(`[API ${res.status}] ${path}`, data);
             // Check for auth failures: 401, 403, or message contains auth keywords
             if (res.status === 401 || res.status === 403 || 
                 errMsg.includes('Not authenticated') || 
@@ -79,7 +138,10 @@ async function api(path, options = {}) {
                 renderLoginPage();
                 return null; // NEVER throw - graceful redirect
             }
-            throw new Error(errMsg);
+            const ralat = new Error(errMsg);
+            ralat.status = res.status;   // 🛡️ FASA 2: pemanggil boleh bezakan 4xx/5xx
+            ralat.path = path;
+            throw ralat;
         }
         return data;
     } catch (err) {
@@ -123,10 +185,10 @@ async function handleLogin(username, password) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, kata_laluan: password })
         });
-        const data = await res.json();
-        
+        const data = await readApiBody(res);   // 🛡️ FASA 2: tahan respons bukan-JSON
+
         if (!res.ok) {
-            throw new Error(data.detail || 'Ralat berlaku');
+            throw new Error(extractApiError(data, res.status));   // 🛡️ FASA 2: detail || details || error
         }
         
         state.token = data.access_token;
@@ -161,6 +223,8 @@ function handleLogout() {
     state.token = null;
     state.user = null;
     state.currentPage = 'dashboard';
+    // 🛡️ FASA 2: matikan poller badge supaya tiada permintaan selepas log keluar
+    if (typeof hentikanApprovalPolling === 'function') hentikanApprovalPolling('log keluar');
     // 🛡️ Use location.href instead of location.reload() to force a NEW navigation request
     window.location.href = '/';
 }
@@ -931,8 +995,24 @@ async function renderDashboard() {
         // (Parlimen summary + ALL DUN PDM data) — menggantikan 5 panggilan berasingan.
         const DUN_PDM_CODES = ['N12', 'N13', 'N14', 'N15'];
         const DUN_PDM_NAMES = { 'N12': 'DUN N12 SULAMAN', 'N13': 'DUN N13 PANTAI DALIT', 'N14': 'DUN N14 TAMPARULI', 'N15': 'DUN N15 KIULU' };
-        const data = await api(`/api/dashboard${selectedDun ? `?dun=${selectedDun}` : ''}`).catch(() => ({}));
+        // 🛡️ FASA 2: JANGAN telan ralat — `.catch(() => ({}))` yang lama menyembunyikan 500
+        // sehingga dashboard kelihatan KOSONG tanpa sebarang mesej kepada pengguna.
+        let ralatDashboard = null;
+        const data = await api(`/api/dashboard${selectedDun ? `?dun=${selectedDun}` : ''}`)
+            .catch((e) => { ralatDashboard = e; return null; });
         console.log("[Dashboard Single Payload]", data);
+        if (data == null) {
+            state.dashboardData = null;
+            // null TANPA ralat = sesi tamat (api() sudah alih ke login) → jangan papar apa-apa
+            if (ralatDashboard) {
+                content.innerHTML = `<div class="card text-left">
+                    <p class="font-semibold text-red-700">Ralat memuatkan papan pemuka</p>
+                    <p class="text-sm text-gray-700 break-words mt-1">${escapeHtml(ralatDashboard.message)}</p>
+                    <button onclick="renderDashboard()" class="btn btn-primary mt-3">Cuba Lagi</button>
+                </div>`;
+            }
+            return;
+        }
         state.dashboardData = data;
         
         // 🚀 Extract DUN PDM data from the consolidated payload
@@ -1283,10 +1363,10 @@ async function renderDashboard() {
         errorDisplay.style.cssText = "position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fff5f5; color: #9b2c2c; padding: 30px; font-family: monospace; z-index: 9999; overflow: auto; border: 5px solid #e53e3e;";
         errorDisplay.innerHTML = `
             <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 15px;">🚨 Frontend Render Error (App is Blocked)</h1>
-            <p><strong>Error Message:</strong> ${renderError.message}</p>
-            <p><strong>Occurred in:</strong> ${renderError.stack ? renderError.stack.split('\\n')[1] : 'Unknown line'}</p>
+            <p><strong>Error Message:</strong> ${escapeHtml(renderError.message)}</p>
+            <p><strong>Occurred in:</strong> ${escapeHtml(renderError.stack ? renderError.stack.split('\\n')[1] : 'Unknown line')}</p>
             <hr style="border-color: #feb2b2; margin: 20px 0;">
-            <pre style="background: #fff; padding: 15px; border-radius: 5px; border: 1px solid #fed7d7; white-space: pre-wrap; word-break: break-all;">${renderError.stack}</pre>
+            <pre style="background: #fff; padding: 15px; border-radius: 5px; border: 1px solid #fed7d7; white-space: pre-wrap; word-break: break-all;">${escapeHtml(renderError.stack)}</pre>
             <p style="margin-top: 20px; font-size: 14px; color: #4a5568;">💡 Jarvis: Check if any element ID (like 'inputElectionCol1', 'inputKKRatio', or the table body container) is missing from index.html or if you tried to map/loop over an undefined array.</p>
         `;
         document.body.appendChild(errorDisplay);
@@ -3105,15 +3185,90 @@ async function rejectPengundi(id) {
     } catch (err) { showToast(err.message, 'error'); }
 }
 
-async function updateApprovalBadge() {
+// ============================================================
+// 🛡️ FASA 2 — POLLER BADGE KELULUSAN (backoff eksponen + circuit breaker)
+// Masalah dahulu: setInterval 30s terus memanggil /api/approval-queue/list
+// walaupun DB/API mati → puluhan respons 500 dalam konsol + beban pelayan
+// tanpa had (lihat insiden pooler 2026-09-22).
+// Kini: self-scheduling setTimeout + backoff, BERHENTI selepas had gagal,
+// dan hidup semula apabila tab aktif semula / talian pulih / selepas log masuk.
+// ====== FASA2 POLLER — START ======
+const APPROVAL_POLL = {
+    timer: null,
+    asas: 30000,          // 30 saat (selaras dengan tingkah laku lama)
+    maks: 600000,         // siling 10 minit
+    kegagalan: 0,
+    maxKegagalan: 5,      // 5 kegagalan berturut-turut → berhenti polling
+    berhenti: false,
+};
+
+function kiraDelayBackoff(kegagalan, asas = APPROVAL_POLL.asas, maks = APPROVAL_POLL.maks) {
+    // 0 gagal → asas · 1 → 2× · 2 → 4× · … dihadkan pada `maks`
+    return Math.min(asas * Math.pow(2, Math.max(0, kegagalan)), maks);
+}
+
+function hentikanApprovalPolling(sebab = '') {
+    APPROVAL_POLL.berhenti = true;
+    clearTimeout(APPROVAL_POLL.timer);
+    APPROVAL_POLL.timer = null;
+    console.warn(`⏹️ Approval polling dihentikan${sebab ? ' — ' + sebab : ''}. Akan hidup semula apabila tab aktif semula / talian pulih / selepas log masuk.`);
+}
+
+function mulaApprovalPolling(segera = false) {
+    APPROVAL_POLL.berhenti = false;
+    APPROVAL_POLL.kegagalan = 0;
+    clearTimeout(APPROVAL_POLL.timer);
+    APPROVAL_POLL.timer = setTimeout(runApprovalPoll, segera ? 0 : APPROVAL_POLL.asas);
+}
+
+async function runApprovalPoll() {
+    if (APPROVAL_POLL.berhenti) return;
+    // Hanya Admin perlu badge ini — dan jangan poll jika sudah log keluar
+    if (!state.token || !state.user?.peranan?.startsWith('Admin')) return;
+    // Jangan bebankan rangkaian: tab di latar / luar talian → tunggu kitaran biasa
+    if (document.hidden || navigator.onLine === false) {
+        clearTimeout(APPROVAL_POLL.timer);
+        APPROVAL_POLL.timer = setTimeout(runApprovalPoll, APPROVAL_POLL.asas);
+        return;
+    }
     try {
-const result = await api('/api/approval-queue/list?page=1&per_page=1');
+        const result = await updateApprovalBadge({ rethrow: true });
+        if (result === null) { hentikanApprovalPolling('sesi tamat / tiada kebenaran'); return; }
+        APPROVAL_POLL.kegagalan = 0;
+        clearTimeout(APPROVAL_POLL.timer);
+        APPROVAL_POLL.timer = setTimeout(runApprovalPoll, APPROVAL_POLL.asas);
+    } catch (e) {
+        APPROVAL_POLL.kegagalan += 1;
+        if (APPROVAL_POLL.kegagalan >= APPROVAL_POLL.maxKegagalan) {
+            hentikanApprovalPolling(`${APPROVAL_POLL.kegagalan} kegagalan berturut-turut (${e.message})`);
+            return;
+        }
+        const delay = kiraDelayBackoff(APPROVAL_POLL.kegagalan);
+        console.warn(`⏳ Badge kelulusan gagal (${APPROVAL_POLL.kegagalan}/${APPROVAL_POLL.maxKegagalan}) — cuba lagi dalam ${Math.round(delay / 1000)}s: ${e.message}`);
+        clearTimeout(APPROVAL_POLL.timer);
+        APPROVAL_POLL.timer = setTimeout(runApprovalPoll, delay);
+    }
+}
+// ====== FASA2 POLLER — END ======
+
+async function updateApprovalBadge(opsi = {}) {
+    // Pulangkan: hasil API (berjaya) · null (sesi tamat — api() sudah alih ke login)
+    // Ralat lain: dilempar semula HANYA jika opsi.rethrow (untuk backoff poller),
+    // jika tidak ia dilog sahaja supaya pemanggil manual (approve/reject) tidak crash.
+    try {
+        const result = await api('/api/approval-queue/list?page=1&per_page=1');
+        if (result == null) return null;
         const badge = document.getElementById('approvalBadge');
         if (badge) {
             if (result.total > 0) { badge.textContent = result.total; badge.classList.remove('hidden'); }
             else badge.classList.add('hidden');
         }
-    } catch (e) {}
+        return result;
+    } catch (e) {
+        console.warn('⚠️ Gagal kemas kini badge kelulusan:', e.message);
+        if (opsi.rethrow) throw e;
+        return undefined;
+    }
 }
 
 // ========= AUDIT LOGS =========
@@ -3375,8 +3530,8 @@ async function submitImport() {
         const formData = new FormData();
         formData.append('file', importFile);
         const res = await fetch(`${API_BASE}/api/pengundi/import-excel`, { method:'POST', headers:{ 'Authorization':`Bearer ${state.token}` }, body:formData });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Ralat berlaku');
+        const data = await readApiBody(res);   // 🛡️ FASA 2: tahan respons bukan-JSON
+        if (!res.ok) throw new Error(extractApiError(data, res.status));   // 🛡️ FASA 2: detail || details || error
         resultDiv.innerHTML = `<div class="card"><div class="text-center mb-4"><div class="w-16 h-16 ${data.berjaya>0?'bg-green-100':'bg-red-100'} rounded-full flex items-center justify-center mx-auto mb-3"><svg class="w-8 h-8 ${data.berjaya>0?'text-green-600':'text-red-600'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">${data.berjaya>0?'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>':'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'}</svg></div>
         <h3 class="text-lg font-bold ${data.berjaya>0?'text-green-700':'text-red-700'}">${data.berjaya>0?'✅ Import Berjaya!':'❌ Import Gagal'}</h3></div>
         <div class="grid grid-cols-3 gap-4 text-center"><div class="p-3 bg-green-50 rounded-lg"><p class="text-2xl font-bold text-green-700">${data.berjaya}</p><p class="text-xs text-green-600">Berjaya</p></div><div class="p-3 bg-red-50 rounded-lg"><p class="text-2xl font-bold text-red-700">${data.gagal}</p><p class="text-xs text-red-600">Gagal</p></div><div class="p-3 bg-blue-50 rounded-lg"><p class="text-2xl font-bold text-blue-700">${data.jumlah}</p><p class="text-xs text-blue-600">Jumlah</p></div></div>
@@ -4040,7 +4195,8 @@ function renderApp() {
         })()}">${state.user?.peranan}</span>
         <button onclick="handleLogout()" class="btn btn-danger text-sm flex items-center gap-1.5 px-3 py-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg> Log Keluar</button>`;
     navigate(state.currentPage);
-    if (state.user?.peranan?.startsWith('Admin')) updateApprovalBadge();
+    // 🛡️ FASA 2: mula/segarkan poller badge (backoff) untuk Admin — bukan update sekali sahaja
+    if (state.user?.peranan?.startsWith('Admin')) mulaApprovalPolling(true);
 }
 
 function toggleSidebar() {
@@ -4077,7 +4233,15 @@ try {
         </div>
     </div>`;
 }
-setInterval(() => { if (state.token && state.user?.peranan?.startsWith('Admin')) updateApprovalBadge(); }, 30000);
+// 🛡️ FASA 2: gantikan setInterval(30s) tanpa had dengan poller backoff + circuit breaker
+mulaApprovalPolling();
+// Hidupkan semula polling yang dihentikan (circuit breaker) apabila tab aktif semula / talian pulih
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && APPROVAL_POLL.berhenti) mulaApprovalPolling(true);
+});
+window.addEventListener('online', () => {
+    if (APPROVAL_POLL.berhenti) mulaApprovalPolling(true);
+});
 document.addEventListener('click', (e) => {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
