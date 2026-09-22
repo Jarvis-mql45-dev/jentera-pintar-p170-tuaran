@@ -1,7 +1,7 @@
 -- ============================================================
 -- JENTERA PINTAR P170 TUARAN - ENABLE ROW LEVEL SECURITY
 -- ============================================================
--- SAFETY: Connecting via direct DB user (postgres.hgweacgibbnynjviocje)
+-- SAFETY: Connecting via direct DB user (postgres.<PROJECT_REF>)
 -- which BYPASSES RLS automatically (PostgreSQL owner rule).
 -- So enabling RLS will NOT break the backend API.
 -- It WILL block unauthenticated Supabase REST API queries (anon key).
@@ -30,7 +30,7 @@ DROP POLICY IF EXISTS "Enable read access for all users" ON "Survey";
 DROP POLICY IF EXISTS "Enable read access for all users" ON "SurveyResponse";
 
 -- 3. IMPORTANT: Do NOT create any public policies here.
---    The backend connects as the database owner (postgres.hgweacgibbnynjviocje),
+--    The backend connects as the database owner (postgres.<PROJECT_REF>),
 --    which automatically bypasses RLS. No policies needed for owner access.
 --    Supabase anon key will be blocked from direct table access.
 
