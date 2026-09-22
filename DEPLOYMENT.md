@@ -346,3 +346,39 @@ foreach ($ep in @('/api/dashboard','/api/pdm','/api/approval-queue/list?page=1&p
 5. Import semula data pengundi melalui menu **Import Excel** (`/api/pengundi/import-excel`)
    dari `DUN N12 SULAMAN/SENARAI PENGUNDI SULAMAN.xlsx` dan seumpamanya.
 6. **JANGAN** jalankan `backend/seed_data.py` ke production — ia memasukkan 10 pengundi **DUMMY**.
+
+---
+
+## 8. Tailwind CSS — build statik (FASA 3)
+
+Play CDN (`cdn.tailwindcss.com`) telah **DIBUANG** — ia untuk pembangunan sahaja (amaran konsol
++ ~407 KB JS + JIT di dalam pelayar). Kini CSS dibina secara statik:
+
+| Fail | Peranan |
+|---|---|
+| `tailwind.config.js` | Konfigurasi: `content` glob (`frontend/index.html` + `frontend/js/**/*.js`) + palet `primary` |
+| `frontend/css/input.css` | **Sumber** (`@tailwind base; components; utilities;`) |
+| `frontend/css/tailwind.css` | **HASIL BUILD — DI-COMMIT ke repo**, dimuatkan oleh `index.html` (22 KB · 4.9 KB gzip) |
+
+```bash
+npm install            # sekali sahaja (devDependencies: tailwindcss 3.4.17 — sama versi seperti CDN dahulu)
+npm run css:build      # bina minified → frontend/css/tailwind.css
+npm run css:watch      # mod pembangun (auto rebuild)
+```
+
+⚠️ **Setiap kali kelas Tailwind diubah** dalam `frontend/index.html` atau `frontend/js/*.js`,
+jalankan `npm run css:build` dan **COMMIT** `frontend/css/tailwind.css` — jika tidak, kelas
+baharu tidak akan wujud di production (Vercel tiada build step Node untuk aset frontend).
+
+⚠️ Naikkan `?v=` pada `<link rel="stylesheet" href="css/tailwind.css?v=1">` untuk paksa
+pelayar/PWA refresh (service worker menggunakan cache-first untuk aset bukan-JS).
+
+⚠️ **POSISI `<link>` itu SENGAJA** diletakkan selepas KEDUA-DUA blok `<style>` dalam `index.html`
+(meniru kedudukan Play CDN yang menyuntik CSS-nya di hujung `<head>`) supaya susunan
+cascade + preflight kekal **sama** seperti sebelum ini. Jangan pindahkannya ke atas tanpa
+ujian A/B visual — susunan preflight boleh mengubah padding input (0px→8px) dan radius.
+
+**Pengesahan (A/B Playwright):** **0.000% perbezaan piksel** pada 7 screenshot (login + dashboard
+@ 375/768/1280 px, termasuk full-page desktop) dan semua computed style sama, dengan amaran
+konsol Tailwind **hilang**; data 88,208 pengundi + 4 DUN kekal dirender.
+

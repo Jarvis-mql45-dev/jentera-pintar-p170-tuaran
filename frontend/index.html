@@ -10,20 +10,11 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
-    <script>
-        tailwind.config = {
-            suppressWarnings: true,
-            theme: {
-                extend: {
-                    colors: {
-                        primary: {'50': '#eff6ff','100': '#dbeafe','200': '#bfdbfe','300': '#93c5fd','400': '#60a5fa','500': '#3b82f6','600': '#2563eb','700': '#1d4ed8','800': '#1e40af','900': '#1e3a8a'}
-                    }
-                }
-            }
-        }
-    </script>
+    <!-- 🛡️ FASA 3: konfigurasi Tailwind dipindahkan ke tailwind.config.js (build statik).
+         Blok `tailwind.config = {...}` di sini dibuang kerana objek global `tailwind`
+         tidak lagi wujud tanpa script Play CDN (akan menyebabkan ReferenceError).
+         Nota: `suppressWarnings: true` dahulu TIDAK berkesan (amaran CDN tidak bersyarat). -->
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; min-height: 100vh; }
@@ -207,6 +198,14 @@
         .hover\:bg-gray-50:hover { background-color: #f9fafb; }
         .hover\:text-red-500:hover { color: #ef4444; }
     </style>
+
+    <!-- 🛡️ FASA 3: Tailwind dibina secara STATIK (npm run css:build) — Play CDN dibuang.
+         ⚠️ POSISI PENTING: <link> ini SENGAJA diletakkan SELEPAS kedua-dua blok <style> di atas
+         (kembar dengan kedudukan Play CDN dahulu, yang menyuntik CSS-nya di HUJUNG <head>)
+         supaya susunan cascade + preflight kekal SAMA seperti sebelum ini — tiada perubahan visual.
+         Fail frontend/css/tailwind.css DI-COMMIT ke repo kerana vercel.json menggunakan
+         @vercel/static + @vercel/python (tiada build step Node untuk aset frontend). -->
+    <link rel="stylesheet" href="css/tailwind.css?v=1">
     <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js" defer></script>
 </head>
 <body>
