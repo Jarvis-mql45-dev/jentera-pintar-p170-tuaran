@@ -1,0 +1,11 @@
+/* ============================================================
+   frontend/css/input.css — SUMBER Tailwind (FASA 3)
+   ------------------------------------------------------------
+   Build:  npm run css:build
+   Output: frontend/css/tailwind.css  (fail yang dimuatkan oleh index.html)
+   JANGAN edit tailwind.css secara manual — ia dijana.
+   ============================================================ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
