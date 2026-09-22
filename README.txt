@@ -242,12 +242,16 @@ Sistem ini menyediakan:
         terpencil yang hanya mengandungi:
           * `login_endpoint()` — satu-satunya fungsi login
           * `hash_kata_laluan()`, `sahkan_kata_laluan()`, `create_access_token()`
-          * `get_pengguna_dari_db()` dengan strict fallback
+          * `get_pengguna_dari_db()` — pulangkan row pengguna ATAU None (tiada rekaan)
       - Endpoint login di `backend/main.py` cuma 3 baris:
         `def login(req): return login_endpoint(req.username, req.kata_laluan)`
-      - Strict fallback: jika database down, HANYA admin/admin123 dibenarkan.
-        Selain itu, semua login ditolak dengan 401.
-      - Fallback statik kemudian dibuang sepenuhnya demi keselamatan.
+      - [KEMAS KINI FASA 4 — 22 Sep 2026] Strict fallback admin/admin123 telah
+        DIBUANG. Jika database tidak dapat dihubungi, login memulangkan HTTP 503
+        "Pangkalan data tidak dapat dihubungi. Sila cuba sebentar lagi." dan TIADA
+        token diterbitkan. (Sebelum ini admin/admin123 boleh log masuk tanpa DB →
+        sesi Admin palsu semasa outage pooler Supabase.)
+      - Ralat 401 kini guna SATU mesej generik yang sama untuk "pengguna tidak
+        wujud" dan "kata laluan salah" → elak user enumeration.
 
    Fail: backend/secure_auth.py, backend/main.py
    Commit: 4189887, 40dec20
@@ -486,7 +490,7 @@ Sistem ini menyediakan:
       - JWT token-based authentication dengan python-jose.
       - Role-based access: Admin, Petugas Padang, Pemerhati.
       - Modul auth terpencil: backend/secure_auth.py.
-      - Strict fallback jika database down (admin sahaja).
+      - DB tidak dapat dihubungi → HTTP 503 (tiada fallback admin palsu — FASA 4).
 
 
    --------------------------------------------------------------------
